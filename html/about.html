@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>About Us - DSVI Data Visualization</title>
+    
+    <!-- CSS styles -->
+    <link rel="stylesheet" href="../css/styles.css">
+    
+    <meta name="description" content="About the DSVI Data Visualization tool and team">
+    
+    <!-- Additional styles for content pages -->
+    <style>
+        html, body {
+            height: auto !important;
+            overflow: auto !important;
+            overflow-x: hidden !important;
+        }
+
+        /* Ensure the content container allows scrolling */
+        .content-container {
+            min-height: 100vh;
+            overflow: visible;
+            padding: 30px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        /* Make sure the footer stays at the bottom */
+        footer {
+            margin-top: 40px;
+            position: relative;
+        }
+        .content-container {
+            padding: 30px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .content-section {
+            margin-bottom: 40px;
+        }
+        
+        .content-section h2 {
+            color: #343a40;
+            border-bottom: 2px solid #6c757d;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .team-members {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            gap: 30px;
+        }
+        
+        .team-member {
+            flex: 0 0 calc(33.333% - 30px);
+            margin-bottom: 30px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        
+        .team-member img {
+            width: 100%;
+            height: 200px;
+            object-fit: scale-down;
+        }
+        
+        .team-member-info {
+            padding: 15px;
+        }
+        
+        .team-member h3 {
+            margin-top: 0;
+            color: #343a40;
+        }
+        
+        .team-member p {
+            color: #6c757d;
+            margin-bottom: 10px;
+        }
+        
+        @media (max-width: 992px) {
+            .team-member {
+                flex: 0 0 calc(50% - 20px);
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .team-member {
+                flex: 0 0 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Top Navigation Bar - Same as main page -->
+    <nav id="navbar">
+        <div class="navbar-inner">
+            <div class="navbar-cluster-left">
+                <div class="navbar-logo navbar-logo-left">
+                    <img src="../assets/sdgai.png" alt="SDG AI" class="logo-image navbar-sdgai-logo">
+                    <img src="../assets/logo.1b5fa4604ab571b03ad2_white.png" alt="" class="logo-image navbar-brand-logo">
+                </div>
+            </div>
+            <div class="navbar-center">
+                <h2 class="tool-title">Development tool Lebanon</h2>
+                <ul class="navbar-menu">
+                    <li><a href="../index.html" class="larger-nav-link">Map</a></li>
+                    <li><a href="about.html" class="larger-nav-link nav-link-current" aria-current="page">About Us</a></li>
+                    <li><a href="more.html" class="larger-nav-link">More Information</a></li>
+                </ul>
+            </div>
+            <div class="navbar-cluster-right">
+                <div class="navbar-logo navbar-logo-right">
+                    <img src="../assets/undp_logo.png" alt="UNDP Logo" class="logo-image">
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main content container -->
+    <div class="content-container">
+        <div class="content-section">
+            <h1>About the DSVI Data Visualization Tool</h1>
+            <p>
+                The Development and Social Vulnerability Index (DSVI) Data Visualization Tool is designed to help researchers, policymakers, and NGOs analyze and understand socioeconomic and vulnerability data across regions. By combining multiple data sources and providing intuitive visualization capabilities, our tool enables users to identify patterns, make data-driven decisions, and better target interventions where they're needed most.
+            </p>
+        </div>
+        
+        <div class="content-section">
+            <h2>Our Mission</h2>
+            <p>
+                Our mission is to democratize access to critical development data, making it easier for stakeholders at all levels to understand complex socioeconomic patterns. By providing user-friendly visualization tools, we aim to bridge the gap between data collection and actionable insights, ultimately contributing to more effective development initiatives and better outcomes for vulnerable populations.
+            </p>
+        </div>
+        
+        <div class="content-section">
+            <h2>Development team and Partners</h2>
+            <div class="team-members">
+                <div class="team-member">
+                    <img src="../assets/Szigeti.jpg" alt="Team Member">
+                    <div class="team-member-info">
+                        <h3>M.Sc. Martin Szigeti</h3>
+                        <p><strong>GIS Specialist</strong></p>
+                        <p>Works for UNDP SDG AI Lab since 2020. Lead developer of DSVI and the DSVI tool.</p>
+                    </div>
+                </div>
+                
+                <div class="team-member">
+                    <img src="../assets/Makhan_Sacko.PNG" alt="Team Member">
+                    <div class="team-member-info">
+                        <h3>M.Sc. Makhan Sacko</h3>
+                        <p><strong>Responsable Exploration Accelerator Lab CO/ML</strong></p>
+                        <p>Lead Advisor from CO Lebanon for the DSVI implementation in Lebanon</p>
+                    </div>
+                </div>
+                
+                <div class="team-member">
+                    <img src="../assets/Ademonkoun_Missinhoun.jpg" alt="Team Member">
+                    <div class="team-member-info">
+                        <h3>Ademonkoun Missinhoun</h3>
+                        <p><strong>UNDP Economics Advisor CO/ML</strong></p>
+                        <p></p>
+                    </div>
+                </div>
+                
+                <div class="team-member">
+                    <img src="../assets/issa_bamba.jpg" alt="Team Member">
+                    <div class="team-member-info">
+                        <h3>Issa Bamba</h3>
+                        <p><strong>UNDP Data Scientist</strong></p>
+                        <p></p>
+                    </div>
+                </div>
+                
+                <div class="team-member">
+                    <img src="../assets/dikmener.JPG" alt="Team Member">
+                    <div class="team-member-info">
+                        <h3>Gokhan Dikmener</h3>
+                        <p><strong>UNDP Technical Specialist</strong></p>
+                        <p></p>
+                    </div>
+                </div>
+                
+                <div class="team-member">
+                    <img src="../assets/dina.JPG" alt="Team Member">
+                    <div class="team-member-info">
+                        <h3>Dina Akylbekova</h3>
+                        <p><strong>UNDP Coordinator</strong></p>
+                        <p></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="content-section">
+            <h2>Our Partners</h2>
+            <p>
+                The DSVI Data Visualization Tool is the result of collaboration between multiple organizations committed to improving development outcomes through better data and analysis. Our key partners include:
+            </p>
+            <ul>
+                <li>United Nations Development Programme (UNDP)</li>
+                <li>Accelerator Lab Lebanon</li>
+                <li>Istanbul International Center for Private Sector in Development (ICPSD)</li>
+                <li>Bureau for Programme and Policy Support (BPPS)</li>
+                <li>Sustainable Finance Hub (SFH)</li>
+                <li>Sustainable Development Goals AI Lab (SDG AI LAB)</li>
+                <li>National Statistical Offices in partner countries</li>
+
+            </ul>
+        </div>
+    </div>
+    
+    <!-- Simple footer -->
+    <footer style="background-color: #343a40; color: white; text-align: center; padding: 20px; margin-top: 40px;">
+        <p>© 2025 DSVI Data Visualization Tool | All Rights Reserved</p>
+    </footer>
+</body>
+</html>

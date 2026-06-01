@@ -1,0 +1,1528 @@
+/* =========================================
+   * Base Styles
+   * ========================================= */
+   body {
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+    font-family: Calibri, sans-serif;
+}
+
+/* =========================================
+   * Navigation Bar
+   * ========================================= */
+#navbar {
+    height: auto;
+    flex-shrink: 0;
+    background-color: #343a40;
+    padding: 5px 10px 5px;
+    color: white;
+}
+
+.navbar-inner {
+    display: flex;
+    align-items: stretch;
+    justify-content: space-between;
+    gap: 10px;
+    max-width: 100%;
+}
+
+.navbar-cluster-left,
+.navbar-cluster-right {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+    align-self: stretch;
+}
+
+.navbar-cluster-left {
+    justify-content: flex-start;
+    flex-wrap: nowrap;
+    gap: 2px;
+}
+
+.navbar-cluster-right {
+    justify-content: flex-end;
+}
+
+.navbar-center {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: center;
+    gap: 0;
+}
+
+.tool-title {
+    font-size: clamp(14px, 1.9vw, 18px) !important;
+    margin: 0 !important;
+    padding: 0 12px;
+    text-align: center;
+    font-weight: 600;
+    color: white;
+    line-height: 1.2;
+    width: 100%;
+    box-sizing: border-box;
+    border-bottom: none;
+}
+.tool-title::after {
+    content: '';
+    display: block;
+    width: 50%;
+    margin: 12px auto 12px;
+    height: 1px;
+    background: rgba(255, 255, 255, 0.28);
+}
+.navbar-title {
+    color: white;
+    font-size: 24px;
+    font-weight: bold;
+    margin-left: 0;
+    letter-spacing: 0.5px;
+}
+
+.navbar-logo {
+    display: flex;
+    align-items: center;
+}
+
+.logo-image {
+    width: auto;
+    margin: 0 6px;
+    object-fit: contain;
+    display: block;
+}
+
+.navbar-sdgai-logo {
+    height: 64px;
+}
+
+.navbar-brand-logo {
+    height: 64px;
+}
+
+.navbar-logo-right .logo-image {
+    height: 86px;
+}
+
+.navbar-menu {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    align-self: center;
+    list-style: none;
+    margin: 0 !important;
+    padding: 0;
+    gap: 2px 6px;
+}
+
+.navbar-menu li {
+    margin: 0;
+    list-style: none !important;
+}
+
+.navbar-menu a {
+    color: white;
+    text-decoration: none;
+    font-weight: bold;
+    transition: color 0.2s, box-shadow 0.15s ease;
+    font-size: 14px;
+    padding: 2px 10px;
+    display: inline-block;
+    line-height: 1.2;
+    box-shadow: none;
+}
+
+.navbar-menu a.nav-link-current {
+    color: #f8f9fa;
+    box-shadow: 0 1px 0 0 rgba(255, 255, 255, 0.7);
+}
+
+.navbar-menu a:hover {
+    color: #f8f9fa;
+    box-shadow: 0 1px 0 0 rgba(255, 255, 255, 0.7);
+}
+
+.navbar-menu:has(a:hover:not(.nav-link-current)) a.nav-link-current {
+    box-shadow: none;
+    color: rgba(255, 255, 255, 0.72);
+}
+
+.larger-nav-link {
+    font-size: 14px;
+    padding: 2px 10px;
+}
+
+/* =========================================
+   * Main Layout
+   * ========================================= */
+.main-container {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+    min-height: 0;
+}
+
+/* =========================================
+   * Sidebar Styles
+   * ========================================= */
+#sidebar {
+    flex: 0 0 340px;
+    width: 340px;
+    background: #e0e0e0;
+    padding: 20px;
+    overflow-y: auto;
+    border-right: 1px solid #ccc;
+    box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    z-index: 10;
+}
+
+.map-features-sidebar-slot {
+    width: 100%;
+    margin-top: auto;
+    padding-top: 16px;
+    border-top: 1px solid #b8b8b8;
+    flex-shrink: 0;
+}
+
+.sv-admin-resolution-panel {
+    width: 100%;
+    margin-bottom: 16px;
+    padding: 6px 14px 12px;
+    background-color: #f1f1f1;
+    border-radius: 5px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    box-sizing: border-box;
+    flex-shrink: 0;
+}
+
+.sv-admin-resolution-panel .sv-admin-resolution-selector {
+    display: block;
+    margin-top: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+.map-panel {
+    position: relative;
+    flex: 1 1 auto;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+    background: #f8f9fa;
+}
+
+#analysis-sidebar {
+    flex: 0 0 380px;
+    width: 380px;
+    min-width: 280px;
+    max-width: 720px;
+    min-height: 0;
+    background: #f4f6f8;
+    border-left: none;
+    box-shadow: -2px 0 6px rgba(0, 0, 0, 0.08);
+    display: flex;
+    flex-direction: row;
+    align-items: stretch;
+    overflow: hidden;
+    z-index: 10;
+}
+
+.analysis-sidebar-resize-handle {
+    flex: 0 0 6px;
+    width: 6px;
+    min-width: 6px;
+    cursor: col-resize;
+    touch-action: none;
+    background: linear-gradient(to right, #cfd6df, #e8ecf0);
+    border-left: 1px solid #c5ccd6;
+    box-sizing: border-box;
+}
+
+.analysis-sidebar-resize-handle:hover {
+    background: linear-gradient(to right, #b8c2d0, #dce2ea);
+}
+
+.analysis-sidebar-resize-handle:focus-visible {
+    outline: 2px solid #2563eb;
+    outline-offset: -2px;
+}
+
+.info-panel-slot {
+    flex: 1;
+    min-width: 0;
+    min-height: 0;
+    padding: 16px;
+    display: flex;
+    overflow: hidden;
+}
+
+#sidebar::-webkit-scrollbar {
+    width: 8px;
+}
+
+#sidebar::-webkit-scrollbar-thumb {
+    background-color: #888;
+    border-radius: 10px;
+}
+
+#sidebar::-webkit-scrollbar-thumb:hover {
+    background-color: #555;
+}
+
+/* =========================================
+   * Dropdown Controls
+   * ========================================= */
+.layer-group {
+    width: 100%;
+    margin-bottom: 10px;
+}
+
+/* Main layer panel section titles (Composite / Sub-Indicators / Stressors) — smaller than other sidebar dropdowns */
+.dropdown-btn.sv-sidebar-section-dropdown {
+    font-size: 13px;
+    padding: 9px 10px;
+}
+
+.dropdown-btn {
+    background-color: #6c757d;
+    color: white;
+    padding: 11px 12px;
+    font-size: 16px;
+    border: none;
+    cursor: pointer;
+    width: 100%;
+    text-align: left;
+    outline: none;
+    transition: 0.3s;
+    border-radius: 5px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.dropdown-btn:after {
+    content: '\25BC';
+    float: right;
+    margin-left: 10px;
+}
+
+.dropdown-btn.active:after {
+    content: '\25B2';
+}
+
+/* Generic active dropdown styling - green gradient for all */
+.dropdown-btn.active {
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%) !important;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+    transform: translateY(-1px);
+}
+
+.dropdown-btn.active:hover {
+    background: linear-gradient(135deg, #218838 0%, #1e7e34 100%) !important;
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
+    transform: translateY(-2px);
+}
+
+.dropdown-container {
+    display: none;
+    overflow: hidden;
+    background-color: #f1f1f1;
+    border-radius: 5px;
+    width: 100%;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* =========================================
+   * Social Vulnerability Radio Controls
+   * ========================================= */
+.sv-radio-group {
+    padding: 10px;
+}
+
+/* Composite index panel: master layer + pillar section (SEPI-style) */
+.sv-composite-index-panel {
+    padding: 10px 10px 4px;
+}
+
+/* Stressors section reuses composite pill toggles */
+.sv-stressors-panel {
+    padding-bottom: 10px;
+}
+
+.sv-stressor-layers {
+    padding-top: 0;
+}
+
+.sv-stressor-controls-wrap {
+    margin: 4px 2px 0;
+}
+
+.sv-stressor-layer-controls {
+    padding: 0;
+    margin: 0;
+}
+
+.sv-stressor-layer-controls .escalation-time-control,
+.sv-stressor-layer-controls .sv-stressor-attribute-selector {
+    margin-top: 8px;
+}
+
+.sv-stressor-layer-controls .sv-peace-subindicators-title {
+    display: block;
+    margin-bottom: 6px;
+}
+
+/* Escalation controls live inside Stressors panel (override sidebar-wide selector hiding) */
+.sv-stressor-controls-wrap .escalation-time-control,
+.sv-stressor-controls-wrap .sv-stressor-attribute-selector {
+    display: block !important;
+}
+
+.sv-composite-master-wrap {
+    margin-bottom: 4px;
+}
+
+.sv-composite-master-row .sv-composite-master-btn {
+    font-size: 15px;
+    font-weight: 700;
+}
+
+.sv-composite-pillars-label {
+    margin: 12px 2px 8px;
+    font-size: 11px;
+    font-weight: 600;
+    color: #6c757d;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 1px solid #e0e0e0;
+    padding-bottom: 5px;
+}
+
+/* Composite index layer toggles: pill buttons + checkmark (scoped away from Stressors / Sub-indicators) */
+.sv-composite-layers {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.sv-composite-pillars {
+    padding-top: 0;
+}
+
+.sv-layer-toggle-row {
+    display: flex;
+    align-items: stretch;
+    gap: 6px;
+    position: relative;
+}
+
+.sv-service-stress-row {
+    align-items: stretch;
+}
+
+.sv-layer-toggle-input {
+    position: absolute;
+    opacity: 0;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    border: 0;
+}
+
+.sv-layer-toggle-btn {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    border: 1px solid #ced4da;
+    border-radius: 6px;
+    background: #ffffff;
+    color: #495057;
+    cursor: pointer;
+    padding: 8px 10px;
+    line-height: 1.25;
+    text-align: left;
+    font-size: 12px;
+    font-weight: 600;
+    transition: background-color 0.25s, border-color 0.25s, color 0.25s, box-shadow 0.2s;
+    box-sizing: border-box;
+}
+
+/* Composite index pill labels — larger than generic toggle rows */
+.sv-composite-layers .sv-layer-toggle-btn {
+    font-size: 15px;
+    line-height: 1.3;
+}
+
+.sv-layer-toggle-text {
+    flex: 1;
+    min-width: 0;
+}
+
+.sv-layer-toggle-check {
+    flex: 0 0 auto;
+    width: 1.35em;
+    height: 1.35em;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: 800;
+    line-height: 1;
+}
+
+.sv-layer-toggle-input:checked + .sv-layer-toggle-btn {
+    border-color: #28a745;
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+    color: #ffffff;
+    box-shadow: 0 2px 6px rgba(40, 167, 69, 0.25);
+}
+
+.sv-layer-toggle-input:checked + .sv-layer-toggle-btn .sv-layer-toggle-check::before {
+    content: '\2713';
+    color: #ffffff;
+}
+
+.sv-layer-toggle-input:focus-visible + .sv-layer-toggle-btn {
+    outline: 2px solid rgba(32, 201, 151, 0.85);
+    outline-offset: 2px;
+}
+
+.sv-layer-toggle-btn:hover {
+    border-color: #28a745;
+    color: #28a745;
+    background-color: rgba(40, 167, 69, 0.08);
+}
+
+.sv-layer-toggle-input:checked + .sv-layer-toggle-btn:hover {
+    color: #ffffff;
+    background: linear-gradient(135deg, #218838 0%, #1e7e34 100%);
+}
+
+.sv-layer-toggle-input:disabled + .sv-layer-toggle-btn {
+    cursor: not-allowed;
+    pointer-events: none;
+    background: #ffffff;
+    color: #6c757d;
+    border-color: #dee2e6;
+    border-style: dashed;
+    box-shadow: none;
+    opacity: 1;
+}
+
+.sv-layer-toggle-input:disabled + .sv-layer-toggle-btn:hover {
+    background: #ffffff;
+    color: #6c757d;
+    border-color: #dee2e6;
+}
+
+.sv-layer-toggle-input:disabled + .sv-layer-toggle-btn .sv-layer-toggle-check::before {
+    content: none;
+}
+
+.sv-service-priority-wrap {
+    display: flex;
+    justify-content: center;
+    width: 100%;
+    margin: 0 0 8px 0;
+    padding: 0 2px;
+    box-sizing: border-box;
+}
+
+/* Author `display:flex` wins over UA `[hidden]` — force hide when wrapped */
+.sv-service-priority-wrap[hidden] {
+    display: none !important;
+}
+
+.sv-service-priority-wrap .sv-priority-btn {
+    width: 100%;
+    max-width: 100%;
+    padding: 8px 12px;
+    font-size: 12px;
+}
+
+/* Sectarian dummy: Leaflet divIcon default white box would cover the SVG */
+.sv-sectarian-glyph-icon {
+    background: transparent !important;
+    border: none !important;
+}
+
+.sv-displacement-cluster-wrapper,
+.sv-sectarian-cluster-wrapper {
+    background: transparent !important;
+    border: none !important;
+}
+
+.sv-radio-option {
+    display: flex;
+    align-items: center;
+    margin-bottom: 8px;
+    padding: 8px;
+    border-radius: 4px;
+    transition: background-color 0.3s;
+}
+
+.sv-radio-option:hover {
+    background-color: rgba(40, 167, 69, 0.1);
+}
+
+.sv-radio-option input[type="radio"],
+.sv-radio-option input[type="checkbox"] {
+    margin-right: 8px;
+    accent-color: #28a745;
+}
+
+.sv-radio-option label {
+    font-weight: 500;
+    color: #333;
+    cursor: pointer;
+    user-select: none;
+}
+
+.sv-radio-option input[type="radio"]:checked + label,
+.sv-radio-option input[type="checkbox"]:checked + label {
+    color: #28a745;
+    font-weight: 600;
+}
+
+.sv-priority-btn {
+    border: 1px solid #ced4da;
+    border-radius: 6px;
+    background: #ffffff;
+    color: #495057;
+    cursor: pointer;
+    padding: 4px 10px;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1.2;
+    transition: background-color 0.2s, border-color 0.2s, color 0.2s;
+}
+
+.sv-priority-btn:hover {
+    background-color: rgba(40, 167, 69, 0.1);
+    border-color: #28a745;
+    color: #28a745;
+}
+
+.sv-priority-btn.active {
+    border-color: #28a745;
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+    color: #ffffff;
+}
+
+/* =========================================
+   * Layer Controls
+   * ========================================= */
+.layer-checkbox {
+    margin: 5px 0;
+    display: flex;
+    align-items: center;
+    padding: 5px 10px;
+}
+
+.opacity-control {
+    display: flex;
+    align-items: center;
+    margin-top: 5px;
+    margin-left: 5px;
+    padding: 5px;
+}
+
+#sidebar .opacity-control {
+    display: none !important;
+}
+
+/* Social Vulnerability opacity controls should always be visible */
+.sv-opacity-control {
+    display: flex !important;
+}
+
+.opacity-control label {
+    font-size: 14px;
+    color: #333;
+    margin-right: 5px;
+}
+
+/* Hide layer controls by default for non-Social-Vulnerability layers */
+.layer-controls {
+    padding: 5px 15px;
+    margin-bottom: 10px;
+}
+
+/* Social Vulnerability layer controls should be visible by default */
+.social-vulnerability-btn + .dropdown-container .layer-controls {
+    display: block !important;
+}
+
+.sv-admin-resolution-title {
+    display: block;
+    font-size: 16px;
+    font-weight: 700;
+    color: #495057;
+    text-align: center;
+    margin: 0 0 8px;
+}
+
+.sv-admin-resolution-buttons {
+    display: flex;
+    gap: 8px;
+    width: 100%;
+    margin: 0 auto;
+}
+
+.sv-admin-resolution-btn {
+    flex: 1;
+    border: 1px solid #ced4da;
+    border-radius: 6px;
+    background: #ffffff;
+    color: #495057;
+    cursor: pointer;
+    padding: 6px 5px;
+    line-height: 1.2;
+    text-align: center;
+    transition: background-color 0.3s, border-color 0.3s, color 0.3s;
+}
+
+.sv-admin-resolution-btn:hover {
+    background-color: rgba(40, 167, 69, 0.1);
+    border-color: #28a745;
+    color: #28a745;
+}
+
+.sv-admin-resolution-label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.sv-admin-resolution-btn.active {
+    border-color: #28a745;
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+    color: #ffffff;
+}
+
+.sv-admin-resolution-btn.active:hover {
+    background: linear-gradient(135deg, #218838 0%, #1e7e34 100%);
+}
+
+/* Custom slider styles */
+.opacity-control input[type="range"] {
+    width: 80px;
+    -webkit-appearance: none;
+    appearance: none;
+    background: #ddd;
+    height: 4px;
+    border-radius: 5px;
+    outline: none;
+}
+
+.opacity-control input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #6c757d;
+    cursor: pointer;
+    border: 2px solid #343a40;
+}
+
+.opacity-control input[type="range"]::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #6c757d;
+    cursor: pointer;
+    border: 2px solid #343a40;
+}
+
+.attribute-selector,
+.color-ramp-selector {
+    display: none;
+    margin-top: 10px;
+    width: 100%;
+}
+
+.escalation-time-control {
+    margin-top: 10px;
+    width: 100%;
+}
+
+.attribute-selector label,
+.color-ramp-selector label {
+    display: block;
+    font-size: 14px;
+    color: #495057;
+    margin-bottom: 5px;
+}
+
+.attribute-selector select,
+.color-ramp-selector select {
+    width: 100%;
+    padding: 5px;
+    border-radius: 4px;
+    border: 1px solid #ced4da;
+    font-size: 14px;
+}
+
+.escalation-time-control label {
+    display: block;
+    font-size: 14px;
+    color: #495057;
+    margin-bottom: 5px;
+}
+
+.escalation-time-control select {
+    width: 100%;
+    padding: 5px;
+    border-radius: 4px;
+    border: 1px solid #ced4da;
+    font-size: 14px;
+}
+
+/* =========================================
+   * Split Map Layout
+   * ========================================= */
+
+
+#map-split-wrapper {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+}
+#map,
+#compare-map {
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
+}
+.leaflet-container {
+    transition: none !important;
+}
+
+#map-divider {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    background-color: rgba(0, 0, 0, 0.5);
+    cursor: col-resize;
+    z-index: 1000;
+    transition: background-color 0.2s;
+    display: none;
+}
+
+#map-divider:hover {
+    background-color: rgba(0, 0, 0, 0.7);
+}
+
+#map-divider::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 20px;
+    height: 40px;
+    background-color: white;
+    border-radius: 3px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 16px;
+}
+
+.escalation-cluster-wrapper {
+    background: transparent;
+    border: none;
+}
+
+.escalation-cluster-marker {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    transform: translateY(-6px);
+}
+
+.escalation-cluster-label {
+    background: rgba(255, 255, 255, 0.95);
+    color: #495057;
+    border: 1px solid rgba(0, 0, 0, 0.15);
+    border-radius: 12px;
+    padding: 2px 8px;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1.2;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.18);
+}
+
+.escalation-cluster-count {
+    min-width: 36px;
+    height: 36px;
+    padding: 0 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #c2baab;
+    color: #212529;
+    border: 2px solid #fff;
+    border-radius: 999px;
+    font-size: 14px;
+    font-weight: 700;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.24);
+}
+
+/* ===========================================
+   * Map Controls
+   * ========================================= */
+/* Stacking controls properly */
+
+.leaflet-bottom.leaflet-left {
+    display: flex;
+    flex-direction: column;
+}
+
+.leaflet-bottom.leaflet-left .leaflet-control {
+    margin-bottom: 10px;
+    clear: both;
+}
+
+.leaflet-bottom.leaflet-right .leaflet-control-scale {
+    margin-right: 16px;
+    margin-bottom: 16px;
+}
+
+.leaflet-control-scale {
+    background: rgba(255, 255, 255, 0.92);
+    border-radius: 4px;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.18);
+}
+
+.leaflet-control-attribution {
+    /* max-width: min(420px, calc(100% - 32px)); */
+    max-width: 1000px;
+    font-size: 10px;
+    margin-left: 8px !important;
+    margin-bottom: 8px !important;
+    padding: 4px 8px !important;
+    background: rgba(255, 255, 255, 0.9) !important;
+    border-radius: 4px;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.14);
+    line-height: 1.1;
+}
+
+/* Country outline toggle button */
+.outline-toggle-control {
+    background-color: white;
+    border-radius: 10px;
+    box-shadow: 0 1px 5px rgba(0,0,0,0.4);
+}
+
+.outline-toggle-button {
+    display: block;
+    text-align: center;
+    padding: 5px 8px;
+    font-size: 14px;
+    color: #ffffff;
+    background-color: white;
+    text-decoration: none;
+    white-space: nowrap; /* Prevent wrapping */
+    min-width: 70px; /* Adjust width as needed */
+}
+
+.outline-toggle-button:hover {
+    background-color: #ffffff;
+}
+
+.outline-toggle-button.active {
+    background-color: #ffffff;
+    color: #0078A8;
+}
+
+/* Hide any old basemap controls that might still exist */
+.leaflet-control-layers.basemap-control:not(.combined-basemap-control) {
+    display: none !important;
+}
+
+/* Hide any duplicate basemap controls - keep only the combined one */
+.basemap-control:not(.combined-basemap-control) {
+    display: none !important;
+}
+
+/* Ensure only one combined control is visible */
+.combined-basemap-control:not(:first-of-type) {
+    display: none !important;
+}
+
+.combined-basemap-control {
+    width: 200px !important;
+    padding: 8px;
+}
+.basemap-select-group {
+    margin-bottom: 10px;
+}
+
+
+.basemap-select-group label {
+    display: block;
+    font-size: 12px;
+    color: #333;
+    margin-bottom: 3px;
+    font-weight: 500;
+}
+
+
+.basemap-select {
+    width: 100%;
+    padding: 4px 6px;
+    border-radius: 3px;
+    border: 1px solid #ccc;
+    font-size: 12px;
+    background-color: #f8f8f8;
+    margin-bottom: 0;
+}
+
+/* Separator between basemap selectors and info panel button */
+.combined-control-separator {
+    height: 1px;
+    background-color: #ddd;
+    margin: 10px 0 8px 0;
+}
+
+.info-panel-toggle-container {
+    width: 100%;
+}
+
+/* Info panel toggle button */
+.info-panel-toggle-button {
+    width: 100%;
+    padding: 8px 10px;
+    background-color: #6c757d;
+    color: white;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+}
+
+/* Temporarily hide High Resolution Maps + Survey Data groups */
+#sidebar .layer-group:has(#tiffLayer3),
+#sidebar .layer-group:has(#pointLayer) {
+    display: none !important;
+}
+
+.info-panel-toggle-button:hover {
+    background-color: #5a6268;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.info-panel-toggle-button.active {
+    background-color: #28a745;
+    box-shadow: 0 2px 6px rgba(40, 167, 69, 0.3);
+}
+
+.info-panel-toggle-button.active:hover {
+    background-color: #218838;
+}
+
+/* Remove the old standalone info toggle control styles if they exist */
+.info-toggle-control {
+    display: none !important;
+}
+
+/* =========================================
+   * Legend Styling
+   * ========================================= */
+.legend {
+    position: absolute;
+    bottom: 20px;
+    right: 16px;
+    background: white;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    padding: 10px;
+    font-size: 10px;
+    line-height: 1.4;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    z-index: 1000;
+    display: block;
+    max-width: min(280px, calc(100% - 32px));
+    max-height: calc(100% - 32px);
+    overflow-y: auto;
+}
+
+.legend h4 {
+    margin: 0 0 5px 0;
+    font-size: 18px;
+    color: #333;
+}
+
+.legend p {
+    margin: 0 0 5px 0;
+    color: #555;
+}
+
+/* =========================================
+   * Info Popup Styles
+   * ========================================= */
+.info-popup {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 2000;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    max-width: 400px;
+    max-height: 80vh;
+    overflow: hidden;
+    font-family: 'Calibri', sans-serif;
+}
+
+.info-popup-content {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.info-popup-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: #6c757d;
+    color: white;
+    padding: 15px 20px;
+    border-radius: 8px 8px 0 0;
+}
+
+.info-popup-header h3 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: bold;
+}
+
+.info-popup-close {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 24px;
+    cursor: pointer;
+    padding: 0;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: background-color 0.3s;
+}
+
+.info-popup-close:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+}
+
+.info-popup-body {
+    padding: 20px;
+    overflow-y: auto;
+    max-height: calc(80vh - 80px);
+}
+
+/* School (escalation) layer click popup */
+.escalation-popup .leaflet-popup-content-wrapper {
+    border-radius: 8px;
+    max-width: 340px;
+}
+.escalation-popup-content .popup-section {
+    margin-bottom: 12px;
+}
+.escalation-popup-content .popup-section:last-child {
+    margin-bottom: 0;
+}
+.escalation-popup-content .popup-section ul {
+    margin: 4px 0 0 0;
+    padding-left: 18px;
+    font-size: 12px;
+    line-height: 1.4;
+}
+.escalation-popup-content .popup-section strong {
+    font-size: 12px;
+    color: #333;
+}
+
+.info-section {
+    margin-bottom: 20px;
+}
+
+.info-section:last-child {
+    margin-bottom: 0;
+}
+
+.info-section h4 {
+    color: #343a40;
+    font-size: 16px;
+    margin: 0 0 10px 0;
+    border-bottom: 2px solid #e9ecef;
+    padding-bottom: 5px;
+}
+
+.info-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid #f8f9fa;
+}
+
+.info-item:last-child {
+    border-bottom: none;
+}
+
+.info-label {
+    font-weight: 600;
+    color: #495057;
+    flex: 1;
+}
+
+.info-value {
+    font-weight: normal;
+    color: #6c757d;
+    text-align: right;
+    flex: 1;
+}
+
+.info-value.highlight {
+    color: #007bff;
+    font-weight: 600;
+}
+
+.info-no-data {
+    color: #999;
+    font-style: italic;
+}
+
+/* =========================================
+   * Tooltips
+   * ========================================= */
+.leaflet-tooltip {
+    background-color: white;
+    border: 1px solid black;
+    padding: 5px;
+    border-radius: 3px;
+    font-size: 12px;
+    font-family: Arial, sans-serif;
+}
+
+/* =========================================
+   * Layer Controls
+   * ========================================= */
+.layer-controls {
+    padding: 5px 15px;
+    margin-bottom: 10px;
+}
+
+.attribute-selector,
+.color-ramp-selector {
+    display: none;
+    margin-top: 10px;
+    width: 100%;
+}
+
+.attribute-selector label,
+.color-ramp-selector label {
+    display: block;
+    font-size: 14px;
+    color: #495057;
+    margin-bottom: 5px;
+}
+
+.attribute-selector select,
+.color-ramp-selector select {
+    width: 100%;
+    padding: 5px;
+    border-radius: 4px;
+    border: 1px solid #ced4da;
+    font-size: 14px;
+}
+
+.color-preview {
+    min-height: 20px;
+    border-radius: 3px;
+    margin-top: 5px;
+    border: 1px solid #ced4da;
+}
+
+.color-ramp-preview {
+    display: flex;
+    height: 20px;
+    border-radius: 3px;
+    overflow: hidden;
+    border: 1px solid #ced4da;
+}
+
+/* =========================================
+   * Raster Image Rendering
+   * ========================================= */
+.crisp-image {
+    image-rendering: -moz-crisp-edges;
+    image-rendering: -webkit-crisp-edges;
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+}
+
+.smooth-image {
+    image-rendering: auto;
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+}
+
+/* Admin boundary label styles */
+.admin-label {
+    background-color: rgba(255, 255, 255, 0.88);
+    padding: 2px 6px;
+    border-radius: 4px;
+    border: 1px solid rgba(0,0,0,0.25);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    white-space: normal;
+    overflow-wrap: break-word;
+    word-break: normal;
+    max-width: 150px;
+    display: inline-block;
+    line-height: 1.2;
+    text-align: center;
+    font-size: 10px;
+    pointer-events: none;
+  }
+
+.adm1-label {
+    color: #000;
+    text-transform: uppercase;
+    font-size: 10px;
+}
+
+.adm2-label {
+    color: #333;
+    font-size: 8px;
+}
+
+/* Adapt the label size based on zoom level */
+@media (min-width: 768px) {
+    .admin-label {
+        font-size: 14px;
+    }
+    
+    .adm1-label {
+        font-size: 12px;
+    }
+    
+    .adm2-label {
+        font-size: 10px;
+    }
+}
+
+/* Combined control panel styles */
+.combined-map-control {
+    background-color: white;
+    border-radius: 4px;
+    box-shadow: 0 1px 5px rgba(0,0,0,0.4);
+    padding: 0;
+    width: 100%;
+    transition: all 0.3s ease;
+    overflow: hidden;
+}
+.combined-control-toggle {
+    background-color: #6c757d;
+    color: white;
+    padding: 5px 10px;
+    font-size: 14px;
+    text-align: center;
+    cursor: pointer;
+    width: 100%;
+    transition: background-color 0.3s;
+    border-radius: 4px 4px 0 0;
+}
+
+.combined-control-toggle:hover {
+    background-color: #5a6268;
+}
+
+.combined-control-content {
+    padding: 8px;
+    display: block;
+    transition: all 0.3s ease;
+}
+
+.combined-map-control.minimized .combined-control-content {
+    max-height: 0;
+    padding: 0 8px;
+    overflow: hidden;
+}
+
+.combined-map-control.minimized .combined-control-toggle {
+    border-radius: 4px;
+}
+.combined-control-title {
+    font-weight: bold;
+    margin-bottom: 5px;
+    padding-bottom: 5px;
+    border-bottom: 1px solid #ccc;
+}
+
+.combined-control-separator {
+    height: 1px;
+    background-color: #ccc;
+    margin: 10px 0;
+}
+
+.combined-control-button {
+    padding: 6px 10px;
+    background-color: #f8f8f8;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+    cursor: pointer;
+    width: 100%;
+    transition: all 0.3s;
+    text-align: left;
+    margin-bottom: 5px;
+}
+
+.combined-control-button:hover {
+    background-color: #e6e6e6;
+}
+
+
+.combined-control-button.active {
+    background-color: #d4edda !important;
+    border-color: #c3e6cb !important;
+    font-weight: bold;
+}
+
+/* Original label toggle control styles - kept for backward compatibility */
+.label-toggle-control {
+    background-color: white;
+    border-radius: 4px;
+    box-shadow: 0 1px 5px rgba(0,0,0,0.4);
+    padding: 8px;
+    min-width: 100px;
+}
+
+.label-toggle-button.active {
+    background-color: #d4edda !important;
+    border-color: #c3e6cb !important;
+    font-weight: bold;
+}
+
+@media (max-width: 1400px) {
+    #sidebar {
+        flex-basis: 300px;
+        width: 300px;
+    }
+
+    #analysis-sidebar {
+        flex-basis: 340px;
+        width: 340px;
+        min-width: 280px;
+    }
+}
+
+@media (max-width: 1100px) {
+    .main-container {
+        flex-direction: column;
+    }
+
+    .analysis-sidebar-resize-handle {
+        display: none;
+    }
+
+    #sidebar,
+    #analysis-sidebar {
+        width: auto;
+        min-width: 0;
+        flex: 0 0 auto;
+    }
+
+    #sidebar {
+        max-height: 30vh;
+    }
+
+    .map-panel {
+        min-height: 40vh;
+    }
+
+    #analysis-sidebar {
+        border-left: none;
+        border-top: 1px solid #d6dbe1;
+        min-height: 320px;
+    }
+}
+
+/* Tension and Conflict Risk sub-indicators (sidebar; visible when Composite Indexes is open) */
+.sv-peace-subindicators-wrap {
+    margin: 0 10px 10px 10px;
+    padding: 8px 10px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    font-size: 11px;
+    line-height: 1.35;
+    color: #334155;
+}
+
+.sv-peace-subindicators-wrap[hidden] {
+    display: none !important;
+}
+
+.sv-peace-subindicators-title {
+    font-weight: 700;
+    font-size: 11px;
+    margin-bottom: 6px;
+    color: #1e293b;
+}
+
+.sv-peace-subindicators-list {
+    margin: 0;
+    padding-left: 1.1em;
+}
+
+.sv-peace-subindicators-list li {
+    margin-bottom: 4px;
+}
+
+.sv-peace-subindicator-select {
+    width: 100%;
+    max-width: 100%;
+    font-size: 11px;
+    padding: 6px 8px;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    background: #fff;
+    color: #1e293b;
+    box-sizing: border-box;
+}
+
+.info-popup .info-peace-subindicators h5 {
+    margin: 10px 0 6px 0;
+    font-size: 12px;
+    color: #334155;
+}

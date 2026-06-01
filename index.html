@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Development Tool for DSVI Data Visualization</title>
+    
+    <!-- CSS styles -->
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/info_panel.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+  integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+  crossorigin=""/>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css">
+    
+    <meta name="description" content="Interactive map visualization tool for development and social vulnerability data">
+    
+    <!-- Critical inline styles -->
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+        }
+    </style>
+</head>
+<body>
+    <!-- Top Navigation Bar -->
+    <nav id="navbar">
+        <div class="navbar-inner">
+            <div class="navbar-cluster-left">
+                <div class="navbar-logo navbar-logo-left">
+                    <img src="assets/sdgai.png" alt="SDG AI" class="logo-image navbar-sdgai-logo">
+                    <img src="assets/logo.1b5fa4604ab571b03ad2_white.png" alt="" class="logo-image navbar-brand-logo">
+                </div>
+            </div>
+            <div class="navbar-center">
+                <h2 class="tool-title">Development tool Lebanon</h2>
+                <ul class="navbar-menu">
+                    <li><a href="index.html" class="larger-nav-link nav-link-current" aria-current="page">Map</a></li>
+                    <li><a href="html/about.html" class="larger-nav-link">About Us</a></li>
+                    <li><a href="html/more.html" class="larger-nav-link">More Information</a></li>
+                </ul>
+            </div>
+            <div class="navbar-cluster-right">
+                <div class="navbar-logo navbar-logo-right">
+                    <img src="assets/undp_logo.png" alt="UNDP Logo" class="logo-image">
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main container for sidebar and map -->
+    <div class="main-container">
+        <!-- Sidebar with layer controls -->
+        <div id="sidebar">
+            <section class="sv-admin-resolution-panel" aria-label="Administrative resolution">
+                <div class="attribute-selector sv-admin-resolution-selector">
+                    <div class="sv-admin-resolution-title">Administrative resolution</div>
+                    <div class="sv-admin-resolution-buttons" role="group" aria-label="Administrative resolution">
+                        <button type="button" class="sv-admin-resolution-btn active" data-resolution="cadastre">
+                            <span class="sv-admin-resolution-label">Cadastre</span>
+                        </button>
+                        <button type="button" class="sv-admin-resolution-btn" data-resolution="district">
+                            <span class="sv-admin-resolution-label">District</span>
+                        </button>
+                        <button type="button" class="sv-admin-resolution-btn" data-resolution="governorate">
+                            <span class="sv-admin-resolution-label">Governorate</span>
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+<!-- Vulnerability Dropdown -->
+<div class="layer-group">
+    <!-- Composite Indexes Dropdown -->
+<div class="layer-group">
+    <button class="dropdown-btn social-vulnerability-btn sv-sidebar-section-dropdown"><strong>Composite Indexes</strong></button>
+    <div class="dropdown-container">
+        <div class="sv-composite-index-panel">
+            <div class="sv-composite-master-wrap">
+                <div class="sv-layer-toggle-row sv-composite-master-row">
+                    <input type="checkbox" id="svOverallTensionLayer" class="sv-layer-toggle-input" name="svLayer" value="overall">
+                    <label class="sv-layer-toggle-btn sv-composite-master-btn" for="svOverallTensionLayer">
+                        <span class="sv-layer-toggle-text">Overall Tension Index</span>
+                        <span class="sv-layer-toggle-check" aria-hidden="true"></span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="sv-composite-pillars-label" role="presentation">Composite Indexes</div>
+
+            <!-- Composite index pillar layer toggles -->
+            <div class="sv-radio-group sv-composite-layers sv-composite-pillars">
+            <div class="sv-layer-toggle-row">
+                <input type="checkbox" id="svAdmin3Layer" class="sv-layer-toggle-input" name="svLayer" value="admin3">
+                <label class="sv-layer-toggle-btn" for="svAdmin3Layer">
+                    <span class="sv-layer-toggle-text">Tension and Conflict Risk</span>
+                    <span class="sv-layer-toggle-check" aria-hidden="true"></span>
+                </label>
+            </div>
+            <div id="svPeaceSubindicatorsWrap" class="sv-peace-subindicators-wrap" hidden>
+                <label class="sv-peace-subindicators-title" for="svPeaceSubindicatorSelect">Sub-Indicators</label>
+                <select id="svPeaceSubindicatorSelect" class="sv-peace-subindicator-select" aria-label="Tension and Conflict Risk sub-indicators">
+                    <option value="composite_score">Tension and Conflict Risk composite score</option>
+                    <option value="peace_si_intersectarian_per_1k">Annual rate of UNDPTMS incidents tagged as &ldquo;intersectarian&rdquo; or &ldquo;intercommunal&rdquo; per 1000 residents</option>
+                    <option value="peace_si_battle_events_count">Number of incidents/events involving battles, explosions, violence against civilians, armed clashes, and airstrikes.</option>
+                    <option value="peace_si_ss_typology_non_state">Safety and Security typology incidents without state operations</option>
+                    <option value="peace_si_fatalities_per_1k_12m">Fatalities per 1000 residents in the last 12 months</option>
+                    <option value="peace_si_worry_travel_hh_share">Share of households who worry about travelling to key destinations within Lebanon safely</option>
+                    <option value="peace_si_unsafe_night_pct">% of population reporting feeling &ldquo;unsafe&rdquo; or &ldquo;very unsafe&rdquo; in their neighborhoods during the night</option>
+                </select>
+            </div>
+            <div class="sv-layer-toggle-row">
+                <input type="checkbox" id="svAdmin1Layer" class="sv-layer-toggle-input" name="svLayer" value="admin1">
+                <label class="sv-layer-toggle-btn" for="svAdmin1Layer">
+                    <span class="sv-layer-toggle-text">Displacement Pressure</span>
+                    <span class="sv-layer-toggle-check" aria-hidden="true"></span>
+                </label>
+            </div>
+            <div id="svDisplacementSubindicatorsWrap" class="sv-peace-subindicators-wrap" hidden>
+                <label class="sv-peace-subindicators-title" for="svDisplacementSubindicatorSelect">Sub-Indicators</label>
+                <select id="svDisplacementSubindicatorSelect" class="sv-peace-subindicator-select" aria-label="Displacement Pressure sub-indicators"></select>
+            </div>
+            <div class="sv-layer-toggle-row">
+                <input type="checkbox" id="svAdmin2Layer" class="sv-layer-toggle-input" name="svLayer" value="admin2">
+                <label class="sv-layer-toggle-btn" for="svAdmin2Layer">
+                    <span class="sv-layer-toggle-text">Economic Vulnerability</span>
+                    <span class="sv-layer-toggle-check" aria-hidden="true"></span>
+                </label>
+            </div>
+            <div id="svEconomicSubindicatorsWrap" class="sv-peace-subindicators-wrap" hidden>
+                <label class="sv-peace-subindicators-title" for="svEconomicSubindicatorSelect">Sub-Indicators</label>
+                <select id="svEconomicSubindicatorSelect" class="sv-peace-subindicator-select" aria-label="Economic Vulnerability sub-indicators"></select>
+            </div>
+            <div class="sv-layer-toggle-row sv-service-stress-row">
+                <input type="checkbox" id="svAdmin4Layer" class="sv-layer-toggle-input" name="svLayer" value="admin4" disabled>
+                <label class="sv-layer-toggle-btn" for="svAdmin4Layer">
+                    <span class="sv-layer-toggle-text">Service &amp; Infrastructure Vulnerability</span>
+                    <span class="sv-layer-toggle-check" aria-hidden="true"></span>
+                </label>
+            </div>
+            <div id="svServicePriorityWrap" class="sv-service-priority-wrap" hidden>
+                <button type="button" id="svServicePriorityToggle" class="sv-priority-btn active" aria-pressed="true">
+                    show priority
+                </button>
+            </div>
+            <div class="sv-layer-toggle-row">
+                <input type="checkbox" id="svAdmin5Layer" class="sv-layer-toggle-input" name="svLayer" value="admin5">
+                <label class="sv-layer-toggle-btn" for="svAdmin5Layer">
+                    <span class="sv-layer-toggle-text">Demographic Tension / Stress</span>
+                    <span class="sv-layer-toggle-check" aria-hidden="true"></span>
+                </label>
+            </div>
+            <div id="svDemographicSubindicatorsWrap" class="sv-peace-subindicators-wrap" hidden>
+                <label class="sv-peace-subindicators-title" for="svDemographicSubindicatorSelect">Sub-Indicators</label>
+                <select id="svDemographicSubindicatorSelect" class="sv-peace-subindicator-select" aria-label="Demographic Shock Factor sub-indicators"></select>
+            </div>
+            </div>
+        </div>
+        
+        <!-- Single opacity control for the selected layer -->
+        <div class="layer-controls">
+            <div class="opacity-control sv-opacity-control">
+                <label for="svOpacity">Opacity</label>
+                <input type="range" id="svOpacity" min="0" max="1" step="0.1" value="0.6">
+                <span id="svOpacityValue">60%</span>
+            </div>
+            
+            <div class="color-ramp-selector">
+                <label for="svColorRamp">Color Scheme:</label>
+                <select id="svColorRamp"></select>
+                <div id="svColorPreview" class="color-preview"></div>
+            </div>
+        </div>
+    </div>
+</div>
+    <button class="dropdown-btn sv-sidebar-section-dropdown"><strong>Perception Data</strong></button>
+    <div class="dropdown-container">
+        <div class="layer-checkbox sv-radio-option">
+            <input type="checkbox" id="vulnerabilityCadastreLayer">
+            <label for="vulnerabilityCadastreLayer">Cadastre level data</label>
+        </div>
+
+        <div class="layer-controls" style="display: none;">
+            <div class="opacity-control">
+                <label for="vulnerabilityOpacity">Opacity</label>
+                <input type="range" id="vulnerabilityOpacity" min="0" max="1" step="0.1" value="0.5">
+                <span id="vulnerabilityOpacityValue">50%</span>
+            </div>
+
+            <div class="attribute-selector">
+                <label for="vulnerabilityAttribute">Indicator to Display:</label>
+                <select id="vulnerabilityAttribute"></select>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
+            <!-- Stressors (same sidebar UI pattern as Composite Indexes) -->
+            <div class="layer-group">
+                <button class="dropdown-btn sv-sidebar-section-dropdown stressors-section-btn"><strong>Stressors</strong></button>
+                <div class="dropdown-container">
+                    <div class="sv-composite-index-panel sv-stressors-panel">
+                        <div class="sv-composite-pillars-label" role="presentation">Stressors</div>
+                        <div class="sv-radio-group sv-composite-layers sv-composite-pillars sv-stressor-layers">
+                            <div class="sv-layer-toggle-row">
+                                <input type="checkbox" id="roadStatusLayer" class="sv-layer-toggle-input">
+                                <label class="sv-layer-toggle-btn" for="roadStatusLayer">
+                                    <span class="sv-layer-toggle-text">Road Access Status</span>
+                                    <span class="sv-layer-toggle-check" aria-hidden="true"></span>
+                                </label>
+                            </div>
+                            <div class="sv-layer-toggle-row">
+                                <input type="checkbox" id="escalationLayer" class="sv-layer-toggle-input">
+                                <label class="sv-layer-toggle-btn" for="escalationLayer">
+                                    <span class="sv-layer-toggle-text">Collective Shelter Status</span>
+                                    <span class="sv-layer-toggle-check" aria-hidden="true"></span>
+                                </label>
+                            </div>
+                        </div>
+                        <div id="svEscalationControlsWrap" class="sv-peace-subindicators-wrap sv-stressor-controls-wrap" hidden>
+                            <div class="layer-controls sv-stressor-layer-controls">
+                                <div class="opacity-control">
+                                    <label for="escalationOpacity">Opacity</label>
+                                    <input type="range" id="escalationOpacity" min="0" max="1" step="0.1" value="1">
+                                    <span id="escalationOpacityValue">100%</span>
+                                </div>
+                                <div class="escalation-time-control">
+                                    <label class="sv-peace-subindicators-title" for="escalationTimeMode">View</label>
+                                    <select id="escalationTimeMode" class="sv-peace-subindicator-select">
+                                        <option value="snapshot_09_03_26">Snapshot: 09/03/26</option>
+                                        <option value="snapshot_10_03_26">Snapshot: 10/03/26</option>
+                                        <option value="diff_09_10">Change: 09/03/26 to 10/03/26</option>
+                                        <option value="combined_cs_status" selected>Combined: Current + Potential</option>
+                                    </select>
+                                </div>
+                                <div class="attribute-selector sv-stressor-attribute-selector">
+                                    <label class="sv-peace-subindicators-title" for="escalationColumnSelector">Column</label>
+                                    <select id="escalationColumnSelector" class="sv-peace-subindicator-select"></select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            
+
+            <!-- <div class="layer-group">
+                <button class="dropdown-btn"><strong>Subnational Statistics</strong></button>
+                <div class="dropdown-container">
+                    
+                    <div class="layer-checkbox">
+                        <input type="checkbox" id="geojsonLayer">
+                        <label for="geojsonLayer">Statistics: Governorates</label>
+                    </div>
+                    
+                    <div class="layer-controls" style="display: none;">
+                        <div class="opacity-control">
+                            <label for="geojsonOpacity">Opacity</label>
+                            <input type="range" id="geojsonOpacity" min="0" max="1" step="0.1" value="0.5">
+                            <span id="geojsonOpacityValue">50%</span>
+                        </div>
+                        
+                        <div class="attribute-selector">
+                            <label for="vectorAttribute1">Indicator to Display:</label>
+                            <select id="vectorAttribute1"></select>
+                        </div>
+                        
+                        <div class="color-ramp-selector">
+                            <label for="vectorColorRamp1">Color Scheme:</label>
+                            <select id="vectorColorRamp1"></select>
+                            <div id="vectorColorPreview1" class="color-preview"></div>
+                        </div>
+                    </div>
+                    
+         
+                    <div class="layer-checkbox">
+                        <input type="checkbox" id="geojsonLayer2">
+                        <label for="geojsonLayer2">Statistics: Districts</label>
+                    </div>
+                    
+                    <div class="layer-controls" style="display: none;">
+                        <div class="opacity-control">
+                            <label for="geojsonOpacity2">Opacity</label>
+                            <input type="range" id="geojsonOpacity2" min="0" max="1" step="0.1" value="0.4">
+                            <span id="geojsonOpacityValue2">50%</span>
+                        </div>
+                        
+                        <div class="attribute-selector">
+                            <label for="vectorAttribute2">Indicator to Display:</label>
+                            <select id="vectorAttribute2"></select>
+                        </div>
+                        
+                        <div class="color-ramp-selector">
+                            <label for="vectorColorRamp2">Color Scheme:</label>
+                            <select id="vectorColorRamp2"></select>
+                            <div id="vectorColorPreview2" class="color-preview"></div>
+                        </div>
+                    </div>
+              
+                    <div class="layer-checkbox">
+                        <input type="checkbox" id="geojsonLayer3">
+                        <label for="geojsonLayer3">Statistics: Cadastre</label>
+                    </div>
+                    
+                    <div class="layer-controls" style="display: none;">
+                        <div class="opacity-control">
+                            <label for="geojsonOpacity3">Opacity</label>
+                            <input type="range" id="geojsonOpacity3" min="0" max="1" step="0.1" value="0.4">
+                            <span id="geojsonOpacityValue3">50%</span>
+                        </div>
+                        
+                        <div class="attribute-selector">
+                            <label for="vectorAttribute3">Indicator to Display:</label>
+                            <select id="vectorAttribute3"></select>
+                        </div>
+                        
+                        <div class="color-ramp-selector">
+                            <label for="vectorColorRamp3">Color Scheme:</label>
+                            <select id="vectorColorRamp3"></select>
+                            <div id="vectorColorPreview3" class="color-preview"></div>
+                        </div>
+                    </div>
+                </div>
+            </div> -->
+
+            
+
+            <!-- Raster Layers Dropdown -->
+            <div class="layer-group">
+                <button class="dropdown-btn"><strong>High Resolution Maps</strong></button>
+                <div class="dropdown-container">
+                   
+                    <template id="raster-layer-template">
+                        <div class="layer-checkbox">
+                            <input type="checkbox" id="layerId">
+                            <label for="layerId">Layer Name</label>
+                        </div>
+                        <div class="opacity-control">
+                            <label for="opacityId">Opacity</label>
+                            <input type="range" id="opacityId" min="0" max="1" step="0.1" value="1">
+                            <span id="opacityValueId">100%</span>
+                        </div>
+                    </template>
+                  
+                    <div class="layer-checkbox">
+                        <input type="checkbox" id="tiffLayer3">
+                        <label for="tiffLayer3">Social Vulnerability</label>
+                    </div>
+                    <div class="opacity-control" style="display: none;">
+                        <label for="tiffOpacity3">Opacity</label>
+                        <input type="range" id="tiffOpacity3" min="0" max="1" step="0.1" value="1">
+                        <span id="tiffOpacityValue3">100%</span>
+                    </div>
+                  
+                    <div class="layer-checkbox">
+                        <input type="checkbox" id="streetNetworkLayer">
+                        <label for="streetNetworkLayer">Street Network</label>
+                    </div>
+                    <div class="opacity-control" style="display: none;">
+                        <label for="streetNetworkOpacityValue">Opacity</label>
+                        <input type="range" id="streetNetworkOpacityValue" min="0" max="1" step="0.1" value="1">
+                        <span id="streetNetworkOpacity">100%</span>
+                    </div>
+                
+                   
+                    <div class="layer-checkbox">
+                        <input type="checkbox" id="tiffLayer1">
+                        <label for="tiffLayer1">Cell Tower Density</label>
+                    </div>
+                    <div class="opacity-control" style="display: none;">
+                        <label for="tiffOpacity1">Opacity</label>
+                        <input type="range" id="tiffOpacity1" min="0" max="1" step="0.1" value="1">
+                        <span id="tiffOpacityValue1">100%</span>
+                    </div>
+                    
+                   
+                    <div class="layer-checkbox">
+                        <input type="checkbox" id="tiffLayer2">
+                        <label for="tiffLayer2">Population Density</label>
+                    </div>
+                    <div class="opacity-control" style="display: none;">
+                        <label for="tiffOpacity2">Opacity</label>
+                        <input type="range" id="tiffOpacity2" min="0" max="1" step="0.1" value="1">
+                        <span id="tiffOpacityValue2">100%</span>
+                    </div>
+                    
+                    <div class="layer-checkbox">
+                        <input type="checkbox" id="tiffLayer4">
+                        <label for="tiffLayer4">Relative Wealth</label>
+                    </div>
+                    <div class="opacity-control" style="display: none;">
+                        <label for="tiffOpacity4">Opacity</label>
+                        <input type="range" id="tiffOpacity4" min="0" max="1" step="0.1" value="1">
+                        <span id="tiffOpacityValue4">100%</span>
+                    </div>                    
+                
+                    <div class="layer-checkbox">
+                        <input type="checkbox" id="tiffLayer6">
+                        <label for="tiffLayer6">Plant Health</label>
+                    </div>
+                    <div class="opacity-control" style="display: none;">
+                        <label for="tiffOpacity6">Opacity</label>
+                        <input type="range" id="tiffOpacity6" min="0" max="1" step="0.1" value="1">
+                        <span id="tiffOpacityValue6">100%</span>
+                    </div>                     
+                    
+                    <div class="layer-checkbox">
+                        <input type="checkbox" id="tiffLayer7">
+                        <label for="tiffLayer7">Conflicts</label>
+                    </div>
+                    <div class="opacity-control" style="display: none;">
+                        <label for="tiffOpacity7">Opacity</label>
+                        <input type="range" id="tiffOpacity7" min="0" max="1" step="0.1" value="1">
+                        <span id="tiffOpacityValue7">100%</span>
+                    </div>  
+                    
+                    <div class="layer-checkbox">
+                        <input type="checkbox" id="tiffLayer8">
+                        <label for="tiffLayer8">Temperature</label>
+                    </div>
+                    <div class="opacity-control" style="display: none;">
+                        <label for="tiffOpacity8">Opacity</label>
+                        <input type="range" id="tiffOpacity8" min="0" max="1" step="0.1" value="1">
+                        <span id="tiffOpacityValue8">100%</span>
+                    </div>  
+                </div>
+            </div>
+
+            
+            <div class="layer-group">
+                <button class="dropdown-btn"><strong>Survey Data</strong></button>
+                <div class="dropdown-container">
+                    <div class="layer-checkbox">
+                        <input type="checkbox" id="pointLayer">
+                        <label for="pointLayer">Household Survey Statistics</label>
+                    </div>
+                    <div class="layer-controls" style="display: none;">
+                        <div class="opacity-control">
+                            <label for="pointOpacity">Opacity</label>
+                            <input type="range" id="pointOpacity" min="0" max="1" step="0.1" value="1">
+                            <span id="pointOpacityValue">100%</span>
+                        </div>
+                        <div class="attribute-selector">
+                            <label for="pointValueSelector">Value to Display:</label>
+                            <select id="pointValueSelector"></select>
+                        </div>
+                        <div class="color-ramp-selector">
+                            <label for="pointColorRamp">Color Scheme:</label>
+                            <select id="pointColorRamp"></select>
+                            <div id="pointColorPreview" class="color-preview"></div>
+                        </div>
+                    </div>
+                    <div class="layer-checkbox">
+                        <input type="checkbox" id="pointLayer2">
+                        <label for="pointLayer2">Cities</label>
+                    </div>
+                    <div class="layer-controls" style="display: none;">
+                        <div class="opacity-control">
+                            <label for="pointOpacity2">Opacity</label>
+                            <input type="range" id="pointOpacity2" min="0" max="1" step="0.1" value="1">
+                            <span id="pointOpacityValue2">100%</span>
+                        </div>
+                        <div class="attribute-selector">
+                            <label for="pointValueSelector2">Value to Display:</label>
+                            <select id="pointValueSelector2"></select>
+                        </div>
+                        <div class="color-ramp-selector">
+                            <label for="pointColorRamp2">Color Scheme:</label>
+                            <select id="pointColorRamp2"></select>
+                            <div id="pointColorPreview2" class="color-preview2"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="map-features-sidebar-slot" class="map-features-sidebar-slot"></div>
+        </div>
+        
+        <!-- Map workspace -->
+        <div class="map-panel">
+            <!-- Statistics container -->
+            <div id="stats-container" style="display: none; position: absolute; top: 10px; right: 10px; z-index: 1000; padding: 10px; background: white; border: 1px solid #ccc; border-radius: 5px; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);"></div>
+
+            <!-- Map container left -->
+            <div id="map"></div>
+
+            <!-- Legend -->
+            <div id="legend" class="legend"></div>
+        </div>
+
+        <!-- Docked analysis sidebar -->
+        <aside id="analysis-sidebar" class="analysis-sidebar">
+            <div class="analysis-sidebar-resize-handle" role="separator" aria-orientation="vertical" aria-label="Resize analysis panel"></div>
+            <div id="info-panel-slot" class="info-panel-slot"></div>
+        </aside>
+    </div>
+    
+    <!-- Information Popup -->
+    <div id="info-popup" class="info-popup" style="display: none;">
+        <div class="info-popup-content">
+            <div class="info-popup-header">
+                <h3 id="info-popup-title">Area Information</h3>
+                <button id="info-popup-close" class="info-popup-close">&times;</button>
+            </div>
+            <div id="info-popup-body" class="info-popup-body">
+                <!-- Content will be populated dynamically -->
+            </div>
+        </div>
+    </div>
+    
+    <!-- External library scripts -->
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js" 
+  integrity="sha512-XQoYMqMTK8LvdxXYG3nZ448hOEQiglfqkJs1NOQV44cWnUrBc8PkAOcXy20w0vlaXaVUearIOBhiXZ5V3ynxwA==" 
+  crossorigin=""></script>
+    <script src="https://cdn.jsdelivr.net/npm/geotiff@2.1.3/dist-browser/geotiff.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.15.0/proj4.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/leaflet.sync@0.2.4/L.Map.Sync.min.js"></script>
+    <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/teastman/Leaflet.pattern@master/dist/leaflet.pattern.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    
+    <!-- Application scripts -->
+    <script type="module" src="js/split-map.js"></script>
+    <script type="module" src="js/color_scales.js"></script>
+    <script type="module" src="js/color_ramp_selector.js"></script>
+    <script type="module" src="js/zoom-adaptive-tiff-loader.js"></script>
+    <script type="module" src="js/vector_layers.js"></script>
+    <script type="module" src="js/layer_controls.js"></script>
+    <script type="module" src="js/legend.js"></script>
+    <script type="module" src="js/basemaps.js"></script>
+    <script type="module" src="js/info_popup.js"></script>
+    <script type="module" src="js/welcome_popup.js"></script>
+    <script type="module" src="js/main.js"></script>
+    
+    <!-- UI initialization script -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Hide all selectors initially
+            document.querySelectorAll('.attribute-selector:not(.sv-admin-resolution-selector), .color-ramp-selector').forEach(function(elem) {
+                elem.style.display = 'none';
+            });
+            
+            // Handle Admin Level 1
+            setupLayerControls('geojsonLayer');
+            
+            // Handle Admin Level 2
+            setupLayerControls('geojsonLayer2');
+            
+            // Handle Admin Level 3
+            setupLayerControls('geojsonLayer3');
+
+            // Handle Vulnerability Cadastre layer
+            setupLayerControls('vulnerabilityCadastreLayer');
+            
+            // Handle Social Vulnerability radio buttons
+            setupSVRadioControls();
+            
+            // Handle Point Layer
+            setupPointControls();
+            
+            // Helper function to set up layer control visibility
+            function setupLayerControls(layerId) {
+                const checkbox = document.getElementById(layerId);
+                if (!checkbox) return;
+                const controlsContainer = checkbox.closest('.layer-checkbox').nextElementSibling;
+                
+                if (controlsContainer) {
+                    const attributeSelector = controlsContainer.querySelector('.attribute-selector');
+                    const colorSelector = controlsContainer.querySelector('.color-ramp-selector');
+                    
+                    const updateVisibility = () => {
+                        controlsContainer.style.display = checkbox.checked ? 'block' : 'none';
+                        if (attributeSelector) attributeSelector.style.display = checkbox.checked ? 'block' : 'none';
+                        if (colorSelector) colorSelector.style.display = checkbox.checked ? 'block' : 'none';
+                    };
+                    
+                    checkbox.addEventListener('change', updateVisibility);
+                    // Initialize visibility on load
+                    updateVisibility();
+                }
+            }
+            
+            // Helper function for raster layers (High Resolution Maps)
+            function setupRasterLayerControls(layerId) {
+                const checkbox = document.getElementById(layerId);
+                if (!checkbox) return;
+                const opacityControl = checkbox.closest('.layer-checkbox')?.nextElementSibling;
+                
+                if (checkbox && opacityControl && opacityControl.classList.contains('opacity-control')) {
+                    checkbox.addEventListener('change', function() {
+                        opacityControl.style.display = this.checked ? 'block' : 'none';
+                    });
+                }
+            }
+            
+            // Helper function for point layers
+            function setupPointControls() {
+                const pointCheckbox = document.getElementById('pointLayer');
+                const pointControlsContainer = pointCheckbox.closest('.layer-checkbox').nextElementSibling;
+                
+                const pointCheckbox2 = document.getElementById('pointLayer2');
+                const pointControlsContainer2 = pointCheckbox2.closest('.layer-checkbox').nextElementSibling;
+                
+                if (pointCheckbox && pointControlsContainer) {
+                    pointCheckbox.addEventListener('change', function() {
+                        pointControlsContainer.style.display = this.checked ? 'block' : 'none';
+                    });
+                }
+                
+                if (pointCheckbox2 && pointControlsContainer2) {
+                    pointCheckbox2.addEventListener('change', function() {
+                        pointControlsContainer2.style.display = this.checked ? 'block' : 'none';
+                    });
+                }
+            }
+            
+            // Setup all raster layer controls
+            setupRasterLayerControls('tiffLayer1');
+            setupRasterLayerControls('tiffLayer2'); 
+            setupRasterLayerControls('tiffLayer3');
+            setupRasterLayerControls('tiffLayer4');
+            setupRasterLayerControls('tiffLayer5');
+            setupRasterLayerControls('tiffLayer6');
+            setupRasterLayerControls('tiffLayer7');
+            setupRasterLayerControls('tiffLayer8');
+            setupRasterLayerControls('streetNetworkLayer');
+            
+            // Helper function for Social Vulnerability checkbox controls
+            function setupSVRadioControls() {
+                const svCheckboxes = document.querySelectorAll('input[name="svLayer"]');
+                const controlsContainer = document.querySelector('.social-vulnerability-btn').nextElementSibling.querySelector('.layer-controls');
+                
+                svCheckboxes.forEach(checkbox => {
+                    checkbox.addEventListener('change', function() {
+                        // This is handled by the main layer controls, but we need to track state for UI
+                        setTimeout(() => {
+                            const anyChecked = Array.from(svCheckboxes).some(r => r.checked);
+                            if (controlsContainer) {
+                                controlsContainer.style.display = anyChecked ? 'block' : 'none';
+                            }
+                        }, 10);
+                    });
+                });
+                
+                // Show controls by default if at least one layer is checked
+                if (controlsContainer) {
+                    const anyChecked = Array.from(svCheckboxes).some(r => r.checked);
+                    controlsContainer.style.display = anyChecked ? 'block' : 'none';
+                }
+            }
+            
+            // Set up point layer controls
+            function setupPointControls() {
+                const pointCheckbox = document.getElementById('pointLayer');
+                const pointSelector = document.getElementById('pointValueSelector');
+                const colorSelector = document.getElementById('pointColorRamp').parentElement;
+                
+                if (pointCheckbox && pointSelector) {
+                    // Initially hide the selectors
+                    pointSelector.parentElement.style.display = 'none';
+                    if (colorSelector) colorSelector.style.display = 'none';
+                    
+                    pointCheckbox.addEventListener('change', function() {
+                        // Show/hide the selectors based on checkbox state
+                        pointSelector.parentElement.style.display = this.checked ? 'block' : 'none';
+                        if (colorSelector) colorSelector.style.display = this.checked ? 'block' : 'none';
+                    });
+                }
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>More Information - DSVI Data Visualization</title>
+    
+    <!-- CSS styles -->
+    <link rel="stylesheet" href="../css/styles.css">
+    
+    <meta name="description" content="More information about the DSVI Data Visualization tool and methodology">
+    
+    <!-- Additional styles for content pages -->
+    <style>
+        html, body {
+            height: auto !important;
+            overflow: auto !important;
+            overflow-x: hidden !important;
+        }
+
+        /* Ensure the content container allows scrolling */
+        .content-container {
+            min-height: 100vh;
+            overflow: visible;
+            padding: 30px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        /* Make sure the footer stays at the bottom */
+        footer {
+            margin-top: 40px;
+            position: relative;
+        }
+        .content-container {
+            padding: 30px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .content-section {
+            margin-bottom: 40px;
+        }
+        
+        .content-section h2 {
+            color: #343a40;
+            border-bottom: 2px solid #6c757d;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .data-source {
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .data-source h3 {
+            color: #343a40;
+            margin-top: 0;
+        }
+        
+        .methodology-diagram {
+            display: flex;
+            justify-content: center;
+            margin: 30px 0;
+        }
+        
+        .methodology-diagram img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        
+        .faq-item {
+            margin-bottom: 25px;
+        }
+        
+        .faq-item h3 {
+            color: #343a40;
+            margin-bottom: 10px;
+        }
+        
+        .two-column {
+            display: flex;
+            gap: 30px;
+        }
+        
+        .column {
+            flex: 1;
+        }
+        
+        @media (max-width: 768px) {
+            .two-column {
+                flex-direction: column;
+            }
+        }
+        
+        /* Table styles */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        
+        th, td {
+            padding: 12px 15px;
+            border: 1px solid #ddd;
+        }
+        
+        thead {
+            background-color: #343a40;
+            color: white;
+        }
+        
+        tr:nth-child(even) {
+            background-color: #f2f2f2;
+        }
+
+        /* Figure styles */
+        .figure-container {
+            margin: 30px 0;
+            text-align: center;
+        }
+        
+        .figure-container img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            margin-bottom: 10px;
+        }
+        
+        .figure-caption {
+            font-style: italic;
+            color: #6c757d;
+            margin-top: 10px;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <!-- Top Navigation Bar - Same as main page -->
+    <nav id="navbar">
+        <div class="navbar-inner">
+            <div class="navbar-cluster-left">
+                <div class="navbar-logo navbar-logo-left">
+                    <img src="../assets/sdgai.png" alt="SDG AI" class="logo-image navbar-sdgai-logo">
+                    <img src="../assets/logo.1b5fa4604ab571b03ad2_white.png" alt="" class="logo-image navbar-brand-logo">
+                </div>
+            </div>
+            <div class="navbar-center">
+                <h2 class="tool-title">Development tool Lebanon</h2>
+                <ul class="navbar-menu">
+                    <li><a href="../index.html" class="larger-nav-link">Map</a></li>
+                    <li><a href="about.html" class="larger-nav-link">About Us</a></li>
+                    <li><a href="more.html" class="larger-nav-link nav-link-current" aria-current="page">More Information</a></li>
+                </ul>
+            </div>
+            <div class="navbar-cluster-right">
+                <div class="navbar-logo navbar-logo-right">
+                    <img src="../assets/undp_logo.png" alt="UNDP Logo" class="logo-image">
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main content container -->
+    <div class="content-container">
+        <div class="content-section">
+            <h1>More Information About the DSVI Tool</h1>
+            <p>
+                This page provides detailed information about the Development and Social Vulnerability Index (DSVI) Data Visualization Tool, including methodology, data sources, and guidance on interpretation.
+            </p>
+        </div>
+        <div class="content-section">
+            <h2>How to Use the Tool</h2>
+            <div class="two-column">
+                <div class="column">
+                    <h3>Basic Usage</h3>
+                    <ol>
+                        <li><strong>Select a Layer:</strong> Use the sidebar to toggle different data layers on and off</li>
+                        <li><strong>Adjust Opacity:</strong> Use the slider controls to adjust the transparency of each layer</li>
+                        <li><strong>View Data:</strong> Click on areas of the map to view detailed information about that location</li>
+                        <li><strong>Change Basemap:</strong> Use the basemap selector in the top right to change the background map</li>
+                    </ol>
+                </div>
+                <div class="column">
+                    <h3>Advanced Features</h3>
+                    <ol>
+                        <li><strong>Compare Indicators:</strong> Toggle multiple layers to compare different aspects of vulnerability</li>
+                        <li><strong>Adjust Colors:</strong> For vector layers, select different attributes and color schemes</li>
+                        <li><strong>Export Maps:</strong> Use the screenshot function to export your map view for reports</li>
+                        <li><strong>View Legend:</strong> Refer to the legend to understand the classification of values</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+        <div class="content-section">
+            <h2>Methodology</h2>
+            <p>
+                The DSVI integrates multiple indicators of development and social vulnerability to create a comprehensive assessment tool. DSVI combines Geographic Information Systems (GIS), Artificial Intelligence (AI), and Machine Learning (ML) technologies for building interactive high-resolution maps visualizing vulnerabilities. Our methodology follows these key steps:
+            </p>
+            
+            <ol>
+                <li><strong>Data Collection:</strong> We gather data from multiple reliable sources, including Demographic and Health Surveys (DHS), satellite imagery, and international databases.</li>
+                <li><strong>Data Preprocessing:</strong> All indicators are norLebanonzed and prepared to ensure comparability across different measurement scales.</li>
+                <li><strong>Social Vulnerability Calculation:</strong> Using Principal Component Analysis (PCA) and expert opinion to calculate vulnerability scores for survey locations.</li>
+                <li><strong>Machine Learning Modeling:</strong> We use multiple algorithms to predict social vulnerability for areas without survey coverage, creating high-resolution vulnerability maps.</li>
+                <li><strong>Validation:</strong> The resulting indices are validated against ground truth data and expert assessments.</li>
+                <li><strong>Visualization:</strong> We develop interactive maps and dashboards to make the data accessible to a wide range of users.</li>
+            </ol>
+            
+            <div class="figure-container">
+                <img src="../assets/Workflow_new.png" alt="DSVI Workflow Diagram">
+                <p class="figure-caption">Figure 1: DSVI Workflow from Business Understanding to Product Deployment</p>
+            </div>
+
+            <p>
+                The calculation of Social Vulnerability follows a detailed process that involves:
+            </p>
+            <ol>
+                <li>Collection and preprocessing of survey data</li>
+                <li>Long listing of potentially relevant vulnerability indicators</li>
+                <li>Short listing of indicators with feedback from local experts</li>
+                <li>Principal component analysis on remaining indicators</li>
+                <li>Discussion on indicator influence and components' meaning with experts</li>
+                <li>Summation of components into single vulnerability score</li>
+            </ol>
+        </div>
+        
+        <div class="content-section">
+            <h2>Data Sources</h2>
+            <p>
+                The DSVI tool incorporates data from various sources to provide a comprehensive picture of development challenges and social vulnerability:
+            </p>
+            
+            <div class="data-source">
+                <h3>Survey Data</h3>
+                <p>DSVI primarily uses Demographic and Health Survey (DHS) data with geolocations to calculate social vulnerability. For Lebanon, we used the DHS 2018 (Standard) and 2021 Malaria Indicator Survey (MIS) nationwide survey data. These surveys contain hundreds of variables covering dimensions of income, employment status, access to infrastructure, health, violence, gender equality, ethnic group, age, and more.</p>
+            </div>
+            
+            <div class="data-source">
+                <h3>Spatial Data</h3>
+                <p>We collect and create high-quality spatial data to find connections between geographical factors and calculated social vulnerability scores. These include socioeconomic variables (nightlight intensity, distance to healthcare, etc.) and biophysical variables (elevation, vegetation, etc.).</p>
+            </div>
+            
+            <div class="data-source">
+                <h3>Expert Opinion</h3>
+                <p>Social vulnerability is a contextual metric that requires expert input for weighting. For every country studied, domain knowledge of the specific circumstances must be considered. Expert input helps interpret the influence of humanitarian indicators and validate results.</p>
+            </div>
+            
+            <div class="data-source">
+                <h3>Administrative Boundaries</h3>
+                <p>Administrative level 1 (province/state) and level 2 (district/county) boundaries are sourced from national mapping agencies and the United Nations Office for the Coordination of Humanitarian Affairs (OCHA).</p>
+            </div>
+        </div>
+        
+        <div class="content-section">
+            <h2>Geodatasets Used</h2>
+            <p>
+                The following geodatasets were used for predicting social vulnerability in Lebanon:
+            </p>
+            
+            <table>
+                <thead>
+                    <tr>
+                        <th>Group</th>
+                        <th>Variable</th>
+                        <th>Type</th>
+                        <th>Year</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Socioeconomic</td>
+                        <td>Nightlight Intensity</td>
+                        <td>Raw data</td>
+                        <td>2024</td>
+                    </tr>
+                    <tr>
+                        <td>Socioeconomic</td>
+                        <td>Proximity to Healthcare</td>
+                        <td>Derived</td>
+                        <td>2024</td>
+                    </tr>
+                    <tr>
+                        <td>Socioeconomic</td>
+                        <td>Proximity to Education</td>
+                        <td>Derived</td>
+                        <td>2024</td>
+                    </tr>
+                    <tr>
+                        <td>Socioeconomic</td>
+                        <td>Proximity to Main Road</td>
+                        <td>Derived</td>
+                        <td>2024</td>
+                    </tr>
+                    <tr>
+                        <td>Socioeconomic</td>
+                        <td>Population Density</td>
+                        <td>Raw data</td>
+                        <td>2024</td>
+                    </tr>
+                    <tr>
+                        <td>Socioeconomic</td>
+                        <td>Conflicts</td>
+                        <td>Raw data</td>
+                        <td>2012-2024</td>
+                    </tr>
+                    <tr>
+                        <td>Socioeconomic</td>
+                        <td>Relative Wealth</td>
+                        <td>Derived</td>
+                        <td>2021</td>
+                    </tr>
+                    <tr>
+                        <td>Socioeconomic</td>
+                        <td>Cell Tower Density</td>
+                        <td>Derived</td>
+                        <td>2024</td>
+                    </tr>
+                    <tr>
+                        <td>Bio-physical</td>
+                        <td>Temperature</td>
+                        <td>Raw data</td>
+                        <td>2023</td>
+                    </tr>
+                    <tr>
+                        <td>Bio-physical</td>
+                        <td>Precipitation</td>
+                        <td>Raw data</td>
+                        <td>2023</td>
+                    </tr>
+                    <tr>
+                        <td>Bio-physical</td>
+                        <td>Vegetation Indices</td>
+                        <td>Raw data</td>
+                        <td>2024</td>
+                    </tr>
+                    <tr>
+                        <td>Bio-physical</td>
+                        <td>Elevation</td>
+                        <td>Raw data</td>
+                        <td>-</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="figure-container">
+                <img src="../assets/SV_masked.png" alt="Social Vulnerability Map of populated areas">
+                <p class="figure-caption">Figure 2: Social Vulnerability Map of populated areas in Lebanon</p>
+            </div>
+        </div>
+        
+        <div class="content-section">
+            <h2>Key Indicators</h2>
+            <p>
+                The DSVI incorporates multiple indicators across several dimensions of development and vulnerability. The following indicator groups from DHS surveys were particularly important:
+            </p>
+            
+            <table>
+                <thead>
+                    <tr>
+                        <th>Social</th>
+                        <th>Health</th>
+                        <th>Economy</th>
+                        <th>Infrastructure</th>
+                        <th>Malaria</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Age</td>
+                        <td>Health insurance</td>
+                        <td>Working environment</td>
+                        <td>Travel times to water/health</td>
+                        <td>Mosquito nets and their use</td>
+                    </tr>
+                    <tr>
+                        <td>Gender</td>
+                        <td>Tuberculosis</td>
+                        <td>Unemployment</td>
+                        <td>Internet access</td>
+                        <td>Treatment against malaria</td>
+                    </tr>
+                    <tr>
+                        <td>Ethnicity</td>
+                        <td>Vaccinations</td>
+                        <td>Child labour</td>
+                        <td>Building materials</td>
+                        <td>Diagnostic blood tests</td>
+                    </tr>
+                    <tr>
+                        <td>Migration</td>
+                        <td>Disability</td>
+                        <td>Access to banking</td>
+                        <td>Transportation</td>
+                        <td>Awareness of Malaria and methods to reduce risk</td>
+                    </tr>
+                    <tr>
+                        <td>Household size</td>
+                        <td>Malaria STD's</td>
+                        <td></td>
+                        <td>Urban/Rural</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td>Literacy</td>
+                        <td>Health insurance</td>
+                        <td></td>
+                        <td>Cooking fuel</td>
+                        <td></td>
+                    </tr>
+                </tbody>
+            </table>
+            
+            <p>
+                According to our analysis, the most important drivers of vulnerability in Lebanon were:
+            </p>
+            <ul>
+                <li><strong>From PCA Analysis:</strong> Literacy, Access to electricity, Education in single years, Educational attainment, Highest educational level, and Use of internet</li>
+                <li><strong>From Machine Learning Models:</strong> Nightlight intensity, Relative wealth, Distance to education, Celltower density, Distance to financial services, Conflicts, Population density, and Distance to healthcare</li>
+            </ul>
+        </div>
+        
+        <div class="content-section">
+            <h2>Vulnerability Classification</h2>
+            <p>
+                Vulnerability scores are classified into five categories for easier interpretation:
+            </p>
+            
+            <table>
+                <thead>
+                    <tr>
+                        <th>Vulnerability Score</th>
+                        <th>Vulnerability Class</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>0 – 0.2</td>
+                        <td>Very Low</td>
+                    </tr>
+                    <tr>
+                        <td>0.2 – 0.4</td>
+                        <td>Low</td>
+                    </tr>
+                    <tr>
+                        <td>0.4 – 0.6</td>
+                        <td>Medium</td>
+                    </tr>
+                    <tr>
+                        <td>0.6 – 0.8</td>
+                        <td>High</td>
+                    </tr>
+                    <tr>
+                        <td>0.8 – 1.0</td>
+                        <td>Very High</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        
+        <div class="content-section">
+            <h2>Frequently Asked Questions</h2>
+            
+            <div class="faq-item">
+                <h3>How often is the data updated?</h3>
+                <p>
+                    Data updates vary by source. Administrative statistics are updated as new data becomes available, typically annually. Survey data like DHS is updated on their survey cycle, typically every 5 years. Satellite-derived indicators are updated more frequently, with some being refreshed quarterly or monthly.
+                </p>
+            </div>
+            
+            <div class="faq-item">
+                <h3>How should I interpret the vulnerability scores?</h3>
+                <p>
+                    Vulnerability scores are norLebanonzed on a scale of 0-1, where 0 represents the lowest vulnerability and 1 represents the highest vulnerability within the dataset. These scores should be interpreted as relative measures within a country rather than absolute measures between countries.
+                </p>
+            </div>
+            
+            <div class="faq-item">
+                <h3>Can I download the data for my own analysis?</h3>
+                <p>
+                    Yes, all data layers can be downloaded in GeoJSON format for vector data or GeoTIFF format for raster data. Please note that some datasets may have specific usage restrictions or attribution requirements.
+                </p>
+            </div>
+            
+            <div class="faq-item">
+                <h3>How accurate is the data at the local level?</h3>
+                <p>
+                    Accuracy varies by indicator and region. Survey data like DHS is typically representative at the provincial level but may have wider confidence intervals for smaller areas. Satellite-derived indicators have consistent spatial resolution but may have varying accuracy depending on ground conditions. For critical decision-making, we recommend triangulating with local knowledge and data.
+                </p>
+            </div>
+        </div>
+        
+        
+        <div class="content-section">
+            <h2>Contact Us</h2>
+            <p>
+                If you have questions about the DSVI tool, methodology, or data sources, please contact us at <a href="mailto:dsvi-team@example.org">dsvi-team@example.org</a>. We welcome feedback and suggestions for improving the tool.
+            </p>
+        </div>
+    </div>
+    
+    <!-- Simple footer -->
+    <footer style="background-color: #343a40; color: white; text-align: center; padding: 20px; margin-top: 40px;">
+        <p>© 2025 DSVI Data Visualization Tool | All Rights Reserved</p>
+    </footer>
+</body>
+</html>
