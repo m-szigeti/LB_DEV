@@ -58,7 +58,7 @@ export const basemaps = {
     
     // Mapbox (requires token)
     // To use Mapbox, replace YOUR_MAPBOX_ACCESS_TOKEN with your actual token
-    mapboxStreets: L.tileLayer('https://api.mapbox.com/styles/v1/mapbox/streets-v11/tiles/{z}/{x}/{y}?access_token=pk.eyJ1IjoibWFwYm94IiwiYSI6ImNpejY4NXVycTA2emYycXBndHRqcmZ3N3gifQ.rJcFIG214AriISLbB6B5aw', {
+    mapboxStreets: L.tileLayer('https://api.mapbox.com/styles/v1/mapbox/streets-v11/tiles/{z}/{x}/{y}?access_token=', {
         attribution: '© <a href="https://www.mapbox.com/about/maps/">Mapbox</a> © <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>',
         maxZoom: 18
     }),
