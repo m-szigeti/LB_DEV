@@ -1,5 +1,8 @@
 // info_panel.js - Simplified info panel for layer analysis and reporting
 
+import { WELCOME_TAB_HTML } from './welcome_tab_content.js';
+import { OVERALL_TENSION_INDEX_DESCRIPTION_HTML } from './overall_tension_index_content.js';
+
 /**
  * InfoPanel class - Creates and manages a floating info/analysis panel
  */
@@ -93,30 +96,41 @@ export class InfoPanel {
         this.container.style.setProperty('--info-panel-height', '400px');
         this.container.style.setProperty('--info-panel-max-height', this.options.maxHeight);
 
-        const header = document.createElement('div');
-        header.className = 'info-panel-header';
-        header.innerHTML = `
-            <div class="info-panel-title">${this.options.title}</div>
-            <!-- <div class="info-panel-controls">
-                <button class="info-panel-btn minimize-btn" title="Minimize/Maximize">−</button>
-                <button class="info-panel-btn close-btn" title="Close">×</button>
-            </div> -->
-        `;
+        let header = null;
+        if (!this.options.docked) {
+            header = document.createElement('div');
+            header.className = 'info-panel-header';
+            header.innerHTML = `
+                <div class="info-panel-title">${this.options.title}</div>
+                <div class="info-panel-controls">
+                    <button class="info-panel-btn minimize-btn" title="Minimize/Maximize">−</button>
+                    <button class="info-panel-btn close-btn" title="Close">×</button>
+                </div>
+            `;
+        }
+
         const content = document.createElement('div');
         content.className = 'info-panel-content';
-        content.style.display = 'none';
+        content.style.display = this.options.docked ? 'flex' : 'none';
         content.innerHTML = `
             <div class="info-panel-tabs" role="tablist" aria-label="Info panel sections">
-                <button class="info-panel-tab active" type="button" data-tab="layers" role="tab" aria-selected="true">
+                <button class="info-panel-tab active" type="button" data-tab="welcome" role="tab" aria-selected="true">
+                    Welcome
+                </button>
+                <button class="info-panel-tab" type="button" data-tab="layers" role="tab" aria-selected="false">
                     Active Layers
                 </button>
                 <button class="info-panel-tab" type="button" data-tab="analysis" role="tab" aria-selected="false">
-                    Analysis & Reports
+                    Analysis
                 </button>
             </div>
 
             <div class="info-panel-tab-panels">
-                <section class="info-panel-tab-panel active" data-panel="layers" role="tabpanel">
+                <section class="info-panel-tab-panel active" data-panel="welcome" role="tabpanel">
+                    ${WELCOME_TAB_HTML}
+                </section>
+
+                <section class="info-panel-tab-panel" data-panel="layers" role="tabpanel" hidden>
                     <div class="info-panel-section">
                         <div class="section-header">
                             <h4>Active Layers</h4>
@@ -157,27 +171,25 @@ export class InfoPanel {
             </div>
         `;
 
-        this.container.appendChild(header);
-        this.container.appendChild(content);
-
-        if (this.options.docked) {
-            const tabsRow = this.container.querySelector('.info-panel-tabs');
-            const controls = header.querySelector('.info-panel-controls');
-            if (tabsRow && controls) {
-                const actions = document.createElement('div');
-                actions.className = 'info-panel-tabs-actions';
-                actions.appendChild(controls);
-                tabsRow.appendChild(actions);
-            }
-            header.remove();
+        if (header) {
+            this.container.appendChild(header);
         }
+        this.container.appendChild(content);
 
         if (!this.options.docked) {
             this.createResizeHandles();
         }
 
         this.appendPanel();
-        this.updateMinimizeState();
+
+        if (!this.options.docked) {
+            this.updateMinimizeState();
+        } else {
+            this.isMinimized = false;
+            this.updateMinimizeState();
+        }
+
+        this.setActiveTab('welcome');
     }
     
     /**
@@ -307,7 +319,9 @@ setupEventListeners() {
     // closeBtn.addEventListener('click', () => this.hide());
 
     const analysisBtn = this.container.querySelector('.run-analysis-btn');
-    analysisBtn.addEventListener('click', () => this.generateSummaryReport());
+    if (analysisBtn) {
+        analysisBtn.addEventListener('click', () => this.generateSummaryReport());
+    }
 
     tabs.forEach(tab => {
         tab.addEventListener('click', () => this.setActiveTab(tab.dataset.tab));
@@ -497,7 +511,7 @@ setupEventListeners() {
             properties: layerInfo.properties || {},
             ...layerInfo
         });
-        
+
         if (this.isVisible) {
             this.updateLayersList();
         }
@@ -574,6 +588,10 @@ setupEventListeners() {
      * @param {Object} layer - Layer information
      */
     generateLayerDetails(layer) {
+        if (layer.id === 'svOverallTensionLayer') {
+            return OVERALL_TENSION_INDEX_DESCRIPTION_HTML;
+        }
+
         if (layer.type === 'sv-vector') {
             const inputMap = {
                 svAdmin1Layer: [
@@ -652,26 +670,76 @@ setupEventListeners() {
             return;
         }
 
-        const chartLayers = Array.from(this.activeLayers.values()).filter(layer =>
-            Array.isArray(layer?.selectedFeature?.pillarBreakdown) && layer.selectedFeature.pillarBreakdown.length
-        );
+        const blocks = [];
 
-        if (chartLayers.length === 0) {
-            container.innerHTML = '<p class="no-results-message">No selected polygon charts yet</p>';
+        Array.from(this.activeLayers.values()).forEach(layer => {
+            const rankings = this.getLayerRankings(layer);
+            if (rankings) {
+                blocks.push(this.renderAnalysisLayerRankingsBlock(layer, rankings));
+            }
+        });
+
+        Array.from(this.activeLayers.values()).forEach(layer => {
+            if (!Array.isArray(layer?.selectedFeature?.pillarBreakdown) || !layer.selectedFeature.pillarBreakdown.length) {
+                return;
+            }
+            blocks.push(`
+                <div class="analysis-layer-block selected-feature-pillar-chart">
+                    <div class="selected-feature-pillar-title">${this.escapeHtml(layer.name)}: ${this.escapeHtml(layer.selectedFeature.name)} — pillar proportions</div>
+                    <canvas
+                        class="selected-feature-pillar-canvas"
+                        id="selected-pillar-chart-${layer.id}"
+                        width="340"
+                        height="240"
+                    ></canvas>
+                </div>
+            `);
+        });
+
+        if (blocks.length === 0) {
+            container.innerHTML = '<p class="no-results-message">Enable a map layer to see unit ranking charts here. Click a map unit for pillar breakdown (Overall Tension Index).</p>';
             return;
         }
 
-        container.innerHTML = chartLayers.map(layer => `
-            <div class="selected-feature-pillar-chart">
-                <div class="selected-feature-pillar-title">${layer.name}: Pillar Proportions</div>
-                <canvas
-                    class="selected-feature-pillar-canvas"
-                    id="selected-pillar-chart-${layer.id}"
-                    width="340"
-                    height="240"
-                ></canvas>
+        container.innerHTML = blocks.join('');
+    }
+
+    renderAnalysisLayerRankingsBlock(layer, rankings) {
+        const labels = this.getRankingChartLabels(layer, rankings.unitLabel);
+        const safeName = this.escapeHtml(layer.name);
+        return `
+            <div class="analysis-layer-block analysis-layer-rankings" data-layer-id="${this.escapeHtml(layer.id)}">
+                <h5 class="analysis-layer-title">${safeName}</h5>
+                <p class="analysis-layer-attribute">${this.escapeHtml(rankings.attributeLabel)}</p>
+                <div class="ranking-chart-block">
+                    <div class="quick-stats-header">${labels.lowTitle}</div>
+                    ${this.renderRankingBarChartHtml(rankings.lowest, 'vulnerable')}
+                    <p class="ranking-chart-footnote">${labels.lowFootnote}</p>
+                </div>
+                <div class="ranking-chart-block">
+                    <div class="quick-stats-header">${labels.highTitle}</div>
+                    ${this.renderRankingBarChartHtml(rankings.highest, 'resilient')}
+                    <p class="ranking-chart-footnote">${labels.highFootnote}</p>
+                </div>
             </div>
-        `).join('');
+        `;
+    }
+
+    getRankingChartLabels(layer, unitLabel) {
+        if (layer.id === 'svOverallTensionLayer') {
+            return {
+                lowTitle: `Highest vulnerability — bottom 20 ${unitLabel}`,
+                highTitle: `Lowest vulnerability — top 20 ${unitLabel}`,
+                lowFootnote: 'Lower scores indicate higher vulnerability.',
+                highFootnote: 'Higher scores indicate lower vulnerability.'
+            };
+        }
+        return {
+            lowTitle: `Lowest values — bottom 20 ${unitLabel}`,
+            highTitle: `Highest values — top 20 ${unitLabel}`,
+            lowFootnote: 'Green end of the map scale = lower values.',
+            highFootnote: 'Red end of the map scale = higher values.'
+        };
     }
 
     formatSelectedFeatureValue(value) {
@@ -862,8 +930,8 @@ setupEventListeners() {
     }
 
     inferNumericLayerAttribute(layer) {
-        if (layer.type === 'sv-vector') {
-            return 'Social-Vulnerability';
+        if (layer.selectedAttribute && layer.selectedAttribute !== 'status') {
+            return layer.selectedAttribute;
         }
 
         const rawFeatures = layer.layer?.layerData?.raw?.features;
@@ -914,13 +982,17 @@ setupEventListeners() {
 
     renderQuickStatsCharts() {
         Array.from(this.activeLayers.values()).forEach(layer => {
-            const canvas = document.getElementById(`quick-chart-${layer.id}`);
-            if (!canvas) {
+            const stats = this.getQuickStatsForLayer(layer);
+            if (!stats) {
                 return;
             }
 
-            const stats = this.getQuickStatsForLayer(layer);
-            if (!stats) {
+            if (stats.chartType === 'ranking-dual-bar') {
+                return;
+            }
+
+            const canvas = document.getElementById(`quick-chart-${layer.id}`);
+            if (!canvas) {
                 return;
             }
 
@@ -932,6 +1004,182 @@ setupEventListeners() {
         });
 
         this.renderSelectedPillarCharts();
+    }
+
+    isExcludedFromRankings(name) {
+        const normalized = String(name || '').trim().toLowerCase();
+        const excluded = new Set(['conflict', 'litige', 'chebaa farms']);
+        return excluded.has(normalized);
+    }
+
+    getRankableLeafletLayer(layer) {
+        const leafletLayer = layer?.layer;
+        if (!leafletLayer) {
+            return null;
+        }
+        if (leafletLayer._svDisplacementMarkerLayer) {
+            return leafletLayer._svDisplacementMarkerLayer;
+        }
+        if (leafletLayer._svSectarianMarkerLayer) {
+            return leafletLayer._svSectarianMarkerLayer;
+        }
+        return leafletLayer;
+    }
+
+    resolveRankingAttribute(layer) {
+        if (['escalationLayer', 'roadStatusLayer'].includes(layer.id)) {
+            return null;
+        }
+        const attribute = layer.selectedAttribute || this.inferNumericLayerAttribute(layer);
+        if (!attribute || attribute === 'status') {
+            return null;
+        }
+        return attribute;
+    }
+
+    formatRankingScore(score) {
+        if (!Number.isFinite(score)) {
+            return '—';
+        }
+        if (Math.abs(score) < 1 && score !== 0) {
+            return score.toFixed(3);
+        }
+        if (Number.isInteger(score) || Math.abs(score) >= 100) {
+            return Math.round(score).toLocaleString();
+        }
+        return score.toFixed(2);
+    }
+
+    escapeHtml(text) {
+        return String(text)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+    }
+
+    renderRankingBarChartHtml(items, variant) {
+        if (!items?.length) {
+            return '<p class="ranking-chart-empty">No ranked units available.</p>';
+        }
+
+        const maxScore = Math.max(...items.map(item => item.score), 0.001);
+        const rows = items.map((item, index) => {
+            const widthPct = Math.max(2, (item.score / maxScore) * 100);
+            const safeName = this.escapeHtml(item.name);
+            const safeScore = this.escapeHtml(this.formatRankingScore(item.score));
+            return `
+                <div class="ranking-bar-row" role="listitem">
+                    <span class="ranking-bar-rank" aria-hidden="true">${index + 1}</span>
+                    <span class="ranking-bar-label" title="${safeName}">${safeName}</span>
+                    <div class="ranking-bar-track" aria-hidden="true">
+                        <div class="ranking-bar-fill ranking-bar-fill--${variant}" style="width: ${widthPct.toFixed(1)}%"></div>
+                    </div>
+                    <span class="ranking-bar-value">${safeScore}</span>
+                </div>
+            `;
+        }).join('');
+
+        return `<div class="ranking-bar-chart ranking-bar-chart--${variant}" role="list">${rows}</div>`;
+    }
+
+    getLayerRankings(layer) {
+        const attribute = this.resolveRankingAttribute(layer);
+        if (!attribute) {
+            return null;
+        }
+
+        const rankableLayer = this.getRankableLeafletLayer(layer);
+        const entries = this.extractRankedUnits(rankableLayer, attribute)
+            .filter(entry => !this.isExcludedFromRankings(entry.name));
+        if (entries.length < 2) {
+            return null;
+        }
+
+        const sorted = [...entries].sort((a, b) => a.score - b.score);
+        const unitLabel = this.inferAdminUnitLabel(rankableLayer);
+        const count = Math.min(20, sorted.length);
+
+        return {
+            attribute,
+            attributeLabel: this.formatRankingAttributeLabel(attribute),
+            unitLabel,
+            lowest: sorted.slice(0, count),
+            highest: sorted.slice(-count).reverse()
+        };
+    }
+
+    formatRankingAttributeLabel(attribute) {
+        return String(attribute)
+            .replace(/_/g, ' ')
+            .replace(/\b\w/g, letter => letter.toUpperCase());
+    }
+
+    extractRankedUnits(leafletLayer, attribute) {
+        const entries = [];
+        if (!leafletLayer || typeof leafletLayer.eachLayer !== 'function') {
+            return entries;
+        }
+
+        leafletLayer.eachLayer(featureLayer => {
+            const properties = featureLayer.feature?.properties;
+            if (!properties) {
+                return;
+            }
+            const score = this.parseNumericProperty(properties[attribute]);
+            if (score === null) {
+                return;
+            }
+            const name = this.getAdminUnitName(properties);
+            if (!name) {
+                return;
+            }
+            entries.push({ name, score });
+        });
+
+        return entries;
+    }
+
+    parseNumericProperty(rawValue) {
+        const numericValue = typeof rawValue === 'number' ? rawValue : Number(rawValue);
+        if (!Number.isFinite(numericValue)) {
+            return null;
+        }
+        return numericValue;
+    }
+
+    getAdminUnitName(properties) {
+        const nameKeys = ['ADM3_NAME', 'ADM2_NAME', 'ADM1_NAME', 'NAME_3', 'NAME_2', 'NAME_1', 'name', 'NAME'];
+        for (const key of nameKeys) {
+            const value = properties[key];
+            if (value !== undefined && value !== null && String(value).trim() !== '') {
+                return String(value).trim();
+            }
+        }
+        const code = properties.CODE || properties.CODE_NEW || properties.CODE_2;
+        return code !== undefined && code !== null ? String(code).trim() : '';
+    }
+
+    inferAdminUnitLabel(leafletLayer) {
+        let sampleProperties = null;
+        leafletLayer?.eachLayer?.(featureLayer => {
+            if (!sampleProperties && featureLayer.feature?.properties) {
+                sampleProperties = featureLayer.feature.properties;
+            }
+        });
+        if (!sampleProperties) {
+            return 'units';
+        }
+        if (sampleProperties.ADM3_NAME !== undefined) {
+            return 'cadastres';
+        }
+        if (sampleProperties.ADM2_NAME !== undefined) {
+            return 'districts';
+        }
+        if (sampleProperties.ADM1_NAME !== undefined) {
+            return 'governorates';
+        }
+        return 'units';
     }
 
     renderSelectedPillarCharts() {

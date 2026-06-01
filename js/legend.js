@@ -285,7 +285,13 @@ function renderColorScaleEntry(entry) {
     
     let directionalInfo = '';
     if (colorScheme.length > 1) {
-        if (isVulnerabilityData) {
+        if (entry.scaleDirection === 'green-low-red-high') {
+            directionalInfo = `
+                <div style="margin-top: 8px; padding: 6px; background: #f8f9fa; border-radius: 4px; font-size: 10px; color: #666; line-height: 1.4;">
+                    <strong>Scale:</strong> Green = Lowest &nbsp;→&nbsp; Red = Highest
+                </div>
+            `;
+        } else if (isVulnerabilityData) {
             directionalInfo = `
                 <div style="margin-top: 8px; padding: 6px; background: #f8f9fa; border-radius: 4px; font-size: 10px; color: #666;">
                     <strong>Interpretation:</strong> Blue = Lower vulnerability, Red = Higher vulnerability

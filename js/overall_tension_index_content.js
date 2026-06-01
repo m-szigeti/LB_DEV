@@ -1,0 +1,42 @@
+/**
+ * Static copy for the Overall Tension Index layer (Active Layers panel).
+ */
+export const OVERALL_TENSION_INDEX_DESCRIPTION_HTML = `
+    <div class="overall-tension-description">
+        <p>
+            The <strong>Overall Tension Index</strong> is a composite score (0–1) that summarises structural
+            tension and vulnerability across Lebanon. <strong>Higher scores indicate lower tension / greater
+            resilience</strong>; <strong>lower scores indicate higher vulnerability</strong>. Scores are comparable
+            only within the administrative resolution currently displayed (cadastre, district, or governorate).
+        </p>
+        <p>
+            The index is built from <strong>five composite indexes</strong>, each constructed using the same
+            statistical workflow documented in
+            <em>Composite_Index_Demographic Shock Factor.ipynb</em>:
+        </p>
+        <ol class="overall-tension-method-list">
+            <li>Each pillar’s indicators are coerced to numeric form and missing values are imputed (median).</li>
+            <li>Indicators are min–max normalised to a 0–1 scale within the analysis unit.</li>
+            <li>A Kendall τ correlation matrix measures redundancy between indicators.</li>
+            <li>Indicator weights are proportional to each indicator’s mean absolute Kendall τ with all others (weights sum to 1).</li>
+            <li>The pillar composite score is the weighted sum of normalised indicators.</li>
+        </ol>
+        <p>The five pillar composites are:</p>
+        <ul class="overall-tension-pillar-list">
+            <li><strong>Tension and Conflict Risk</strong></li>
+            <li><strong>Displacement Pressure</strong></li>
+            <li><strong>Economic Vulnerability</strong></li>
+            <li><strong>Service &amp; Infrastructure Vulnerability</strong></li>
+            <li><strong>Demographic Tension / Stress</strong></li>
+        </ul>
+        <p>
+            The Overall Tension Index aggregates these pillar scores into a single value (arithmetic mean of
+            available pillar composites where a unit has valid data). A weak score on any pillar therefore
+            pulls down the overall index.
+        </p>
+        <p class="overall-tension-note">
+            This is a structural baseline for exploration, not a real-time early-warning measure. Read results
+            alongside local knowledge and other data sources.
+        </p>
+    </div>
+`;

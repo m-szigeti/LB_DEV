@@ -778,6 +778,31 @@ function getChoroplethLegendTitle(layerId, attributeKey, config) {
     return config?.legendName || 'Layer';
 }
 
+const OVERALL_TENSION_LEGEND_LABELS = ['Lowest', 'Low', 'High', 'Highest'];
+
+function buildOverallTensionLegendEntry(config, colorScheme, rawGeoJson) {
+    const scheme = [...(colorScheme || [])];
+    const labels = [...OVERALL_TENSION_LEGEND_LABELS];
+    if (layerHasAcsCodeNoData(rawGeoJson)) {
+        scheme.push(ACS_CODE_NO_DATA_COLOR);
+        labels.push(ACS_CODE_NO_DATA_LEGEND_LABEL);
+    }
+    return {
+        layerName: (config?.legendName || 'Overall Tension Index').trim(),
+        colorScheme: scheme,
+        description: 'Overall Tension Index score (0–1).',
+        labels,
+        scaleDirection: 'green-low-red-high'
+    };
+}
+
+function pushOverallTensionLegend(layerId, config, colorScheme, addLegendEntry, rawGeoJson) {
+    if (!addLegendEntry || layerId !== 'svOverallTensionLayer') {
+        return;
+    }
+    addLegendEntry(layerId, buildOverallTensionLegendEntry(config, colorScheme, rawGeoJson));
+}
+
 function refreshSVPeaceCadastreChoropleth(map, layers, addLegendEntry) {
     const layerId = 'svAdmin3Layer';
     const config = layerConfig[layerId];
@@ -1308,7 +1333,13 @@ async function autoLoadSVAdmin1(map, layers, colorScales, addLegendEntry, remove
     });
 
     if (preCheckedIds.length === 0) {
-        return;
+        const overallToggle = document.getElementById('svOverallTensionLayer');
+        if (overallToggle) {
+            overallToggle.checked = true;
+            preCheckedIds.push('svOverallTensionLayer');
+        } else {
+            return;
+        }
     }
 
     for (const layerId of preCheckedIds) {
@@ -1403,7 +1434,12 @@ async function loadSVLayer(layerId, map, layers, colorScales, addLegendEntry, re
             const colorRamp = getColorRamp(config.fixedColorRamp);
             if (colorRamp) {
                 const chAttr = getEffectiveChoroplethAttribute(layerId, config);
+                const rawGeoJson = layers.vector[layerId]?.layerData?.raw;
                 const updateLegendForLayer = (layerName, colorScheme, description, labels) => {
+                    if (layerId === 'svOverallTensionLayer') {
+                        pushOverallTensionLegend(layerId, config, colorRamp.colors, addLegendEntry, rawGeoJson);
+                        return;
+                    }
                     addLegendEntry(layerId, {
                         layerName: getChoroplethLegendTitle(layerId, chAttr, config) || config.legendName || layerName,
                         colorScheme,
@@ -2174,7 +2210,12 @@ function setupSVColorRampSelector(map, layers, addLegendEntry, updateLegend) {
             if (!fixedRamp) return;
 
             const chAttr = getEffectiveChoroplethAttribute(layerId, config);
+            const rawGeoJson = layers.vector[layerId]?.layerData?.raw;
             const updateLegendForLayer = (layerName, colorScheme, description, labels) => {
+                if (layerId === 'svOverallTensionLayer') {
+                    pushOverallTensionLegend(layerId, config, fixedRamp.colors, addLegendEntry, rawGeoJson);
+                    return;
+                }
                 addLegendEntry(layerId, {
                     layerName: getChoroplethLegendTitle(layerId, chAttr, config) || config.legendName || layerName,
                     colorScheme,

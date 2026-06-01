@@ -96,10 +96,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     
     // NOTE: Combined control is now created in createAdminLabelLayers
     
-    // Initialize welcome popup (will only show if not shown before)
-    setTimeout(() => {
-        new WelcomePopup();
-    }, 500); // Small delay to ensure page is fully loaded
+    // Welcome popup disabled on startup (use window.showWelcome() to open manually)
 });
 
 const ANALYSIS_SIDEBAR_WIDTH_KEY = 'onlineMap.analysisSidebarWidth';
