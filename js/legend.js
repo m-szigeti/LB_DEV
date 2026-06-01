@@ -272,7 +272,7 @@ function renderColorScaleEntry(entry) {
         if (values && values[index]) {
             enhancedLabel = `${values[index]} ${unit || ''}`.trim();
         }
-        if (isVulnerabilityData) {
+        if (isVulnerabilityData && entry.scaleDirection !== 'yellow-orange-red') {
             const vulnTerms = ['Very Low', 'Low', 'Medium', 'High', 'Very High'];
             if (index < vulnTerms.length) {
                 enhancedLabel = isPeaceSocialTensionsLayer
@@ -289,6 +289,12 @@ function renderColorScaleEntry(entry) {
             directionalInfo = `
                 <div style="margin-top: 8px; padding: 6px; background: #f8f9fa; border-radius: 4px; font-size: 10px; color: #666; line-height: 1.4;">
                     <strong>Scale:</strong> Green = Lowest &nbsp;→&nbsp; Red = Highest
+                </div>
+            `;
+        } else if (entry.scaleDirection === 'yellow-orange-red') {
+            directionalInfo = `
+                <div style="margin-top: 8px; padding: 6px; background: #f8f9fa; border-radius: 4px; font-size: 10px; color: #666; line-height: 1.4;">
+                    <strong>Scale:</strong> Yellow (Very) &nbsp;→&nbsp; Orange (Medium) &nbsp;→&nbsp; Red (High)
                 </div>
             `;
         } else if (isVulnerabilityData) {

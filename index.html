@@ -83,7 +83,7 @@
                 <div class="sv-layer-toggle-row sv-composite-master-row">
                     <input type="checkbox" id="svOverallTensionLayer" class="sv-layer-toggle-input" name="svLayer" value="overall" checked>
                     <label class="sv-layer-toggle-btn sv-composite-master-btn" for="svOverallTensionLayer">
-                        <span class="sv-layer-toggle-text">Overall Tension Index</span>
+                        <span class="sv-layer-toggle-text">Overall Vulnerability Index</span>
                         <span class="sv-layer-toggle-check" aria-hidden="true"></span>
                     </label>
                 </div>
@@ -100,17 +100,13 @@
                     <span class="sv-layer-toggle-check" aria-hidden="true"></span>
                 </label>
             </div>
-            <div id="svPeaceSubindicatorsWrap" class="sv-peace-subindicators-wrap" hidden>
-                <label class="sv-peace-subindicators-title" for="svPeaceSubindicatorSelect">Sub-Indicators</label>
-                <select id="svPeaceSubindicatorSelect" class="sv-peace-subindicator-select" aria-label="Tension and Conflict Risk sub-indicators">
-                    <option value="composite_score">Tension and Conflict Risk composite score</option>
-                    <option value="peace_si_intersectarian_per_1k">Annual rate of UNDPTMS incidents tagged as &ldquo;intersectarian&rdquo; or &ldquo;intercommunal&rdquo; per 1000 residents</option>
-                    <option value="peace_si_battle_events_count">Number of incidents/events involving battles, explosions, violence against civilians, armed clashes, and airstrikes.</option>
-                    <option value="peace_si_ss_typology_non_state">Safety and Security typology incidents without state operations</option>
-                    <option value="peace_si_fatalities_per_1k_12m">Fatalities per 1000 residents in the last 12 months</option>
-                    <option value="peace_si_worry_travel_hh_share">Share of households who worry about travelling to key destinations within Lebanon safely</option>
-                    <option value="peace_si_unsafe_night_pct">% of population reporting feeling &ldquo;unsafe&rdquo; or &ldquo;very unsafe&rdquo; in their neighborhoods during the night</option>
-                </select>
+            <div id="svPeaceSubindicatorsWrap" class="sv-subindicators-panel sv-peace-subindicators-wrap" data-subindicator-layer="svAdmin3Layer" hidden>
+                <div class="sv-subindicators-header">
+                    <span class="sv-subindicators-title">Sub-indicators</span>
+                    <span class="sv-subindicators-badge">Multi-select</span>
+                </div>
+                <p class="sv-subindicators-hint">First selected drives the base map; additional selections add overlay views.</p>
+                <div class="sv-subindicator-chips" role="group" aria-label="Tension and Conflict Risk sub-indicators"></div>
             </div>
             <div class="sv-layer-toggle-row">
                 <input type="checkbox" id="svAdmin1Layer" class="sv-layer-toggle-input" name="svLayer" value="admin1">
@@ -119,9 +115,13 @@
                     <span class="sv-layer-toggle-check" aria-hidden="true"></span>
                 </label>
             </div>
-            <div id="svDisplacementSubindicatorsWrap" class="sv-peace-subindicators-wrap" hidden>
-                <label class="sv-peace-subindicators-title" for="svDisplacementSubindicatorSelect">Sub-Indicators</label>
-                <select id="svDisplacementSubindicatorSelect" class="sv-peace-subindicator-select" aria-label="Displacement Pressure sub-indicators"></select>
+            <div id="svDisplacementSubindicatorsWrap" class="sv-subindicators-panel sv-peace-subindicators-wrap" data-subindicator-layer="svAdmin1Layer" hidden>
+                <div class="sv-subindicators-header">
+                    <span class="sv-subindicators-title">Sub-indicators</span>
+                    <span class="sv-subindicators-badge">Multi-select</span>
+                </div>
+                <p class="sv-subindicators-hint">First selected drives circle size; others appear as colored overlays.</p>
+                <div class="sv-subindicator-chips" role="group" aria-label="Displacement Pressure sub-indicators"></div>
             </div>
             <div class="sv-layer-toggle-row">
                 <input type="checkbox" id="svAdmin2Layer" class="sv-layer-toggle-input" name="svLayer" value="admin2">
@@ -130,9 +130,13 @@
                     <span class="sv-layer-toggle-check" aria-hidden="true"></span>
                 </label>
             </div>
-            <div id="svEconomicSubindicatorsWrap" class="sv-peace-subindicators-wrap" hidden>
-                <label class="sv-peace-subindicators-title" for="svEconomicSubindicatorSelect">Sub-Indicators</label>
-                <select id="svEconomicSubindicatorSelect" class="sv-peace-subindicator-select" aria-label="Economic Vulnerability sub-indicators"></select>
+            <div id="svEconomicSubindicatorsWrap" class="sv-subindicators-panel sv-peace-subindicators-wrap" data-subindicator-layer="svAdmin2Layer" hidden>
+                <div class="sv-subindicators-header">
+                    <span class="sv-subindicators-title">Sub-indicators</span>
+                    <span class="sv-subindicators-badge">Multi-select</span>
+                </div>
+                <p class="sv-subindicators-hint">First selected drives the stripe pattern; others add choropleth overlays.</p>
+                <div class="sv-subindicator-chips" role="group" aria-label="Economic Vulnerability sub-indicators"></div>
             </div>
             <div class="sv-layer-toggle-row sv-service-stress-row">
                 <input type="checkbox" id="svAdmin4Layer" class="sv-layer-toggle-input" name="svLayer" value="admin4" disabled>
@@ -153,9 +157,13 @@
                     <span class="sv-layer-toggle-check" aria-hidden="true"></span>
                 </label>
             </div>
-            <div id="svDemographicSubindicatorsWrap" class="sv-peace-subindicators-wrap" hidden>
-                <label class="sv-peace-subindicators-title" for="svDemographicSubindicatorSelect">Sub-Indicators</label>
-                <select id="svDemographicSubindicatorSelect" class="sv-peace-subindicator-select" aria-label="Demographic Shock Factor sub-indicators"></select>
+            <div id="svDemographicSubindicatorsWrap" class="sv-subindicators-panel sv-peace-subindicators-wrap" data-subindicator-layer="svAdmin5Layer" hidden>
+                <div class="sv-subindicators-header">
+                    <span class="sv-subindicators-title">Sub-indicators</span>
+                    <span class="sv-subindicators-badge">Multi-select</span>
+                </div>
+                <p class="sv-subindicators-hint">First selected drives the base map; additional selections add overlay views.</p>
+                <div class="sv-subindicator-chips" role="group" aria-label="Demographic Shock Factor sub-indicators"></div>
             </div>
             </div>
         </div>

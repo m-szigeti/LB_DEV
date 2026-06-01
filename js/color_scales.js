@@ -113,6 +113,11 @@ export const colorRamps = {
         name: 'Green – Yellow – Orange – Red',
         colors: ['#1a9641', '#ffff33', '#fd8d3c', '#e31a1c']
     },
+    yellowOrangeRed3: {
+        name: 'Yellow – Orange – Red (3 classes)',
+        // Low index scores → red; high scores → yellow (vulnerability increases toward red).
+        colors: ['#e31a1c', '#fd8d3c', '#ffff33']
+    },
     blueToYellow: {
         name: 'Blue to Yellow',
         colors: ['#0571b0', '#92c5de', '#f7f7f7', '#f4a582', '#ca0020']

@@ -31,7 +31,7 @@ export const WELCOME_TAB_HTML = `
                 <div style="position:relative; border:1px solid #d8d8d8; border-radius:8px; background:#f7f7f7; padding:10px 12px 10px 46px; margin-bottom:8px;">
                     <span style="position:absolute; left:9px; top:12px; width:18px; height:18px; border-radius:50%; background:#dce9fa; color:#3f79c5; font-size:11px; line-height:18px; text-align:center; font-weight:700;">2</span>
                     <div style="font-size:14px; font-weight:700; color:#343434;">Select a composite index</div>
-                    <div style="font-size:12px; color:#555; margin-top:4px;">Turn on Overall Tension Index or one of the pillar indexes (e.g. Tension and Conflict Risk, Displacement Pressure).</div>
+                    <div style="font-size:12px; color:#555; margin-top:4px;">Turn on Overall Vulnerability Index or one of the pillar indexes (e.g. Tension and Conflict Risk, Displacement Pressure).</div>
                 </div>
                 <div style="position:relative; border:1px solid #d8d8d8; border-radius:8px; background:#f7f7f7; padding:10px 12px 10px 46px; margin-bottom:8px;">
                     <span style="position:absolute; left:9px; top:12px; width:18px; height:18px; border-radius:50%; background:#dce9fa; color:#3f79c5; font-size:11px; line-height:18px; text-align:center; font-weight:700;">3</span>
@@ -53,7 +53,7 @@ export const WELCOME_TAB_HTML = `
             <div style="font-size:12px; font-weight:700; color:#6d6d6d; letter-spacing:0.06em; margin:6px 0 8px; border-bottom:1px solid #d9d9d9; padding-bottom:5px;">COMPOSITE INDEXES</div>
             <div style="display:flex; gap:16px; align-items:flex-start; flex-wrap:wrap; margin-bottom:10px;">
                 <div style="width:140px; height:140px; border-radius:50%; background: conic-gradient(#c0392b 0% 18%, #e67e22 18% 36%, #f1c40f 36% 54%, #27ae60 54% 72%, #2980b9 72% 90%, #8e44ad 90% 100%); position:relative; flex-shrink:0;">
-                    <div style="position:absolute; inset:36px; border-radius:50%; background:#f7f7f7; display:flex; align-items:center; justify-content:center; text-align:center; font-size:11px; font-weight:700; color:#666; line-height:1.2;">Overall<br>Tension</div>
+                    <div style="position:absolute; inset:36px; border-radius:50%; background:#f7f7f7; display:flex; align-items:center; justify-content:center; text-align:center; font-size:11px; font-weight:700; color:#666; line-height:1.2;">Overall<br>Vulnerability</div>
                 </div>
                 <div style="font-size:12px; color:#444; line-height:1.5; flex:1; min-width:140px;">
                     <div><span style="display:inline-block; width:10px; height:10px; border-radius:2px; background:#c0392b; margin-right:8px;"></span><strong>Tension and Conflict Risk</strong></div>
@@ -64,16 +64,14 @@ export const WELCOME_TAB_HTML = `
                 </div>
             </div>
             <div style="background:#efefeb; border-left:4px solid #a5a394; color:#555; font-size:12px; line-height:1.45; padding:8px 10px; border-radius:4px; margin-bottom:12px;">
-                The Overall Tension Index combines pillar scores. A very low score on any single pillar can pull down the composite.
+                The Overall Vulnerability Index combines pillar scores. A very low score on any single pillar can pull down the composite.
             </div>
 
             <div style="font-size:12px; font-weight:700; color:#6d6d6d; letter-spacing:0.06em; margin:6px 0 8px; border-bottom:1px solid #d9d9d9; padding-bottom:5px;">SCORE RANGES</div>
             <div style="font-size:12px; color:#444; line-height:1.55;">
-                <div><span style="display:inline-block; width:14px; height:14px; border-radius:3px; background:#c5312a; margin-right:8px; vertical-align:middle;"></span><strong>0.0 – 0.2</strong> — highest vulnerability</div>
-                <div><span style="display:inline-block; width:14px; height:14px; border-radius:3px; background:#e26d28; margin-right:8px; vertical-align:middle;"></span><strong>0.2 – 0.4</strong></div>
-                <div><span style="display:inline-block; width:14px; height:14px; border-radius:3px; background:#efc64a; margin-right:8px; vertical-align:middle;"></span><strong>0.4 – 0.6</strong></div>
-                <div><span style="display:inline-block; width:14px; height:14px; border-radius:3px; background:#69b34c; margin-right:8px; vertical-align:middle;"></span><strong>0.6 – 0.8</strong></div>
-                <div><span style="display:inline-block; width:14px; height:14px; border-radius:3px; background:#2c7a2c; margin-right:8px; vertical-align:middle;"></span><strong>0.8 – 1.0</strong> — lowest vulnerability</div>
+                <div><span style="display:inline-block; width:14px; height:14px; border-radius:3px; background:#e31a1c; margin-right:8px; vertical-align:middle;"></span><strong>Red</strong> — higher vulnerability (lower index scores)</div>
+                <div><span style="display:inline-block; width:14px; height:14px; border-radius:3px; background:#fd8d3c; margin-right:8px; vertical-align:middle;"></span><strong>Orange</strong> — moderate</div>
+                <div><span style="display:inline-block; width:14px; height:14px; border-radius:3px; background:#ffff33; margin-right:8px; vertical-align:middle; border:1px solid #ccc;"></span><strong>Yellow</strong> — lower vulnerability (higher index scores)</div>
                 <div><span style="display:inline-block; width:14px; height:14px; border-radius:3px; background:#b8b8b8; margin-right:8px; vertical-align:middle;"></span><strong>No data</strong></div>
             </div>
             <div style="background:#efe7d7; border-left:4px solid #b89c67; color:#5b4f36; font-size:12px; line-height:1.4; padding:8px 10px; border-radius:4px; margin-top:10px;">

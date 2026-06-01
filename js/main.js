@@ -61,25 +61,8 @@ document.addEventListener('DOMContentLoaded', async function() {
     
     // Ensure Social Vulnerability dropdown is open by default
     openSocialVulnerabilityDropdown();
-    syncPeaceSubindicatorsWrapVisibility();
-    syncDemographicSubindicatorsWrapVisibility();
-    syncDisplacementSubindicatorsWrapVisibility();
-    syncEconomicSubindicatorsWrapVisibility();
-    const peaceCb = document.getElementById('svAdmin3Layer');
-    if (peaceCb) {
-        peaceCb.addEventListener('change', syncPeaceSubindicatorsWrapVisibility);
-    }
-    const demographicCb = document.getElementById('svAdmin5Layer');
-    if (demographicCb) {
-        demographicCb.addEventListener('change', syncDemographicSubindicatorsWrapVisibility);
-    }
-    const displacementCb = document.getElementById('svAdmin1Layer');
-    if (displacementCb) {
-        displacementCb.addEventListener('change', syncDisplacementSubindicatorsWrapVisibility);
-    }
-    const economicCb = document.getElementById('svAdmin2Layer');
-    if (economicCb) {
-        economicCb.addEventListener('change', syncEconomicSubindicatorsWrapVisibility);
+    if (typeof window.syncSVSubindicatorPanelsVisibility === 'function') {
+        window.syncSVSubindicatorPanelsVisibility();
     }
 
     syncEscalationControlsWrapVisibility();
@@ -334,10 +317,9 @@ function setupDropdownToggles() {
                 container.style.display = container.style.display === 'block' ? 'none' : 'block';
             }
             if (this.classList.contains('social-vulnerability-btn')) {
-                syncPeaceSubindicatorsWrapVisibility();
-                syncDemographicSubindicatorsWrapVisibility();
-                syncDisplacementSubindicatorsWrapVisibility();
-                syncEconomicSubindicatorsWrapVisibility();
+                if (typeof window.syncSVSubindicatorPanelsVisibility === 'function') {
+                    window.syncSVSubindicatorPanelsVisibility();
+                }
             }
             if (this.classList.contains('stressors-section-btn')) {
                 syncEscalationControlsWrapVisibility();
@@ -345,83 +327,6 @@ function setupDropdownToggles() {
         });
     });
 }
-
-/**
- * Tension and Conflict Risk sub-indicators sit under that layer toggle; show while Composite Indexes is open.
- * Visible at cadastre, district, and governorate resolution (choropleth switching applies when layer data supports it).
- */
-function syncPeaceSubindicatorsWrapVisibility() {
-    const btn = document.querySelector('.social-vulnerability-btn');
-    const wrap = document.getElementById('svPeaceSubindicatorsWrap');
-    if (!btn || !wrap) return;
-    const panel = btn.nextElementSibling;
-    const isOpen =
-        btn.classList.contains('active') &&
-        panel &&
-        panel.classList.contains('dropdown-container') &&
-        panel.style.display === 'block';
-    const peaceOn = document.getElementById('svAdmin3Layer')?.checked;
-    wrap.hidden = !isOpen || !peaceOn;
-}
-
-window.syncPeaceSubindicatorsWrapVisibility = syncPeaceSubindicatorsWrapVisibility;
-
-/**
- * Demographic Shock Factor sub-indicators; show while Composite Indexes is open.
- */
-function syncDemographicSubindicatorsWrapVisibility() {
-    const btn = document.querySelector('.social-vulnerability-btn');
-    const wrap = document.getElementById('svDemographicSubindicatorsWrap');
-    if (!btn || !wrap) return;
-    const panel = btn.nextElementSibling;
-    const isOpen =
-        btn.classList.contains('active') &&
-        panel &&
-        panel.classList.contains('dropdown-container') &&
-        panel.style.display === 'block';
-    const demographicOn = document.getElementById('svAdmin5Layer')?.checked;
-    wrap.hidden = !isOpen || !demographicOn;
-}
-
-window.syncDemographicSubindicatorsWrapVisibility = syncDemographicSubindicatorsWrapVisibility;
-
-/**
- * Displacement Pressure sub-indicators; show while Composite Indexes is open.
- */
-function syncDisplacementSubindicatorsWrapVisibility() {
-    const btn = document.querySelector('.social-vulnerability-btn');
-    const wrap = document.getElementById('svDisplacementSubindicatorsWrap');
-    if (!btn || !wrap) return;
-    const panel = btn.nextElementSibling;
-    const isOpen =
-        btn.classList.contains('active') &&
-        panel &&
-        panel.classList.contains('dropdown-container') &&
-        panel.style.display === 'block';
-    const displacementOn = document.getElementById('svAdmin1Layer')?.checked;
-    wrap.hidden = !isOpen || !displacementOn;
-}
-
-window.syncDisplacementSubindicatorsWrapVisibility = syncDisplacementSubindicatorsWrapVisibility;
-
-/**
- * Economic Vulnerability sub-indicators; show while Composite Indexes is open.
- */
-function syncEconomicSubindicatorsWrapVisibility() {
-    const btn = document.querySelector('.social-vulnerability-btn');
-    const wrap = document.getElementById('svEconomicSubindicatorsWrap');
-    if (!btn || !wrap) return;
-    const panel = btn.nextElementSibling;
-    const isOpen =
-        btn.classList.contains('active') &&
-        panel &&
-        panel.classList.contains('dropdown-container') &&
-        panel.style.display === 'block';
-    const economicOn = document.getElementById('svAdmin2Layer')?.checked;
-    wrap.hidden = !isOpen || !economicOn;
-}
-
-window.syncEconomicSubindicatorsWrapVisibility = syncEconomicSubindicatorsWrapVisibility;
 
 /**
  * Collective Shelter options panel; visible when Stressors is open and that layer is on.

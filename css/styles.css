@@ -1477,27 +1477,136 @@
     }
 }
 
-/* Tension and Conflict Risk sub-indicators (sidebar; visible when Composite Indexes is open) */
+/* Composite index sub-indicators (sidebar chips; visible when layer is on) */
+.sv-subindicators-panel,
 .sv-peace-subindicators-wrap {
-    margin: 0 10px 10px 10px;
-    padding: 8px 10px;
-    background: #f8fafc;
-    border: 1px solid #e2e8f0;
-    border-radius: 6px;
+    margin: 4px 10px 12px 10px;
+    padding: 10px 11px 11px;
+    background: linear-gradient(165deg, #f8fafc 0%, #f1f5f9 100%);
+    border: 1px solid #dbe3ec;
+    border-radius: 8px;
     font-size: 11px;
-    line-height: 1.35;
+    line-height: 1.4;
     color: #334155;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
 }
 
+.sv-subindicators-panel[hidden],
 .sv-peace-subindicators-wrap[hidden] {
     display: none !important;
 }
 
+.sv-subindicators-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 6px;
+}
+
+.sv-subindicators-title,
 .sv-peace-subindicators-title {
     font-weight: 700;
     font-size: 11px;
-    margin-bottom: 6px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
     color: #1e293b;
+}
+
+.sv-subindicators-badge {
+    flex-shrink: 0;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: #475569;
+    background: #e2e8f0;
+    border-radius: 999px;
+    padding: 2px 7px;
+}
+
+.sv-subindicators-hint {
+    margin: 0 0 8px;
+    font-size: 10px;
+    line-height: 1.45;
+    color: #64748b;
+}
+
+.sv-subindicator-chips {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 220px;
+    overflow-y: auto;
+    padding-right: 2px;
+}
+
+.sv-subindicator-chip {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    margin: 0;
+    padding: 7px 9px;
+    border: 1px solid #cbd5e1;
+    border-radius: 7px;
+    background: #fff;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.sv-subindicator-chip:hover {
+    border-color: #94a3b8;
+    background: #f8fafc;
+}
+
+.sv-subindicator-chip.is-selected {
+    border-color: #3b6ea8;
+    background: linear-gradient(135deg, #eef4fb 0%, #e8f0fa 100%);
+    box-shadow: 0 0 0 1px rgba(59, 110, 168, 0.12);
+}
+
+.sv-subindicator-chip-input {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+    pointer-events: none;
+}
+
+.sv-subindicator-chip-text {
+    position: relative;
+    padding-left: 22px;
+    font-size: 11px;
+    line-height: 1.4;
+    color: #1e293b;
+}
+
+.sv-subindicator-chip-text::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 2px;
+    width: 14px;
+    height: 14px;
+    border-radius: 4px;
+    border: 1.5px solid #94a3b8;
+    background: #fff;
+    box-sizing: border-box;
+    transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.sv-subindicator-chip.is-selected .sv-subindicator-chip-text::before {
+    border-color: #3b6ea8;
+    background: #3b6ea8;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath fill='none' stroke='%23fff' stroke-width='2' d='M2 6l3 3 5-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: 10px 10px;
+}
+
+.sv-subindicator-chip-input:focus-visible + .sv-subindicator-chip-text::before {
+    outline: 2px solid #3b6ea8;
+    outline-offset: 1px;
 }
 
 .sv-peace-subindicators-list {
@@ -1507,18 +1616,6 @@
 
 .sv-peace-subindicators-list li {
     margin-bottom: 4px;
-}
-
-.sv-peace-subindicator-select {
-    width: 100%;
-    max-width: 100%;
-    font-size: 11px;
-    padding: 6px 8px;
-    border: 1px solid #cbd5e1;
-    border-radius: 6px;
-    background: #fff;
-    color: #1e293b;
-    box-sizing: border-box;
 }
 
 .info-popup .info-peace-subindicators h5 {

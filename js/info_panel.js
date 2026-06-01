@@ -1,7 +1,7 @@
 // info_panel.js - Simplified info panel for layer analysis and reporting
 
 import { WELCOME_TAB_HTML } from './welcome_tab_content.js';
-import { OVERALL_TENSION_INDEX_DESCRIPTION_HTML } from './overall_tension_index_content.js';
+import { OVERALL_VULNERABILITY_INDEX_DESCRIPTION_HTML } from './overall_vulnerability_index_content.js';
 
 /**
  * InfoPanel class - Creates and manages a floating info/analysis panel
@@ -589,7 +589,7 @@ setupEventListeners() {
      */
     generateLayerDetails(layer) {
         if (layer.id === 'svOverallTensionLayer') {
-            return OVERALL_TENSION_INDEX_DESCRIPTION_HTML;
+            return OVERALL_VULNERABILITY_INDEX_DESCRIPTION_HTML;
         }
 
         if (layer.type === 'sv-vector') {
@@ -697,7 +697,7 @@ setupEventListeners() {
         });
 
         if (blocks.length === 0) {
-            container.innerHTML = '<p class="no-results-message">Enable a map layer to see unit ranking charts here. Click a map unit for pillar breakdown (Overall Tension Index).</p>';
+            container.innerHTML = '<p class="no-results-message">Enable a map layer to see unit ranking charts here. Click a map unit for pillar breakdown (Overall Vulnerability Index).</p>';
             return;
         }
 
@@ -737,7 +737,7 @@ setupEventListeners() {
         return {
             lowTitle: `Lowest values — bottom 20 ${unitLabel}`,
             highTitle: `Highest values — top 20 ${unitLabel}`,
-            lowFootnote: 'Green end of the map scale = lower values.',
+            lowFootnote: 'Yellow end of the map scale = lower values.',
             highFootnote: 'Red end of the map scale = higher values.'
         };
     }

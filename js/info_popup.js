@@ -1,5 +1,14 @@
 // info_popup.js - Information popup functionality
 
+import { getPrimarySubindicator, getSelectedSubindicators } from './sv_subindicators.js';
+
+const SV_LAYER_TYPE_TO_ID = {
+    'sv-admin5': 'svAdmin5Layer',
+    'sv-admin1': 'svAdmin1Layer',
+    'sv-admin2': 'svAdmin2Layer',
+    'sv-admin3': 'svAdmin3Layer'
+};
+
 /**
  * Initialize the information popup system
  */
@@ -286,6 +295,7 @@ function generateSocialVulnerabilitySection(properties, layerType = 'default') {
     
     // Main vulnerability score (field depends on active composite index dataset)
     const primaryField = getPrimaryVulnerabilityField(properties, layerType);
+    let hasVulnData = Boolean(primaryField);
     if (primaryField) {
         const rawValue = properties[primaryField];
         const numericValue = Number(rawValue);
@@ -304,6 +314,20 @@ function generateSocialVulnerabilitySection(properties, layerType = 'default') {
         const label = getPrimaryFieldDisplayLabel(primaryField, layerType);
         content += createInfoItem(label, `${svValue}${svCategory}`, true);
     }
+
+    const subLayerId = SV_LAYER_TYPE_TO_ID[layerType];
+    if (subLayerId) {
+        getSelectedSubindicators(subLayerId)
+            .slice(1)
+            .forEach(fieldKey => {
+                if (fieldKey === primaryField) return;
+                const rawValue = properties[fieldKey];
+                if (rawValue === undefined || rawValue === null || rawValue === '') return;
+                const label = getPrimaryFieldDisplayLabel(fieldKey, layerType);
+                content += createInfoItem(label, formatValue(rawValue));
+                hasVulnData = true;
+            });
+    }
     
     // Look for other vulnerability-related fields
     const vulnerabilityFields = {
@@ -313,8 +337,6 @@ function generateSocialVulnerabilitySection(properties, layerType = 'default') {
         'Infrastructure': ['INFRASTRUCTURE', 'infra_index', 'INFRA'],
         'Economic Index': ['ECONOMIC', 'econ_index', 'ECO_INDEX']
     };
-    
-    let hasVulnData = Boolean(primaryField);
 
     if (layerType === 'sv-admin3') {
         const peaceSub = buildPeaceSubindicatorsInfoItems(properties);
@@ -344,9 +366,7 @@ function getPrimaryVulnerabilityField(properties, layerType = '') {
     if (!properties) return null;
 
     if (layerType === 'sv-admin5') {
-        const sel =
-            typeof document !== 'undefined' ? document.getElementById('svDemographicSubindicatorSelect') : null;
-        const key = sel?.value;
+        const key = getPrimarySubindicator('svAdmin5Layer');
         if (key && properties[key] !== undefined && properties[key] !== null && properties[key] !== '') {
             return key;
         }
@@ -367,9 +387,7 @@ function getPrimaryVulnerabilityField(properties, layerType = '') {
     }
 
     if (layerType === 'sv-admin1') {
-        const sel =
-            typeof document !== 'undefined' ? document.getElementById('svDisplacementSubindicatorSelect') : null;
-        const key = sel?.value;
+        const key = getPrimarySubindicator('svAdmin1Layer');
         if (key && properties[key] !== undefined && properties[key] !== null && properties[key] !== '') {
             return key;
         }
@@ -383,9 +401,7 @@ function getPrimaryVulnerabilityField(properties, layerType = '') {
     }
 
     if (layerType === 'sv-admin2') {
-        const sel =
-            typeof document !== 'undefined' ? document.getElementById('svEconomicSubindicatorSelect') : null;
-        const key = sel?.value;
+        const key = getPrimarySubindicator('svAdmin2Layer');
         if (key && properties[key] !== undefined && properties[key] !== null && properties[key] !== '') {
             return key;
         }
@@ -402,8 +418,7 @@ function getPrimaryVulnerabilityField(properties, layerType = '') {
         const cadastreActive =
             typeof document !== 'undefined' &&
             document.querySelector('.sv-admin-resolution-btn.active[data-resolution="cadastre"]');
-        const sel = typeof document !== 'undefined' ? document.getElementById('svPeaceSubindicatorSelect') : null;
-        const key = sel?.value;
+        const key = getPrimarySubindicator('svAdmin3Layer');
         if (cadastreActive && key && properties[key] !== undefined && properties[key] !== null && properties[key] !== '') {
             return key;
         }
@@ -459,7 +474,7 @@ function getPrimaryVulnerabilityField(properties, layerType = '') {
 }
 
 function getLayerScoreSectionTitle(layerType) {
-    if (layerType === 'sv-overall') return 'Overall Tension Index';
+    if (layerType === 'sv-overall') return 'Overall Vulnerability Index';
     if (layerType === 'sv-admin1') return 'Displacement Pressure';
     if (layerType === 'sv-admin2') return 'Economic Vulnerability';
     if (layerType === 'sv-admin3') return 'Tension and Conflict Risk';
@@ -501,7 +516,7 @@ function getPrimaryFieldDisplayLabel(fieldName, layerType) {
             'Ratio of IDPs, Syrians, and Palestinians per host residents',
         'displace_composite_score': 'Displacement Pressure Score',
         'displace_composite_score_mean': 'Displacement Pressure Score (mean)',
-        overall_tension_index_score: 'Overall Tension Index (dummy)',
+        overall_tension_index_score: 'Overall Vulnerability Index (dummy)',
         tension_peace_score: 'Tension and Conflict Risk score',
         displacement_pressure_score: 'Displacement Pressure score',
         economic_vulnerability_score: 'Economic Vulnerability score',
