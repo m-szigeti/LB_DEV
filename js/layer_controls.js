@@ -170,7 +170,7 @@ const layerConfig = {
         layerType: 'sv-admin4'
     },
     svAdmin5Layer: {
-        fixedColorRamp: 'yellowOrangeRedShock5',
+        fixedColorRamp: 'yellowOrangeRed3',
         type: 'sv-vector',
         url: 'data/ADM3_Demographic_Shock_Factor.geojson',
         legendName: 'Demographic Shock Factor',
@@ -460,7 +460,7 @@ const SV_BASE_LAYER_CONFIG = {
         svAttribute: 'composite_score'
     },
     svAdmin5Layer: {
-        fixedColorRamp: 'yellowOrangeRedShock5',
+        fixedColorRamp: 'yellowOrangeRed3',
         legendName: 'Demographic Shock Factor',
         renderMode: 'choropleth',
         svAttribute: 'Demographic_Factor (DF = S*H)'
@@ -918,11 +918,9 @@ function getChoroplethLegendTitle(layerId, attributeKey, config) {
 
 const OVERALL_VULNERABILITY_LEGEND_LABELS = ['Low', 'Medium', 'High'];
 const DEMOGRAPHIC_SHOCK_LEGEND_LABELS = [
-    'Low to no shock',
-    'Slight shock',
-    'Moderate shock',
-    'Significant shock',
-    'Critical shock'
+    'Low',
+    'Moderate',
+    'High'
 ];
 
 function applyDemographicShockLegendLabels(labels) {
