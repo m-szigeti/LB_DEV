@@ -611,33 +611,30 @@ const ECONOMIC_SUBINDICATOR_OPTIONS_CADASTRE = [
 
 /** Cadastre Peace: field keys merged from CSV (must match GeoJSON properties + select option values). */
 const PEACE_CADASTRE_SUBINDICATOR_OPTIONS = [
-    { value: 'composite_score', label: 'Tension and Conflict Risk composite score' },
+    { value: 'composite_score', label: 'Tension and Conflict Risk' },
     {
         value: 'peace_si_intersectarian_per_1k',
-        label:
-            'Annual rate of UNDPTMS incidents tagged as “intersectarian” or “intercommunal” per 1000 residents'
+        label: 'Inter-sectarian and inter-communal conflict incidents'
     },
     {
         value: 'peace_si_battle_events_count',
-        label:
-            'Number of incidents/events involving battles, explosions, violence against civilians, armed clashes, and airstrikes.'
+        label: 'Number of violent incidents'
     },
     {
         value: 'peace_si_ss_typology_non_state',
-        label: 'Safety and Security typology incidents without state operations'
+        label: 'Number of crime incidents'
     },
     {
         value: 'peace_si_fatalities_per_1k_12m',
-        label: 'Fatalities per 1000 residents in the last 12 months'
+        label: 'Number of fatalities in tension incidents'
     },
     {
         value: 'peace_si_worry_travel_hh_share',
-        label: 'Share of households who worry about travelling to key destinations within Lebanon safely'
+        label: 'Fear of traveling within Lebanon safely'
     },
     {
         value: 'peace_si_unsafe_night_pct',
-        label:
-            '% of population reporting feeling "unsafe" or "very unsafe" in their neighborhoods during the night'
+        label: 'Feeling lack of safety during the night'
     }
 ];
 

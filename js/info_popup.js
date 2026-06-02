@@ -532,7 +532,7 @@ function getPrimaryFieldDisplayLabel(fieldName, layerType) {
         return 'Displacement Pressure Score';
     }
     if (layerType === 'sv-admin3' && fieldName === 'composite_score') {
-        return 'Tension and Conflict Risk Composite Score';
+        return 'Tension and Conflict Risk';
     }
     if (layerType === 'sv-admin2' && fieldName === 'composite_score') {
         return 'Economic Vulnerability composite score';
@@ -576,9 +576,9 @@ function getPrimaryFieldDisplayLabel(fieldName, layerType) {
             'Climate mitigation: solid waste recycling',
         'socio_composite_score': 'Economic Vulnerability composite score',
         'socio_composite_score_mean': 'Economic Vulnerability composite score (mean)',
-        'peace_composite_score': 'Tension and Conflict Risk Composite Score',
-        'peace_composite_score_mean_mean': 'Tension and Conflict Risk Composite Score (Mean)',
-        'peace_composite_score_mean': 'Tension and Conflict Risk Composite Score (Mean)',
+        'peace_composite_score': 'Tension and Conflict Risk',
+        'peace_composite_score_mean_mean': 'Tension and Conflict Risk (Mean)',
+        'peace_composite_score_mean': 'Tension and Conflict Risk (Mean)',
         peace_si_intersectarian_per_1k:
             'Annual rate of UNDPTMS incidents tagged as “intersectarian” or “intercommunal” per 1000 residents',
         peace_si_battle_events_count:
@@ -594,7 +594,7 @@ function getPrimaryFieldDisplayLabel(fieldName, layerType) {
 
     if (layerType === 'sv-admin1') return 'Displacement Pressure Score';
     if (layerType === 'sv-admin2') return 'Economic Vulnerability composite score';
-    if (layerType === 'sv-admin3') return 'Tension and Conflict Risk Composite Score';
+    if (layerType === 'sv-admin3') return 'Tension and Conflict Risk';
     if (layerType === 'sv-admin5') return 'Demographic Shock Factor';
     return fieldName.replace(/_/g, ' ');
 }

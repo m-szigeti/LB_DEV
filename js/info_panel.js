@@ -645,11 +645,12 @@ setupEventListeners() {
                     'Climate mitigation: solid waste recycling'
                 ],
                 svAdmin3Layer: [
-                    'Communal tension incidents',
-                    'Conflict incident intensity and civilian impact',
-                    'Fatal Violence Rate',
-                    'Perceived safety in moving to work and services',
-                    'Safety at night'
+                    'Annual rate of UNDPTMS incidents tagged as “intersectarian” or “intercommunal” per 1000 residents → Inter-sectarian and inter-communal conflict incidents',
+                    'Number of incidents/events involving battles, explosions, violence against civilians, armed clashes, and airstrikes. → Number of violent incidents',
+                    'Safety and Security typology incidents without state operations → Number of crime incidents',
+                    'Fatalities per 1000 residents in the last 12 months → Number of fatalities in tension incidents',
+                    'Share of households who worry about travelling to key destinations within Lebanon safely → Fear of traveling within Lebanon safely',
+                    '% of population reporting feeling "unsafe" or "very unsafe" in their neighborhoods during the night → Feeling lack of safety during the night'
                 ],
                 svAdmin4Layer: [
                     'Damage data (CNRS) - replaceable by triangle if needed',
