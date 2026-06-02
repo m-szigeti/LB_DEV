@@ -184,7 +184,7 @@
         </div>
     </div>
 </div>
-    <button class="dropdown-btn sv-sidebar-section-dropdown"><strong>Perception Data</strong></button>
+    <!-- <button class="dropdown-btn sv-sidebar-section-dropdown"><strong>Perception Data</strong></button>
     <div class="dropdown-container">
         <div class="layer-checkbox sv-radio-option">
             <input type="checkbox" id="vulnerabilityCadastreLayer">
@@ -203,7 +203,7 @@
                 <select id="vulnerabilityAttribute"></select>
             </div>
         </div>
-    </div>
+    </div> -->
 </div>
 
 
@@ -226,6 +226,13 @@
                                 <input type="checkbox" id="escalationLayer" class="sv-layer-toggle-input">
                                 <label class="sv-layer-toggle-btn" for="escalationLayer">
                                     <span class="sv-layer-toggle-text">Collective Shelter Status</span>
+                                    <span class="sv-layer-toggle-check" aria-hidden="true"></span>
+                                </label>
+                            </div>
+                            <div class="sv-layer-toggle-row">
+                                <input type="checkbox" id="ttfHotspotsLayer" class="sv-layer-toggle-input">
+                                <label class="sv-layer-toggle-btn" for="ttfHotspotsLayer">
+                                    <span class="sv-layer-toggle-text">TTF Hotspots (Q1 2026)</span>
                                     <span class="sv-layer-toggle-check" aria-hidden="true"></span>
                                 </label>
                             </div>
@@ -489,6 +496,7 @@
 
             <div id="map-features-sidebar-slot" class="map-features-sidebar-slot"></div>
         </div>
+        <div class="left-sidebar-resize-handle" id="leftSidebarResizeHandle" role="separator" aria-orientation="vertical" aria-label="Resize left sidebar" tabindex="0"></div>
         
         <!-- Map workspace -->
         <div class="map-panel">

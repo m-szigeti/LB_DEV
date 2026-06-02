@@ -37,6 +37,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         scheduleMapLayoutRefresh(mainMap, compareMap);
     }
 
+    setupLeftSidebarResize(mainMap, compareMap);
     setupAnalysisSidebarResize(mainMap, compareMap);
 
     // Store main map reference globally
@@ -83,9 +84,127 @@ document.addEventListener('DOMContentLoaded', async function() {
 });
 
 const ANALYSIS_SIDEBAR_WIDTH_KEY = 'onlineMap.analysisSidebarWidth';
+const LEFT_SIDEBAR_WIDTH_KEY = 'onlineMap.leftSidebarWidth';
+const LEFT_SIDEBAR_MIN = 260;
+const LEFT_SIDEBAR_MAX = 560;
 const ANALYSIS_SIDEBAR_MIN = 280;
 const ANALYSIS_SIDEBAR_MAX = 720;
 const DESKTOP_ROW_MQ = '(min-width: 1101px)';
+
+function setupLeftSidebarResize(mainMap, compareMap) {
+    const sidebar = document.getElementById('sidebar');
+    const handle = document.getElementById('leftSidebarResizeHandle');
+    if (!sidebar || !handle) {
+        return;
+    }
+
+    const mq = window.matchMedia(DESKTOP_ROW_MQ);
+
+    function setSidebarWidthPx(w) {
+        const clamped = Math.round(Math.min(LEFT_SIDEBAR_MAX, Math.max(LEFT_SIDEBAR_MIN, w)));
+        sidebar.style.flex = `0 0 ${clamped}px`;
+        sidebar.style.width = `${clamped}px`;
+        return clamped;
+    }
+
+    function persistSidebarWidth(clamped) {
+        try {
+            localStorage.setItem(LEFT_SIDEBAR_WIDTH_KEY, String(clamped));
+        } catch (_) {
+            /* ignore */
+        }
+    }
+
+    function clearInlineWidth() {
+        sidebar.style.removeProperty('flex');
+        sidebar.style.removeProperty('width');
+    }
+
+    function restoreSavedWidthIfDesktop() {
+        if (!mq.matches) {
+            return;
+        }
+        let saved;
+        try {
+            saved = localStorage.getItem(LEFT_SIDEBAR_WIDTH_KEY);
+        } catch (_) {
+            saved = null;
+        }
+        if (saved == null) {
+            return;
+        }
+        const n = Number.parseInt(saved, 10);
+        if (!Number.isFinite(n)) {
+            return;
+        }
+        setSidebarWidthPx(n);
+        scheduleMapLayoutRefresh(mainMap, compareMap);
+    }
+
+    restoreSavedWidthIfDesktop();
+
+    mq.addEventListener('change', (e) => {
+        if (!e.matches) {
+            clearInlineWidth();
+            scheduleMapLayoutRefresh(mainMap, compareMap);
+        } else {
+            restoreSavedWidthIfDesktop();
+        }
+    });
+
+    let startX = 0;
+    let startWidth = 0;
+    let layoutRafPending = false;
+
+    function onPointerMove(e) {
+        if (!mq.matches) {
+            return;
+        }
+        const dx = e.clientX - startX;
+        setSidebarWidthPx(startWidth + dx);
+        if (!layoutRafPending) {
+            layoutRafPending = true;
+            requestAnimationFrame(() => {
+                layoutRafPending = false;
+                scheduleMapLayoutRefresh(mainMap, compareMap);
+            });
+        }
+    }
+
+    function onPointerUp(e) {
+        handle.removeEventListener('pointermove', onPointerMove);
+        handle.removeEventListener('pointerup', onPointerUp);
+        handle.removeEventListener('pointercancel', onPointerUp);
+        document.body.classList.remove('analysis-sidebar-resize-active');
+        document.body.style.removeProperty('cursor');
+        document.body.style.removeProperty('user-select');
+        try {
+            handle.releasePointerCapture(e.pointerId);
+        } catch (_) {
+            /* ignore */
+        }
+        const w = Math.round(sidebar.getBoundingClientRect().width);
+        persistSidebarWidth(Math.min(LEFT_SIDEBAR_MAX, Math.max(LEFT_SIDEBAR_MIN, w)));
+        scheduleMapLayoutRefresh(mainMap, compareMap);
+    }
+
+    handle.addEventListener('pointerdown', (e) => {
+        if (e.button !== 0 || !mq.matches) {
+            return;
+        }
+        e.preventDefault();
+        const rect = sidebar.getBoundingClientRect();
+        startWidth = rect.width;
+        startX = e.clientX;
+        handle.setPointerCapture(e.pointerId);
+        document.body.classList.add('analysis-sidebar-resize-active');
+        document.body.style.cursor = 'col-resize';
+        document.body.style.userSelect = 'none';
+        handle.addEventListener('pointermove', onPointerMove);
+        handle.addEventListener('pointerup', onPointerUp);
+        handle.addEventListener('pointercancel', onPointerUp);
+    });
+}
 
 function setupAnalysisSidebarResize(mainMap, compareMap) {
     const sidebar = document.getElementById('analysis-sidebar');

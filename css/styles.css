@@ -166,6 +166,7 @@
     flex: 1;
     overflow: hidden;
     min-height: 0;
+    position: relative;
 }
 
 /* =========================================
@@ -183,6 +184,27 @@
     flex-direction: column;
     align-items: flex-start;
     z-index: 10;
+}
+
+.left-sidebar-resize-handle {
+    flex: 0 0 6px;
+    width: 6px;
+    min-width: 6px;
+    cursor: col-resize;
+    touch-action: none;
+    background: linear-gradient(to right, #d9dfe7, #eceff4);
+    border-right: 1px solid #c5ccd6;
+    box-sizing: border-box;
+    z-index: 15;
+}
+
+.left-sidebar-resize-handle:hover {
+    background: linear-gradient(to right, #c5cfdb, #e0e6ef);
+}
+
+.left-sidebar-resize-handle:focus-visible {
+    outline: 2px solid #2563eb;
+    outline-offset: -2px;
 }
 
 .map-features-sidebar-slot {

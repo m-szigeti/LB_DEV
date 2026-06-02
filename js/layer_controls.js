@@ -212,6 +212,18 @@ const layerConfig = {
         }),
         layerType: 'road-status'
     },
+    ttfHotspotsLayer: {
+        type: 'vector',
+        url: 'data/TTF_HOTSPOTS_ADM3.geojson',
+        style: feature => ({
+            color: '#8a8f98',
+            weight: 0.8,
+            opacity: 1,
+            fillColor: getTTFTensionColor(feature?.properties?.Tension),
+            fillOpacity: 0.72
+        }),
+        layerType: 'ttf-hotspots'
+    },
     vulnerabilityCadastreLayer: {
         type: 'vector',
         url: 'data/cadastre_join_ntl_night_safety_vul7_v2.geojson',
@@ -1123,6 +1135,12 @@ export function setupLayerControls(map, layers, colorScales, addLegendEntry, rem
             const roadCheckbox = document.getElementById('roadStatusLayer');
             if (roadCheckbox && roadCheckbox.checked) {
                 roadCheckbox.dispatchEvent(new Event('change'));
+            }
+        }
+        if (layerId === 'ttfHotspotsLayer') {
+            const ttfCheckbox = document.getElementById('ttfHotspotsLayer');
+            if (ttfCheckbox && ttfCheckbox.checked) {
+                ttfCheckbox.dispatchEvent(new Event('change'));
             }
         }
     });
@@ -3317,6 +3335,27 @@ function getRoadStatusLegendConfig() {
     };
 }
 
+function getTTFTensionColor(value) {
+    const tension = String(value || '').trim().toLowerCase();
+    if (tension === 'high') return '#d7301f';
+    if (tension === 'moderate') return '#f98e2b';
+    if (tension === 'low') return '#ffe04d';
+    if (tension === 'no tension/no record' || tension === 'no tension') return '#d3d3d3';
+    return '#d3d3d3';
+}
+
+function getTTFHotspotsLegendConfig() {
+    return {
+        layerName: 'TTF Hotspots (Q1 2026)',
+        type: 'categorical',
+        items: [
+            { label: 'No Tension', color: '#d3d3d3' },
+            { label: 'Low', color: '#ffe04d' },
+            { label: 'Moderate', color: '#f98e2b' },
+            { label: 'High', color: '#d7301f' }
+        ]
+    };
+}
 /**
  * Setup vector layer attribute controls
  */
@@ -3506,6 +3545,9 @@ async function loadLayer(layerId, map, layers, colorScales, addLegendEntry) {
             reapplySelectedPolygonHighlight(layerId);
             if (layerId === 'roadStatusLayer') {
                 addLegendEntry(layerId, getRoadStatusLegendConfig());
+            }
+            if (layerId === 'ttfHotspotsLayer') {
+                addLegendEntry(layerId, getTTFHotspotsLegendConfig());
             }
             keepRoadLayerOnTop(layers);
             break;
@@ -3732,6 +3774,7 @@ function getLayerDisplayName(layerId, config) {
         'svAdmin5Layer': 'Demographic Shock Factor',
         'streetNetworkLayer': 'Street Network',
         'roadStatusLayer': 'Road Access Status',
+        'ttfHotspotsLayer': 'TTF Hotspots (Q1 2026)',
         'vulnerabilityCadastreLayer': 'Vulnerability: Cadastre',
         'pointLayer': 'Household Survey Statistics',
         'pointLayer2': 'Cities',
@@ -3802,6 +3845,10 @@ function keepRoadLayerOnTop(layers) {
     const roadLayer = layers?.vector?.roadStatusLayer;
     if (roadLayer && typeof roadLayer.bringToFront === 'function') {
         roadLayer.bringToFront();
+    }
+    const ttfLayer = layers?.vector?.ttfHotspotsLayer;
+    if (ttfLayer && typeof ttfLayer.bringToFront === 'function') {
+        ttfLayer.bringToFront();
     }
 }
 

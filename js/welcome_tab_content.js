@@ -6,7 +6,7 @@ export const WELCOME_TAB_HTML = `
     <div class="info-panel-section">
         <div class="welcome-content">
             <div style="background:#f0f0ec; border:1px solid #d2d2ce; border-radius:8px; padding:10px 12px; margin-bottom:14px;">
-                <div style="font-size:18px; font-weight:700; color:#2f2f2f;">DSVI Social Vulnerability Tool Guide</div>
+                <div style="font-size:18px; font-weight:700; color:#2f2f2f;">TMS 2.0 Vulnerability Tool Guide</div>
             </div>
 
             <div style="font-size:12px; font-weight:700; color:#6d6d6d; letter-spacing:0.06em; margin:6px 0 8px; border-bottom:1px solid #d9d9d9; padding-bottom:5px;">WHAT THE TOOL SHOWS</div>

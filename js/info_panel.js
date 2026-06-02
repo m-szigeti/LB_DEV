@@ -734,6 +734,14 @@ setupEventListeners() {
                 highFootnote: 'Higher scores indicate lower vulnerability.'
             };
         }
+        if (layer.id === 'ttfHotspotsLayer') {
+            return {
+                lowTitle: `No/Low tension — bottom 20 ${unitLabel}`,
+                highTitle: `Moderate/High tension — top 20 ${unitLabel}`,
+                lowFootnote: 'Light gray/yellow map classes = lower tension.',
+                highFootnote: 'Orange/red map classes = higher tension.'
+            };
+        }
         return {
             lowTitle: `Lowest values — bottom 20 ${unitLabel}`,
             highTitle: `Highest values — top 20 ${unitLabel}`,
@@ -1030,6 +1038,9 @@ setupEventListeners() {
         if (['escalationLayer', 'roadStatusLayer'].includes(layer.id)) {
             return null;
         }
+        if (layer.id === 'ttfHotspotsLayer') {
+            return '__ttf_tension_rank';
+        }
         const attribute = layer.selectedAttribute || this.inferNumericLayerAttribute(layer);
         if (!attribute || attribute === 'status') {
             return null;
@@ -1110,11 +1121,22 @@ setupEventListeners() {
     }
 
     formatRankingAttributeLabel(attribute) {
+        if (attribute === '__ttf_tension_rank') {
+            return 'TTF Tension Level';
+        }
         return String(attribute)
             .replace(/_/g, ' ')
             .replace(/\b\w/g, letter => letter.toUpperCase());
     }
 
+    parseTTFTensionRank(rawValue) {
+        const norm = String(rawValue || '').trim().toLowerCase();
+        if (norm === 'no tension/no record' || norm === 'no tension') return 0;
+        if (norm === 'low') return 1;
+        if (norm === 'moderate') return 2;
+        if (norm === 'high') return 3;
+        return null;
+    }
     extractRankedUnits(leafletLayer, attribute) {
         const entries = [];
         if (!leafletLayer || typeof leafletLayer.eachLayer !== 'function') {
@@ -1126,7 +1148,9 @@ setupEventListeners() {
             if (!properties) {
                 return;
             }
-            const score = this.parseNumericProperty(properties[attribute]);
+            const score = attribute === '__ttf_tension_rank'
+                ? this.parseTTFTensionRank(properties.Tension)
+                : this.parseNumericProperty(properties[attribute]);
             if (score === null) {
                 return;
             }
