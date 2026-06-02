@@ -1135,13 +1135,14 @@
     align-items: center;
     background-color: #6c757d;
     color: white;
-    padding: 15px 20px;
+    padding: 10px 14px;
     border-radius: 8px 8px 0 0;
+    cursor: move;
 }
 
 .info-popup-header h3 {
     margin: 0;
-    font-size: 18px;
+    font-size: 16px;
     font-weight: bold;
 }
 
@@ -1149,11 +1150,11 @@
     background: none;
     border: none;
     color: white;
-    font-size: 24px;
+    font-size: 20px;
     cursor: pointer;
     padding: 0;
-    width: 30px;
-    height: 30px;
+    width: 26px;
+    height: 26px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1168,7 +1169,7 @@
 .info-popup-body {
     padding: 20px;
     overflow-y: auto;
-    max-height: calc(80vh - 80px);
+    max-height: calc(80vh - 64px);
 }
 
 /* School (escalation) layer click popup */

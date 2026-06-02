@@ -15,6 +15,7 @@ const SV_LAYER_TYPE_TO_ID = {
 export function initializeInfoPopup() {
     const popup = document.getElementById('info-popup');
     const closeBtn = document.getElementById('info-popup-close');
+    const header = popup?.querySelector('.info-popup-header');
     
     if (!popup || !closeBtn) {
         console.error('Info popup elements not found');
@@ -37,6 +38,51 @@ export function initializeInfoPopup() {
             hideInfoPopup();
         }
     });
+
+    // Make popup draggable from header.
+    if (header) {
+        let isDragging = false;
+        let dragOffsetX = 0;
+        let dragOffsetY = 0;
+
+        const onMouseMove = (e) => {
+            if (!isDragging) return;
+            const margin = 8;
+            const popupWidth = popup.offsetWidth;
+            const popupHeight = popup.offsetHeight;
+            const maxLeft = Math.max(margin, window.innerWidth - popupWidth - margin);
+            const maxTop = Math.max(margin, window.innerHeight - popupHeight - margin);
+            const left = Math.max(margin, Math.min(e.clientX - dragOffsetX, maxLeft));
+            const top = Math.max(margin, Math.min(e.clientY - dragOffsetY, maxTop));
+            popup.style.left = `${left}px`;
+            popup.style.top = `${top}px`;
+            popup.style.transform = 'none';
+        };
+
+        const stopDragging = () => {
+            isDragging = false;
+            document.body.style.removeProperty('user-select');
+            document.body.style.removeProperty('cursor');
+        };
+
+        header.addEventListener('mousedown', (e) => {
+            if (e.target === closeBtn || closeBtn.contains(e.target)) {
+                return;
+            }
+            const rect = popup.getBoundingClientRect();
+            popup.style.left = `${rect.left}px`;
+            popup.style.top = `${rect.top}px`;
+            popup.style.transform = 'none';
+            dragOffsetX = e.clientX - rect.left;
+            dragOffsetY = e.clientY - rect.top;
+            isDragging = true;
+            document.body.style.userSelect = 'none';
+            document.body.style.cursor = 'move';
+        });
+
+        document.addEventListener('mousemove', onMouseMove);
+        document.addEventListener('mouseup', stopDragging);
+    }
 }
 
 /**
@@ -176,10 +222,7 @@ function getAreaName(properties, layerType) {
  */
 function generatePopupContent(properties, layerType) {
     let content = '';
-    
-    // Administrative Information Section
-    content += generateAdministrativeSection(properties);
-    
+
     // Composite score section (if applicable)
     if (layerType.includes('sv-admin') || getPrimaryVulnerabilityField(properties, layerType)) {
         content += generateSocialVulnerabilitySection(properties, layerType);
@@ -204,7 +247,6 @@ function generateAdministrativeSection(properties) {
         'Country': ['COUNTRY', 'GID_0', 'NAME_0'],
         'Region/State': ['NAME_1', 'ADM1_NAME', 'REGION'],
         'District/Province': ['NAME_2', 'ADM2_NAME', 'Cercle/District'],
-        'Commune/Local': ['NAME_3', 'ADM3_NAME', 'COMMUNE'],
         'Administrative ID': ['GID_1', 'GID_2', 'GID_3', 'ADMIN_ID']
     };
     
@@ -516,7 +558,7 @@ function getPrimaryFieldDisplayLabel(fieldName, layerType) {
             'Ratio of IDPs, Syrians, and Palestinians per host residents',
         'displace_composite_score': 'Displacement Pressure Score',
         'displace_composite_score_mean': 'Displacement Pressure Score (mean)',
-        overall_tension_index_score: 'Overall Vulnerability Index (dummy)',
+        overall_tension_index_score: 'Overall Vulnerability Index',
         tension_peace_score: 'Tension and Conflict Risk score',
         displacement_pressure_score: 'Displacement Pressure score',
         economic_vulnerability_score: 'Economic Vulnerability score',
@@ -564,31 +606,7 @@ function getPrimaryFieldDisplayLabel(fieldName, layerType) {
  * @returns {string} - HTML content
  */
 function generateStatisticsSection(properties, layerType) {
-    const statsFields = {
-        'Population': ['POPULATION', 'POP', 'pop_total', 'total_pop'],
-        'Area (km²)': ['AREA', 'area_km2', 'AREA_KM2', 'Shape_Area'],
-        'Density': ['DENSITY', 'pop_density', 'POP_DENS'],
-        'Households': ['HOUSEHOLDS', 'HH', 'households_total'],
-        'GDP per Capita': ['GDP_PC', 'gdp_per_capita', 'GDP_PERCAP']
-    };
-    
-    let content = '<div class="info-section"><h4>Key Statistics</h4>';
-    let hasStats = false;
-    
-    Object.entries(statsFields).forEach(([label, fields]) => {
-        const value = getFirstAvailableValue(properties, fields);
-        if (value !== null) {
-            content += createInfoItem(label, formatValue(value));
-            hasStats = true;
-        }
-    });
-    
-    if (!hasStats) {
-        content += '<p class="info-no-data">No statistical data available.</p>';
-    }
-    
-    content += '</div>';
-    return content;
+    return '';
 }
 
 /**
@@ -605,7 +623,8 @@ function generateAdditionalDataSection(properties) {
         'ADM1_NAME', 'ADM2_NAME', 'ADM3_NAME',
         'ADMIN_ID', 'Social-Vulnerability', 'POPULATION', 'POP',
         'AREA', 'DENSITY', 'HOUSEHOLDS', 'GDP_PC',
-        'Shape_Area', 'Shape_Length'
+        'Shape_Area', 'Shape_Length',
+        'CODE', 'ACS_CODE', 'CODE_2', 'CODE_2_int', 'ACS_Code_2'
     ]);
     
     let content = '<div class="info-section"><h4>Additional Data</h4>';
