@@ -48,7 +48,7 @@ function reconcileSelection(layerId, options) {
     const defaults = PANEL_REGISTRY.get(layerId)?.getDefaultValues() || [];
     const fromDefault = (Array.isArray(defaults) ? defaults : [defaults]).filter(v => validValues.has(v));
     if (fromDefault.length) return fromDefault;
-    return options[0] ? [options[0].value] : [];
+    return [];
 }
 
 function handleChipChange(event) {
@@ -60,10 +60,6 @@ function handleChipChange(event) {
     if (!listHost) return;
 
     const checked = [...listHost.querySelectorAll('.sv-subindicator-chip-input:checked')].map(cb => cb.value);
-    if (!checked.length) {
-        input.checked = true;
-        return;
-    }
 
     selections.set(layerId, checked);
     listHost.querySelectorAll('.sv-subindicator-chip').forEach(chip => {

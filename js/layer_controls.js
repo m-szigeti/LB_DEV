@@ -551,7 +551,6 @@ const SV_RESOLUTION_CONFIG = {
 const DISPLACEMENT_SCORE_FIELD = 'Displacement Pressure Score';
 
 const DISPLACEMENT_SUBINDICATOR_OPTIONS = [
-    { value: DISPLACEMENT_SCORE_FIELD, label: 'Displacement Pressure Score' },
     { value: 'Number of IDPs', label: 'Number of IDPs' },
     { value: 'Number of of Palestinians', label: 'Number of Palestinians' },
     {
@@ -568,7 +567,6 @@ const DEMOGRAPHIC_DF_FIELD_CADASTRE = 'Demographic_Factor (DF = S*H)';
 const DEMOGRAPHIC_DF_FIELD_AGG = 'Demographic_Factor (DF = S*H)_mean';
 
 const DEMOGRAPHIC_SUBINDICATOR_OPTIONS_CADASTRE = [
-    { value: DEMOGRAPHIC_DF_FIELD_CADASTRE, label: 'Demographic Shock Factor' },
     { value: 'Resident_Population (R)', label: 'Resident population' },
     { value: 'Displaced_Population (D)', label: 'Displaced population' },
     { value: 'Heterogeneity (H)', label: 'Heterogeneity' },
@@ -576,7 +574,6 @@ const DEMOGRAPHIC_SUBINDICATOR_OPTIONS_CADASTRE = [
 ];
 
 const DEMOGRAPHIC_SUBINDICATOR_OPTIONS_AGGREGATE = [
-    { value: DEMOGRAPHIC_DF_FIELD_AGG, label: 'Demographic Shock Factor (mean)' },
     { value: 'Resident_Population (R)_mean', label: 'Resident population (mean)' },
     { value: 'Displaced_Population (D)_mean', label: 'Displaced population (mean)' },
     { value: 'Heterogeneity (H)_mean', label: 'Heterogeneity (mean)' },
@@ -595,7 +592,6 @@ const ECON_CLIMATE_RECYCLING =
     'Measures to mitigate impacts of climate change at the personal level?  Solid waste recycling';
 
 const ECONOMIC_SUBINDICATOR_OPTIONS_AGGREGATE = [
-    { value: ECONOMIC_SCORE_FIELD, label: 'Economic Vulnerability composite score' },
     { value: 'Unemployment Rate', label: 'Unemployment rate' },
     { value: 'Nightlight Intensity', label: 'Nightlight intensity' },
     { value: '332 Vulnerability Map', label: '332 vulnerability map' }
@@ -611,7 +607,6 @@ const ECONOMIC_SUBINDICATOR_OPTIONS_CADASTRE = [
 
 /** Cadastre Peace: field keys merged from CSV (must match GeoJSON properties + select option values). */
 const PEACE_CADASTRE_SUBINDICATOR_OPTIONS = [
-    { value: 'composite_score', label: 'Tension and Conflict Risk' },
     {
         value: 'peace_si_intersectarian_per_1k',
         label: 'Inter-sectarian and inter-communal conflict incidents'
@@ -645,25 +640,22 @@ function getActiveAdminResolution() {
 registerSVSubindicatorPanel('svAdmin3Layer', {
     wrapId: 'svPeaceSubindicatorsWrap',
     getOptions: () => PEACE_CADASTRE_SUBINDICATOR_OPTIONS,
-    getDefaultValues: () => ['composite_score']
+    getDefaultValues: () => []
 });
 registerSVSubindicatorPanel('svAdmin1Layer', {
     wrapId: 'svDisplacementSubindicatorsWrap',
     getOptions: () => DISPLACEMENT_SUBINDICATOR_OPTIONS,
-    getDefaultValues: () => [DISPLACEMENT_SCORE_FIELD]
+    getDefaultValues: () => []
 });
 registerSVSubindicatorPanel('svAdmin2Layer', {
     wrapId: 'svEconomicSubindicatorsWrap',
     getOptions: () => getEconomicSubindicatorOptions(),
-    getDefaultValues: () => [ECONOMIC_SCORE_FIELD]
+    getDefaultValues: () => []
 });
 registerSVSubindicatorPanel('svAdmin5Layer', {
     wrapId: 'svDemographicSubindicatorsWrap',
     getOptions: () => getDemographicSubindicatorOptions(),
-    getDefaultValues: () => {
-        const resolution = getActiveAdminResolution();
-        return [resolution === 'cadastre' ? DEMOGRAPHIC_DF_FIELD_CADASTRE : DEMOGRAPHIC_DF_FIELD_AGG];
-    }
+    getDefaultValues: () => []
 });
 
 const SUBINDICATOR_OVERLAY_OUTLINE = ['#7c3aed', '#0891b2', '#ca8a04', '#be185d'];
