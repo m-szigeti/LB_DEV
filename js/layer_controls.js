@@ -568,19 +568,19 @@ const DEMOGRAPHIC_DF_FIELD_CADASTRE = 'Demographic_Factor (DF = S*H)';
 const DEMOGRAPHIC_DF_FIELD_AGG = 'Demographic_Factor (DF = S*H)_mean';
 
 const DEMOGRAPHIC_SUBINDICATOR_OPTIONS_CADASTRE = [
-    { value: DEMOGRAPHIC_DF_FIELD_CADASTRE, label: 'Demographic Shock Factor (DF = S×H)' },
-    { value: 'Resident_Population (R)', label: 'Resident population (R)' },
-    { value: 'Displaced_Population (D)', label: 'Displaced population (D)' },
-    { value: 'Heterogeneity (H)', label: 'Heterogeneity (H)' },
-    { value: 'Displacement_Ratio (S = D/R)', label: 'Displacement ratio (S = D/R)' }
+    { value: DEMOGRAPHIC_DF_FIELD_CADASTRE, label: 'Demographic Shock Factor' },
+    { value: 'Resident_Population (R)', label: 'Resident population' },
+    { value: 'Displaced_Population (D)', label: 'Displaced population' },
+    { value: 'Heterogeneity (H)', label: 'Heterogeneity' },
+    { value: 'Displacement_Ratio (S = D/R)', label: 'Displacement ratio' }
 ];
 
 const DEMOGRAPHIC_SUBINDICATOR_OPTIONS_AGGREGATE = [
-    { value: DEMOGRAPHIC_DF_FIELD_AGG, label: 'Demographic Shock Factor (DF = S×H, mean)' },
-    { value: 'Resident_Population (R)_mean', label: 'Resident population (R, mean)' },
-    { value: 'Displaced_Population (D)_mean', label: 'Displaced population (D, mean)' },
-    { value: 'Heterogeneity (H)_mean', label: 'Heterogeneity (H, mean)' },
-    { value: 'Displacement_Ratio (S = D/R)_mean', label: 'Displacement ratio (S = D/R, mean)' }
+    { value: DEMOGRAPHIC_DF_FIELD_AGG, label: 'Demographic Shock Factor (mean)' },
+    { value: 'Resident_Population (R)_mean', label: 'Resident population (mean)' },
+    { value: 'Displaced_Population (D)_mean', label: 'Displaced population (mean)' },
+    { value: 'Heterogeneity (H)_mean', label: 'Heterogeneity (mean)' },
+    { value: 'Displacement_Ratio (S = D/R)_mean', label: 'Displacement ratio (mean)' }
 ];
 
 const ECONOMIC_SCORE_FIELD = 'composite_score';

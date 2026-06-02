@@ -540,16 +540,16 @@ function getPrimaryFieldDisplayLabel(fieldName, layerType) {
 
     const labelByField = {
         'Social-Vulnerability': 'Composite Score',
-        'Demographic_Factor (DF = S*H)': 'Demographic Shock Factor (DF = S×H)',
-        'Demographic_Factor (DF = S*H)_mean': 'Demographic Shock Factor (DF = S×H, mean)',
-        'Resident_Population (R)': 'Resident population (R)',
-        'Resident_Population (R)_mean': 'Resident population (R, mean)',
-        'Displaced_Population (D)': 'Displaced population (D)',
-        'Displaced_Population (D)_mean': 'Displaced population (D, mean)',
-        'Heterogeneity (H)': 'Heterogeneity (H)',
-        'Heterogeneity (H)_mean': 'Heterogeneity (H, mean)',
-        'Displacement_Ratio (S = D/R)': 'Displacement ratio (S = D/R)',
-        'Displacement_Ratio (S = D/R)_mean': 'Displacement ratio (S = D/R, mean)',
+        'Demographic_Factor (DF = S*H)': 'Demographic Shock Factor',
+        'Demographic_Factor (DF = S*H)_mean': 'Demographic Shock Factor (mean)',
+        'Resident_Population (R)': 'Resident population',
+        'Resident_Population (R)_mean': 'Resident population (mean)',
+        'Displaced_Population (D)': 'Displaced population',
+        'Displaced_Population (D)_mean': 'Displaced population (mean)',
+        'Heterogeneity (H)': 'Heterogeneity',
+        'Heterogeneity (H)_mean': 'Heterogeneity (mean)',
+        'Displacement_Ratio (S = D/R)': 'Displacement ratio',
+        'Displacement_Ratio (S = D/R)_mean': 'Displacement ratio (mean)',
         'Displacement Pressure Score': 'Displacement Pressure Score',
         'Number of IDPs': 'Number of IDPs',
         'Number of of Palestinians': 'Number of Palestinians',
@@ -595,7 +595,7 @@ function getPrimaryFieldDisplayLabel(fieldName, layerType) {
     if (layerType === 'sv-admin1') return 'Displacement Pressure Score';
     if (layerType === 'sv-admin2') return 'Economic Vulnerability composite score';
     if (layerType === 'sv-admin3') return 'Tension and Conflict Risk Composite Score';
-    if (layerType === 'sv-admin5') return 'Demographic Shock Factor (DF = S×H)';
+    if (layerType === 'sv-admin5') return 'Demographic Shock Factor';
     return fieldName.replace(/_/g, ' ');
 }
 
