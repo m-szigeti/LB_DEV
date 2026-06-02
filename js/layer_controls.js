@@ -170,7 +170,7 @@ const layerConfig = {
         layerType: 'sv-admin4'
     },
     svAdmin5Layer: {
-        fixedColorRamp: 'whiteToDarkGray',
+        fixedColorRamp: 'yellowOrangeRedShock5',
         type: 'sv-vector',
         url: 'data/ADM3_Demographic_Shock_Factor.geojson',
         legendName: 'Demographic Shock Factor',
@@ -460,7 +460,7 @@ const SV_BASE_LAYER_CONFIG = {
         svAttribute: 'composite_score'
     },
     svAdmin5Layer: {
-        fixedColorRamp: 'whiteToDarkGray',
+        fixedColorRamp: 'yellowOrangeRedShock5',
         legendName: 'Demographic Shock Factor',
         renderMode: 'choropleth',
         svAttribute: 'Demographic_Factor (DF = S*H)'
@@ -927,11 +927,25 @@ function getChoroplethLegendTitle(layerId, attributeKey, config) {
     return config?.legendName || 'Layer';
 }
 
-const OVERALL_VULNERABILITY_LEGEND_LABELS = ['Yellow (Very)', 'Orange (Medium)', 'Red (High)'];
+const OVERALL_VULNERABILITY_LEGEND_LABELS = ['Low', 'Medium', 'High'];
+const DEMOGRAPHIC_SHOCK_LEGEND_LABELS = [
+    'Low to no shock',
+    'Slight shock',
+    'Moderate shock',
+    'Significant shock',
+    'Critical shock'
+];
+
+function applyDemographicShockLegendLabels(labels) {
+    const hasNoData = Array.isArray(labels)
+        && labels.some(label => String(label || '').trim().toLowerCase() === ACS_CODE_NO_DATA_LEGEND_LABEL);
+    return hasNoData
+        ? [...DEMOGRAPHIC_SHOCK_LEGEND_LABELS, ACS_CODE_NO_DATA_LEGEND_LABEL]
+        : [...DEMOGRAPHIC_SHOCK_LEGEND_LABELS];
+}
 
 function buildOverallVulnerabilityLegendEntry(config, colorScheme, rawGeoJson) {
-    const rampColors = [...(colorScheme || [])];
-    const scheme = rampColors.slice().reverse();
+    const scheme = [...(colorScheme || [])];
     const labels = [...OVERALL_VULNERABILITY_LEGEND_LABELS];
     if (layerHasAcsCodeNoData(rawGeoJson)) {
         scheme.push(ACS_CODE_NO_DATA_COLOR);
@@ -940,7 +954,7 @@ function buildOverallVulnerabilityLegendEntry(config, colorScheme, rawGeoJson) {
     return {
         layerName: (config?.legendName || 'Overall Vulnerability Index').trim(),
         colorScheme: scheme,
-        description: 'Overall Vulnerability Index score (0–1). Lower scores = higher vulnerability.',
+        description: '',
         labels,
         scaleDirection: 'yellow-orange-red'
     };
@@ -972,11 +986,12 @@ function refreshSVPeaceCadastreChoropleth(map, layers, addLegendEntry) {
         getPeaceCadastreChoroplethLegendTitle(layerId, value, config)
     );
     const updateLegendForLayer = (layerName, colorScheme, description, labels) => {
+        const demographicLabels = applyDemographicShockLegendLabels(labels);
         addLegendEntry(layerId, {
             layerName: legendTitle,
             colorScheme,
             description: [description, overlayNote].filter(Boolean).join(' '),
-            labels
+            labels: demographicLabels
         });
     };
     updateVectorLayerStyle(layer, attr, fixedRamp, opacity, updateLegendForLayer, { skipTooltips: true });
@@ -1589,7 +1604,7 @@ async function loadSVLayer(layerId, map, layers, colorScales, addLegendEntry, re
                         layerName: getChoroplethLegendTitle(layerId, chAttr, config) || config.legendName || layerName,
                         colorScheme,
                         description,
-                        labels
+                        labels: layerId === 'svAdmin5Layer' ? applyDemographicShockLegendLabels(labels) : labels
                     });
                 };
                 updateVectorLayerStyle(
@@ -2380,7 +2395,7 @@ function setupSVColorRampSelector(map, layers, addLegendEntry, updateLegend) {
                     layerName: getChoroplethLegendTitle(layerId, chAttr, config) || config.legendName || layerName,
                     colorScheme,
                     description,
-                    labels
+                    labels: layerId === 'svAdmin5Layer' ? applyDemographicShockLegendLabels(labels) : labels
                 });
             };
             updateVectorLayerStyle(
@@ -2784,7 +2799,7 @@ function applySVLayerOpacity(layerId, layers, opacity, map = null, addLegendEntr
                     layerName: getChoroplethLegendTitle(layerId, chAttr, config) || config.legendName || layerName,
                     colorScheme,
                     description,
-                    labels
+                    labels: layerId === 'svAdmin5Layer' ? applyDemographicShockLegendLabels(labels) : labels
                 });
             }
         }, { skipTooltips: true });

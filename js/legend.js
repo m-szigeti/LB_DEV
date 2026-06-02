@@ -292,11 +292,7 @@ function renderColorScaleEntry(entry) {
                 </div>
             `;
         } else if (entry.scaleDirection === 'yellow-orange-red') {
-            directionalInfo = `
-                <div style="margin-top: 8px; padding: 6px; background: #f8f9fa; border-radius: 4px; font-size: 10px; color: #666; line-height: 1.4;">
-                    <strong>Scale:</strong> Yellow (Very) &nbsp;→&nbsp; Orange (Medium) &nbsp;→&nbsp; Red (High)
-                </div>
-            `;
+            directionalInfo = '';
         } else if (isVulnerabilityData) {
             directionalInfo = `
                 <div style="margin-top: 8px; padding: 6px; background: #f8f9fa; border-radius: 4px; font-size: 10px; color: #666;">
@@ -320,11 +316,14 @@ function renderColorScaleEntry(entry) {
             </div>`
         )
         .join('');
+    const descriptionHtml = description
+        ? `<p style="margin: 0 0 8px 0; font-size: 12px; color: #666; line-height: 1.3;">${description}</p>`
+        : '';
     
     return `
         <div class="legend-entry" style="margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid #eee;">
             <h4 style="margin: 0 0 8px 0; font-size: 14px; color: #333;">${layerName}</h4>
-            <p style="margin: 0 0 8px 0; font-size: 12px; color: #666; line-height: 1.3;">${description || ''}</p>
+            ${descriptionHtml}
             <div class="color-scheme">
                 <div class="color-boxes">${boxesHtml}</div>
                 ${directionalInfo}

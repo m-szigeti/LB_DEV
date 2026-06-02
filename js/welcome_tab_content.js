@@ -36,7 +36,7 @@ export const WELCOME_TAB_HTML = `
                 <div style="position:relative; border:1px solid #d8d8d8; border-radius:8px; background:#f7f7f7; padding:10px 12px 10px 46px; margin-bottom:8px;">
                     <span style="position:absolute; left:9px; top:12px; width:18px; height:18px; border-radius:50%; background:#dce9fa; color:#3f79c5; font-size:11px; line-height:18px; text-align:center; font-weight:700;">3</span>
                     <div style="font-size:14px; font-weight:700; color:#343434;">Read the map and legend</div>
-                    <div style="font-size:12px; color:#555; margin-top:4px;">Use the map legend for score ranges. <span style="display:inline-block; margin-left:6px; padding:1px 6px; border-radius:10px; background:#f7d9d9; color:#9a2f2f; font-size:11px;">Red = higher vulnerability</span> <span style="display:inline-block; margin-left:4px; padding:1px 6px; border-radius:10px; background:#d9efdc; color:#2f7b38; font-size:11px;">Green = lower vulnerability</span></div>
+                    <div style="font-size:12px; color:#555; margin-top:4px;">Use the map legend for score ranges. <span style="display:inline-block; margin-left:6px; padding:1px 6px; border-radius:10px; background:#fff6c7; color:#8a6d00; font-size:11px;">Yellow = lower vulnerability</span> <span style="display:inline-block; margin-left:4px; padding:1px 6px; border-radius:10px; background:#fbe2cf; color:#9a4c12; font-size:11px;">Orange = medium vulnerability</span> <span style="display:inline-block; margin-left:4px; padding:1px 6px; border-radius:10px; background:#f7d9d9; color:#9a2f2f; font-size:11px;">Red = higher vulnerability</span></div>
                 </div>
                 <div style="position:relative; border:1px solid #d8d8d8; border-radius:8px; background:#f7f7f7; padding:10px 12px 10px 46px; margin-bottom:8px;">
                     <span style="position:absolute; left:9px; top:12px; width:18px; height:18px; border-radius:50%; background:#dce9fa; color:#3f79c5; font-size:11px; line-height:18px; text-align:center; font-weight:700;">4</span>
@@ -46,7 +46,7 @@ export const WELCOME_TAB_HTML = `
                 <div style="position:relative; border:1px solid #d8d8d8; border-radius:8px; background:#f7f7f7; padding:10px 12px 10px 46px;">
                     <span style="position:absolute; left:9px; top:12px; width:18px; height:18px; border-radius:50%; background:#dce9fa; color:#3f79c5; font-size:11px; line-height:18px; text-align:center; font-weight:700;">5</span>
                     <div style="font-size:14px; font-weight:700; color:#343434;">Drill into sub-indicators and stressors</div>
-                    <div style="font-size:12px; color:#555; margin-top:4px;">Use sub-indicator dropdowns under each pillar, or enable Stressors / high-resolution layers for additional context.</div>
+                    <div style="font-size:12px; color:#555; margin-top:4px;">Use sub-indicator chips under each pillar, or enable Stressors / high-resolution layers for additional context.</div>
                 </div>
             </div>
 
@@ -57,10 +57,19 @@ export const WELCOME_TAB_HTML = `
                 </div>
                 <div style="font-size:12px; color:#444; line-height:1.5; flex:1; min-width:140px;">
                     <div><span style="display:inline-block; width:10px; height:10px; border-radius:2px; background:#c0392b; margin-right:8px;"></span><strong>Tension and Conflict Risk</strong></div>
-                    <div style="margin-top:4px;"><span style="display:inline-block; width:10px; height:10px; border-radius:2px; background:#e67e22; margin-right:8px;"></span><strong>Displacement Pressure</strong></div>
-                    <div style="margin-top:4px;"><span style="display:inline-block; width:10px; height:10px; border-radius:2px; background:#f1c40f; margin-right:8px;"></span><strong>Economic Vulnerability</strong></div>
-                    <div style="margin-top:4px;"><span style="display:inline-block; width:10px; height:10px; border-radius:2px; background:#27ae60; margin-right:8px;"></span><strong>Service &amp; Infrastructure</strong></div>
-                    <div style="margin-top:4px;"><span style="display:inline-block; width:10px; height:10px; border-radius:2px; background:#2980b9; margin-right:8px;"></span><strong>Demographic Tension / Stress</strong></div>
+                    <div style="margin:2px 0 8px 18px; color:#5a5a5a;">Measures the likelihood of social unrest, violence, security incidents, or conflict-related tensions affecting an area.</div>
+
+                    <div><span style="display:inline-block; width:10px; height:10px; border-radius:2px; background:#e67e22; margin-right:8px;"></span><strong>Displacement Pressure</strong></div>
+                    <div style="margin:2px 0 8px 18px; color:#5a5a5a;">Assesses the impact of population movements, including the presence, influx, or return of displaced populations and the strain they place on communities.</div>
+
+                    <div><span style="display:inline-block; width:10px; height:10px; border-radius:2px; background:#f1c40f; margin-right:8px;"></span><strong>Economic Vulnerability</strong></div>
+                    <div style="margin:2px 0 8px 18px; color:#5a5a5a;">Evaluates the extent to which households and communities face economic hardship, unemployment, poverty, and reduced livelihood opportunities.</div>
+
+                    <div><span style="display:inline-block; width:10px; height:10px; border-radius:2px; background:#27ae60; margin-right:8px;"></span><strong>Service &amp; Infrastructure</strong></div>
+                    <div style="margin:2px 0 8px 18px; color:#5a5a5a;">Measures the availability, quality, and functionality of essential services and infrastructure such as healthcare, education, water, electricity, sanitation, and transportation.</div>
+
+                    <div><span style="display:inline-block; width:10px; height:10px; border-radius:2px; background:#2980b9; margin-right:8px;"></span><strong>Demographic Tension / Stress</strong></div>
+                    <div style="margin:2px 0 0 18px; color:#5a5a5a;">Assesses pressures arising from population characteristics and changes, including population density, rapid growth, demographic imbalances, and competition over resources between different groups.</div>
                 </div>
             </div>
             <div style="background:#efefeb; border-left:4px solid #a5a394; color:#555; font-size:12px; line-height:1.45; padding:8px 10px; border-radius:4px; margin-bottom:12px;">
@@ -92,11 +101,6 @@ export const WELCOME_TAB_HTML = `
                         <div class="card-label">Shelter</div>
                         <p class="card-title">Collective shelter status</p>
                         <p class="card-meta">Snapshot and change views</p>
-                    </div>
-                    <div class="welcome-conflict-card">
-                        <div class="card-label">High resolution</div>
-                        <p class="card-title">Raster overlays</p>
-                        <p class="card-meta">NDVI, population, services, etc.</p>
                     </div>
                     <div class="welcome-conflict-card">
                         <div class="card-label">Perception</div>

@@ -115,8 +115,12 @@ export const colorRamps = {
     },
     yellowOrangeRed3: {
         name: 'Yellow – Orange – Red (3 classes)',
-        // Low index scores → red; high scores → yellow (vulnerability increases toward red).
-        colors: ['#e31a1c', '#fd8d3c', '#ffff33']
+        // Ascending classes: low = yellow, medium = orange, high = red.
+        colors: ['#ffff33', '#fd8d3c', '#e31a1c']
+    },
+    yellowOrangeRedShock5: {
+        name: 'Yellow – Orange – Red (Shock 5 classes)',
+        colors: ['#fff7bc', '#fee391', '#fec44f', '#fe9929', '#d7301f']
     },
     blueToYellow: {
         name: 'Blue to Yellow',

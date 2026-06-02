@@ -123,6 +123,9 @@ export class InfoPanel {
                 <button class="info-panel-tab" type="button" data-tab="analysis" role="tab" aria-selected="false">
                     Analysis
                 </button>
+                <button class="info-panel-tab" type="button" data-tab="ask-ai" role="tab" aria-selected="false">
+                    Ask AI
+                </button>
             </div>
 
             <div class="info-panel-tab-panels">
@@ -165,6 +168,25 @@ export class InfoPanel {
                         </div>
                         <div class="results-content">
                             <p class="no-results-message">No reports generated yet</p>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="info-panel-tab-panel" data-panel="ask-ai" role="tabpanel" hidden>
+                    <div class="info-panel-section ask-ai-section">
+                        <div class="section-header">
+                            <h4>Ask AI</h4>
+                        </div>
+                        <p class="ask-ai-hint">Enter a prompt below.</p>
+                        <textarea
+                            id="ask-ai-prompt-input"
+                            class="ask-ai-textarea"
+                            placeholder="Type your prompt..."
+                            rows="4"
+                        ></textarea>
+                        <button class="run-analysis-btn ask-ai-submit-btn" type="button">Send</button>
+                        <div id="ask-ai-placeholder-response" class="ask-ai-placeholder-response" hidden>
+                            AI will be featured at a later stage.
                         </div>
                     </div>
                 </section>
@@ -321,6 +343,18 @@ setupEventListeners() {
     const analysisBtn = this.container.querySelector('.run-analysis-btn');
     if (analysisBtn) {
         analysisBtn.addEventListener('click', () => this.generateSummaryReport());
+    }
+
+    const askAiBtn = this.container.querySelector('.ask-ai-submit-btn');
+    if (askAiBtn) {
+        askAiBtn.addEventListener('click', () => {
+            const input = this.container.querySelector('#ask-ai-prompt-input');
+            const response = this.container.querySelector('#ask-ai-placeholder-response');
+            if (!input || !response) return;
+            const prompt = String(input.value || '').trim();
+            if (!prompt) return;
+            response.hidden = false;
+        });
     }
 
     tabs.forEach(tab => {
