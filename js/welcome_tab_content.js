@@ -62,8 +62,8 @@ export const WELCOME_TAB_HTML = `
                     <div><span style="display:inline-block; width:10px; height:10px; border-radius:2px; background:#e67e22; margin-right:8px;"></span><strong>Displacement Pressure</strong></div>
                     <div style="margin:2px 0 8px 18px; color:#5a5a5a;">Assesses the impact of population movements, including the presence, influx, or return of displaced populations and the strain they place on communities.</div>
 
-                    <div><span style="display:inline-block; width:10px; height:10px; border-radius:2px; background:#f1c40f; margin-right:8px;"></span><strong>Economic Vulnerability</strong></div>
-                    <div style="margin:2px 0 8px 18px; color:#5a5a5a;">Evaluates the extent to which households and communities face economic hardship, unemployment, poverty, and reduced livelihood opportunities.</div>
+                    <div><span style="display:inline-block; width:10px; height:10px; border-radius:2px; background:#f1c40f; margin-right:8px;"></span><strong>Socioeconomic Vulnerability</strong></div>
+                    <div style="margin:2px 0 8px 18px; color:#5a5a5a;">Evaluates the extent to which households and communities face socioeconomic hardship, unemployment, poverty, and reduced livelihood opportunities.</div>
 
                     <div><span style="display:inline-block; width:10px; height:10px; border-radius:2px; background:#27ae60; margin-right:8px;"></span><strong>Service &amp; Infrastructure</strong></div>
                     <div style="margin:2px 0 8px 18px; color:#5a5a5a;">Measures the availability, quality, and functionality of essential services and infrastructure such as healthcare, education, water, electricity, sanitation, and transportation.</div>

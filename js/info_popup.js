@@ -518,9 +518,10 @@ function getPrimaryVulnerabilityField(properties, layerType = '') {
 function getLayerScoreSectionTitle(layerType) {
     if (layerType === 'sv-overall') return 'Overall Vulnerability Index';
     if (layerType === 'sv-admin1') return 'Displacement Pressure';
-    if (layerType === 'sv-admin2') return 'Economic Vulnerability';
+    if (layerType === 'sv-admin2') return 'Socioeconomic Vulnerability';
     if (layerType === 'sv-admin3') return 'Tension and Conflict Risk';
     if (layerType === 'sv-admin5') return 'Demographic Shock Factor';
+    if (layerType === 'population') return 'Population';
     return 'Layer Score';
 }
 
@@ -535,7 +536,10 @@ function getPrimaryFieldDisplayLabel(fieldName, layerType) {
         return 'Tension and Conflict Risk';
     }
     if (layerType === 'sv-admin2' && fieldName === 'composite_score') {
-        return 'Economic Vulnerability composite score';
+        return 'Socioeconomic Vulnerability';
+    }
+    if (layerType === 'population' && fieldName === 'All Populations') {
+        return 'All Populations';
     }
 
     const labelByField = {
@@ -561,21 +565,20 @@ function getPrimaryFieldDisplayLabel(fieldName, layerType) {
         overall_tension_index_score: 'Overall Vulnerability Index',
         tension_peace_score: 'Tension and Conflict Risk score',
         displacement_pressure_score: 'Displacement Pressure score',
-        economic_vulnerability_score: 'Economic Vulnerability score',
-        composite_score: 'Economic Vulnerability composite score',
+        economic_vulnerability_score: 'Socioeconomic Vulnerability score',
+        composite_score: 'Socioeconomic Vulnerability',
         'Unemployment Rate': 'Unemployment rate',
         'Nightlight Intensity': 'Nightlight intensity',
         '332 Vulnerability Map': '332 vulnerability map',
-        'Measures to mitigate impacts of climate change at the personal level? Switching switching to renewable energy':
-            'Climate mitigation: renewable energy',
-        'Measures to mitigate impacts of climate change at the personal level? Reducing vehicle use':
-            'Climate mitigation: reducing vehicle use',
-        'Measures to mitigate impacts of climate change at the personal level? Using water wisely':
-            'Climate mitigation: using water wisely',
-        'Measures to mitigate impacts of climate change at the personal level?  Solid waste recycling':
-            'Climate mitigation: solid waste recycling',
-        'socio_composite_score': 'Economic Vulnerability composite score',
-        'socio_composite_score_mean': 'Economic Vulnerability composite score (mean)',
+        Coping: 'Coping',
+        'Population dependency ratio': 'Population dependency ratio',
+        'All Populations': 'All Populations',
+        LEB: 'Lebanese (LEB)',
+        PRL: 'Palestinians — Lebanon (PRL)',
+        PRS: 'Palestinians — Syria (PRS)',
+        SYR: 'Syrians (SYR)',
+        'socio_composite_score': 'Socioeconomic Vulnerability',
+        'socio_composite_score_mean': 'Socioeconomic Vulnerability (mean)',
         'peace_composite_score': 'Tension and Conflict Risk',
         'peace_composite_score_mean_mean': 'Tension and Conflict Risk (Mean)',
         'peace_composite_score_mean': 'Tension and Conflict Risk (Mean)',
@@ -593,7 +596,7 @@ function getPrimaryFieldDisplayLabel(fieldName, layerType) {
     if (labelByField[fieldName]) return labelByField[fieldName];
 
     if (layerType === 'sv-admin1') return 'Displacement Pressure Score';
-    if (layerType === 'sv-admin2') return 'Economic Vulnerability composite score';
+    if (layerType === 'sv-admin2') return 'Socioeconomic Vulnerability';
     if (layerType === 'sv-admin3') return 'Tension and Conflict Risk';
     if (layerType === 'sv-admin5') return 'Demographic Shock Factor';
     return fieldName.replace(/_/g, ' ');

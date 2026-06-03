@@ -1,5 +1,5 @@
 /**
- * Sidebar sub-indicator chip panels (multi-select).
+ * Sidebar sub-indicator chip panels (single-select).
  */
 
 const selections = new Map();
@@ -44,10 +44,10 @@ function reconcileSelection(layerId, options) {
     const validValues = new Set(options.map(o => o.value));
     const prev = selections.get(layerId) || [];
     const kept = prev.filter(v => validValues.has(v));
-    if (kept.length) return kept;
+    if (kept.length) return [kept[0]];
     const defaults = PANEL_REGISTRY.get(layerId)?.getDefaultValues() || [];
     const fromDefault = (Array.isArray(defaults) ? defaults : [defaults]).filter(v => validValues.has(v));
-    if (fromDefault.length) return fromDefault;
+    if (fromDefault.length) return [fromDefault[0]];
     return [];
 }
 
@@ -59,9 +59,15 @@ function handleChipChange(event) {
     const listHost = input.closest('.sv-subindicator-chips');
     if (!listHost) return;
 
-    const checked = [...listHost.querySelectorAll('.sv-subindicator-chip-input:checked')].map(cb => cb.value);
+    let selected = [];
+    if (input.checked) {
+        listHost.querySelectorAll('.sv-subindicator-chip-input').forEach(cb => {
+            if (cb !== input) cb.checked = false;
+        });
+        selected = [input.value];
+    }
 
-    selections.set(layerId, checked);
+    selections.set(layerId, selected);
     listHost.querySelectorAll('.sv-subindicator-chip').forEach(chip => {
         chip.classList.toggle('is-selected', Boolean(chip.querySelector('input')?.checked));
     });

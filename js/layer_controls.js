@@ -224,6 +224,22 @@ const layerConfig = {
         }),
         layerType: 'ttf-hotspots'
     },
+    populationLayer: {
+        type: 'sv-vector',
+        stressorLayer: true,
+        url: 'data/ADM3_POP.geojson',
+        fixedColorRamp: 'whiteToDarkGreen',
+        legendName: 'Population',
+        svAttribute: 'All Populations',
+        thinBoundaries: true,
+        style: {
+            color: '#2b83ba',
+            weight: 2,
+            opacity: 1,
+            fillOpacity: 0.65
+        },
+        layerType: 'population'
+    },
     vulnerabilityCadastreLayer: {
         type: 'vector',
         url: 'data/cadastre_join_ntl_night_safety_vul7_v2.geojson',
@@ -381,7 +397,7 @@ const SV_PILLAR_DEFINITIONS = [
     },
     {
         layerId: 'svAdmin2Layer',
-        label: 'Economic Vulnerability',
+        label: 'Socioeconomic Vulnerability',
         color: '#2b83ba',
         attribute: 'composite_score'
     },
@@ -440,7 +456,7 @@ const SV_BASE_LAYER_CONFIG = {
     },
     svAdmin2Layer: {
         fixedColorRamp: 'whiteToDarkBlue',
-        legendName: 'Economic Vulnerability',
+        legendName: 'Socioeconomic Vulnerability',
         renderMode: 'stripe-pattern',
         patternColor: '#2b83ba',
         svAttribute: 'composite_score'
@@ -580,29 +596,39 @@ const DEMOGRAPHIC_SUBINDICATOR_OPTIONS_AGGREGATE = [
     { value: 'Displacement_Ratio (S = D/R)_mean', label: 'Displacement ratio (mean)' }
 ];
 
-const ECONOMIC_SCORE_FIELD = 'composite_score';
+const POPULATION_SCORE_FIELD = 'All Populations';
 
-const ECON_CLIMATE_RENEWABLE =
-    'Measures to mitigate impacts of climate change at the personal level? Switching switching to renewable energy';
-const ECON_CLIMATE_VEHICLE =
-    'Measures to mitigate impacts of climate change at the personal level? Reducing vehicle use';
-const ECON_CLIMATE_WATER =
-    'Measures to mitigate impacts of climate change at the personal level? Using water wisely';
-const ECON_CLIMATE_RECYCLING =
-    'Measures to mitigate impacts of climate change at the personal level?  Solid waste recycling';
-
-const ECONOMIC_SUBINDICATOR_OPTIONS_AGGREGATE = [
-    { value: 'Unemployment Rate', label: 'Unemployment rate' },
-    { value: 'Nightlight Intensity', label: 'Nightlight intensity' },
-    { value: '332 Vulnerability Map', label: '332 vulnerability map' }
+const POP_SUBINDICATOR_OPTIONS = [
+    { value: 'LEB', label: 'Lebanese (LEB)' },
+    { value: 'PRL', label: 'Palestinians — Lebanon (PRL)' },
+    { value: 'PRS', label: 'Palestinians — Syria (PRS)' },
+    { value: 'SYR', label: 'Syrians (SYR)' }
 ];
 
-const ECONOMIC_SUBINDICATOR_OPTIONS_CADASTRE = [
-    ...ECONOMIC_SUBINDICATOR_OPTIONS_AGGREGATE,
-    { value: ECON_CLIMATE_RENEWABLE, label: 'Climate mitigation: renewable energy' },
-    { value: ECON_CLIMATE_VEHICLE, label: 'Climate mitigation: reducing vehicle use' },
-    { value: ECON_CLIMATE_WATER, label: 'Climate mitigation: using water wisely' },
-    { value: ECON_CLIMATE_RECYCLING, label: 'Climate mitigation: solid waste recycling' }
+const POP_RESOLUTION_CONFIG = {
+    governorate: {
+        url: 'data/ADM1_POP.geojson',
+        thinBoundaries: false
+    },
+    district: {
+        url: 'data/ADM2_POP.geojson',
+        thinBoundaries: false
+    },
+    cadastre: {
+        url: 'data/ADM3_POP.geojson',
+        thinBoundaries: true
+    }
+};
+
+const ECONOMIC_SCORE_FIELD = 'composite_score';
+
+/** Property keys from ADM1/ADM2/ADM3_ECONOMIC_VUL.geojson (must match GeoJSON properties). */
+const ECONOMIC_SUBINDICATOR_OPTIONS = [
+    { value: 'Unemployment Rate', label: 'Unemployment rate' },
+    { value: 'Nightlight Intensity', label: 'Nightlight intensity' },
+    { value: '332 Vulnerability Map', label: '332 vulnerability map' },
+    { value: 'Coping', label: 'Coping' },
+    { value: 'Population dependency ratio', label: 'Population dependency ratio' }
 ];
 
 /** Cadastre Peace: field keys merged from CSV (must match GeoJSON properties + select option values). */
@@ -657,6 +683,11 @@ registerSVSubindicatorPanel('svAdmin5Layer', {
     getOptions: () => getDemographicSubindicatorOptions(),
     getDefaultValues: () => []
 });
+registerSVSubindicatorPanel('populationLayer', {
+    wrapId: 'svPopulationSubindicatorsWrap',
+    getOptions: () => POP_SUBINDICATOR_OPTIONS,
+    getDefaultValues: () => []
+});
 
 const SUBINDICATOR_OVERLAY_OUTLINE = ['#7c3aed', '#0891b2', '#ca8a04', '#be185d'];
 const DISPLACEMENT_EXTRA_COLORS = ['#6366f1', '#0d9488', '#d97706', '#be185d'];
@@ -667,10 +698,8 @@ function getDemographicSubindicatorOptions(resolution = getActiveAdminResolution
         : DEMOGRAPHIC_SUBINDICATOR_OPTIONS_AGGREGATE;
 }
 
-function getEconomicSubindicatorOptions(resolution = getActiveAdminResolution()) {
-    return resolution === 'cadastre'
-        ? ECONOMIC_SUBINDICATOR_OPTIONS_CADASTRE
-        : ECONOMIC_SUBINDICATOR_OPTIONS_AGGREGATE;
+function getEconomicSubindicatorOptions() {
+    return ECONOMIC_SUBINDICATOR_OPTIONS;
 }
 
 function populateEconomicSubindicatorSelect(resolution = getActiveAdminResolution()) {
@@ -683,7 +712,7 @@ function getEffectiveEconomicAttribute(config) {
 
 function getEconomicSubindicatorLegendTitle(attributeKey, config) {
     const opt = getEconomicSubindicatorOptions().find(o => o.value === attributeKey);
-    return opt ? opt.label : config?.legendName || 'Economic Vulnerability';
+    return opt ? opt.label : config?.legendName || 'Socioeconomic Vulnerability';
 }
 
 function populateDisplacementSubindicatorSelect() {
@@ -749,12 +778,27 @@ function populateDemographicSubindicatorSelect(resolution = getActiveAdminResolu
     renderSVSubindicatorPanel('svAdmin5Layer');
 }
 
+function getPopulationSubindicatorOptions() {
+    return POP_SUBINDICATOR_OPTIONS;
+}
+
+function getPopulationChoroplethLegendTitle(attributeKey, config) {
+    if (attributeKey === POPULATION_SCORE_FIELD) {
+        return config?.legendName || 'Population';
+    }
+    const opt = POP_SUBINDICATOR_OPTIONS.find(o => o.value === attributeKey);
+    return opt ? opt.label : config?.legendName || 'Population';
+}
+
 function getEffectiveChoroplethAttribute(layerId, config) {
     if (layerId === 'svAdmin3Layer' && config?.thinBoundaries) {
         return getPrimarySubindicator(layerId) || config?.svAttribute;
     }
     if (layerId === 'svAdmin5Layer') {
         return getPrimarySubindicator(layerId) || config?.svAttribute;
+    }
+    if (layerId === 'populationLayer') {
+        return getPrimarySubindicator(layerId) || config?.svAttribute || POPULATION_SCORE_FIELD;
     }
     if (layerId === 'svAdmin2Layer') {
         return getEffectiveEconomicAttribute(config);
@@ -913,6 +957,9 @@ function getChoroplethLegendTitle(layerId, attributeKey, config) {
     if (layerId === 'svAdmin5Layer') {
         return getDemographicChoroplethLegendTitle(layerId, attributeKey, config);
     }
+    if (layerId === 'populationLayer') {
+        return getPopulationChoroplethLegendTitle(attributeKey, config);
+    }
     return config?.legendName || 'Layer';
 }
 
@@ -986,6 +1033,34 @@ function refreshSVPeaceCadastreChoropleth(map, layers, addLegendEntry) {
     updateSVHoverTooltips(layer, layerId, config);
     reapplySelectedPolygonHighlight(layerId);
     syncChoroplethSubindicatorOverlays(map, layerId, layers, config);
+}
+
+function refreshPopulationChoropleth(map, layers, addLegendEntry) {
+    const layerId = 'populationLayer';
+    const config = layerConfig[layerId];
+    const layer = layers.vector[layerId];
+    const toggle = document.getElementById(layerId);
+    if (!config || !layer || !toggle?.checked) return;
+
+    const attr = getEffectiveChoroplethAttribute(layerId, config);
+    const opacitySlider = document.getElementById('svOpacity');
+    const opacity = opacitySlider ? parseFloat(opacitySlider.value) : 0.65;
+    const fixedRamp = getColorRamp(config.fixedColorRamp);
+    if (!fixedRamp) return;
+
+    const legendTitle = getPopulationChoroplethLegendTitle(attr, config);
+    const updateLegendForLayer = (layerName, colorScheme, description, labels) => {
+        addLegendEntry(layerId, {
+            layerName: legendTitle,
+            colorScheme,
+            description,
+            labels
+        });
+    };
+    updateVectorLayerStyle(layer, attr, fixedRamp, opacity, updateLegendForLayer, { skipTooltips: true });
+    applySVPolygonOutlineStyle(layer, config);
+    updateSVHoverTooltips(layer, layerId, config);
+    reapplySelectedPolygonHighlight(layerId);
 }
 
 function refreshSVDemographicChoropleth(map, layers, addLegendEntry) {
@@ -1101,8 +1176,8 @@ export function setupLayerControls(map, layers, colorScales, addLegendEntry, rem
     Object.keys(layerConfig).forEach(layerId => {
         const config = layerConfig[layerId];
         
-        // Skip Social-Vulnerability layers - they are handled by radio buttons
-        if (config.type === 'sv-vector') {
+        // Skip composite SV layers (radio toggles); stressor choropleth layers use setupLayerToggle.
+        if (config.type === 'sv-vector' && !config.stressorLayer) {
             return;
         }
         
@@ -1145,6 +1220,9 @@ export function setupLayerControls(map, layers, colorScales, addLegendEntry, rem
                 ttfCheckbox.dispatchEvent(new Event('change'));
             }
         }
+        if (layerId === 'populationLayer') {
+            setupPopulationLayerToggle(layerId, map, layers, colorScales, addLegendEntry, removeLegendEntry);
+        }
     });
     
     // Setup Social Vulnerability radio button controls
@@ -1157,23 +1235,31 @@ export function setupLayerControls(map, layers, colorScales, addLegendEntry, rem
     autoLoadSVAdmin1(map, layers, colorScales, addLegendEntry, removeLegendEntry, updateLegend, hideLegend);
 }
 
-function syncSVSubindicatorPanelsVisibility() {
-    const btn = document.querySelector('.social-vulnerability-btn');
-    if (!btn) return;
+function isDropdownSectionOpen(buttonSelector) {
+    const btn = document.querySelector(buttonSelector);
+    if (!btn) return false;
     const panel = btn.nextElementSibling;
-    const isOpen =
+    return Boolean(
         btn.classList.contains('active') &&
         panel &&
         panel.classList.contains('dropdown-container') &&
-        panel.style.display === 'block';
+        panel.style.display === 'block'
+    );
+}
+
+function syncSVSubindicatorPanelsVisibility() {
+    const compositeOpen = isDropdownSectionOpen('.social-vulnerability-btn');
+    const stressorsOpen = isDropdownSectionOpen('.stressors-section-btn');
 
     document.querySelectorAll('[data-subindicator-layer]').forEach(wrap => {
         const layerId = wrap.dataset.subindicatorLayer;
         const layerOn = Boolean(document.getElementById(layerId)?.checked);
+        const isStressorPanel = wrap.classList.contains('sv-stressor-subindicators-wrap');
+        const sectionOpen = isStressorPanel ? stressorsOpen : compositeOpen;
         const peaceApplicable =
             layerId !== 'svAdmin3Layer' ||
             (getActiveAdminResolution() === 'cadastre' && Boolean(layerConfig.svAdmin3Layer?.thinBoundaries));
-        wrap.hidden = !isOpen || !layerOn || !peaceApplicable;
+        wrap.hidden = !sectionOpen || !layerOn || !peaceApplicable;
         if (!wrap.hidden) {
             renderSVSubindicatorPanel(layerId);
         }
@@ -1260,6 +1346,8 @@ function setupSVRadioControls(map, layers, colorScales, addLegendEntry, removeLe
                 refreshSVDisplacementLayerCircles('svAdmin1Layer', layers, layerConfig.svAdmin1Layer, map);
             } else if (layerId === 'svAdmin2Layer') {
                 refreshSVEconomicStripePattern(map, layers, addLegendEntry);
+            } else if (layerId === 'populationLayer') {
+                refreshPopulationChoropleth(map, layers, addLegendEntry);
             }
         }
     });
@@ -1455,6 +1543,130 @@ async function applySVResolution(resolution, map, layers, colorScales, addLegend
     if (activeSVLayers.has('svAdmin2Layer')) {
         refreshSVEconomicStripePattern(map, layers, window.addLegendEntry);
     }
+    await applyPopulationResolution(
+        selectedResolution,
+        map,
+        layers,
+        colorScales,
+        addLegendEntry,
+        removeLegendEntry
+    );
+}
+
+async function applyPopulationResolution(resolution, map, layers, colorScales, addLegendEntry, removeLegendEntry) {
+    const config = layerConfig.populationLayer;
+    if (!config) return;
+
+    const resolutionLayer = POP_RESOLUTION_CONFIG[resolution] || POP_RESOLUTION_CONFIG.cadastre;
+    config.url = resolutionLayer.url;
+    config.thinBoundaries = Boolean(resolutionLayer.thinBoundaries);
+
+    const toggle = document.getElementById('populationLayer');
+    const wasActive = Boolean(toggle?.checked);
+
+    if (layers.vector.populationLayer) {
+        removeSubindicatorMapExtras(map, layers.vector.populationLayer);
+        clearPolygonSelection('populationLayer', layers);
+        map.removeLayer(layers.vector.populationLayer);
+        delete layers.vector.populationLayer;
+        removeLegendEntry('populationLayer');
+        if (window.currentInfoPanel) {
+            window.currentInfoPanel.removeLayer('populationLayer');
+        }
+    }
+
+    renderSVSubindicatorPanel('populationLayer');
+    if (typeof window.syncSVSubindicatorPanelsVisibility === 'function') {
+        window.syncSVSubindicatorPanelsVisibility();
+    }
+
+    if (wasActive) {
+        await loadPopulationLayer(map, layers, colorScales, addLegendEntry);
+    }
+}
+
+async function loadPopulationLayer(map, layers, colorScales, addLegendEntry) {
+    const layerId = 'populationLayer';
+    const config = layerConfig[layerId];
+    if (!config) return;
+
+    const toggle = document.getElementById(layerId);
+    if (!toggle?.checked) return;
+
+    try {
+        if (!layers.vector[layerId]) {
+            const loadedLayer = await loadVectorLayer(config.url, { style: config.style });
+            layers.vector[layerId] = loadedLayer;
+            addInfoPopupHandler(loadedLayer, config.layerType || 'population');
+            attachPolygonSelectionHandlers(layerId, loadedLayer, layers, config);
+        }
+
+        if (!toggle.checked) return;
+
+        if (map.hasLayer(layers.vector[layerId])) {
+            map.removeLayer(layers.vector[layerId]);
+        }
+        layers.vector[layerId].addTo(map);
+        keepRoadLayerOnTop(layers);
+
+        refreshPopulationChoropleth(map, layers, addLegendEntry);
+
+        if (window.currentInfoPanel) {
+            const layer = layers.vector[layerId];
+            let featureCount = 0;
+            layer?.eachLayer?.(() => {
+                featureCount += 1;
+            });
+            window.currentInfoPanel.addLayer(layerId, {
+                id: layerId,
+                name: getLayerDisplayName(layerId, config),
+                type: 'sv-vector',
+                selectedAttribute: getEffectiveChoroplethAttribute(layerId, config),
+                opacity: 0.65,
+                layer,
+                featureCount
+            });
+        }
+    } catch (error) {
+        console.error(`Error loading population layer:`, error);
+        if (toggle) toggle.checked = false;
+    }
+}
+
+function setupPopulationLayerToggle(layerId, map, layers, colorScales, addLegendEntry, removeLegendEntry) {
+    const checkbox = document.getElementById(layerId);
+    if (!checkbox || checkbox._populationToggleAttached) return;
+    checkbox._populationToggleAttached = true;
+
+    checkbox.addEventListener('change', async function() {
+        if (this.checked) {
+            try {
+                await loadPopulationLayer(map, layers, colorScales, addLegendEntry);
+            } catch (error) {
+                console.error(`Error loading layer ${layerId}:`, error);
+                this.checked = false;
+            }
+        } else {
+            const config = layerConfig[layerId];
+            if (layers.vector[layerId]) {
+                removeSubindicatorMapExtras(map, layers.vector[layerId]);
+                clearPolygonSelection(layerId, layers);
+                map.removeLayer(layers.vector[layerId]);
+                delete layers.vector[layerId];
+                removeLegendEntry(layerId);
+            }
+            if (window.currentInfoPanel) {
+                window.currentInfoPanel.removeLayer(layerId);
+            }
+        }
+
+        if (this.checked) {
+            renderSVSubindicatorPanel('populationLayer');
+        }
+        if (typeof window.syncSVSubindicatorPanelsVisibility === 'function') {
+            window.syncSVSubindicatorPanelsVisibility();
+        }
+    });
 }
 
 /**
@@ -2352,6 +2564,9 @@ function setupSVOpacityControl(map, layers, addLegendEntry, updateLegend) {
         activeSVLayers.forEach(layerId => {
             applySVLayerOpacity(layerId, layers, opacity, map, addLegendEntry);
         });
+        if (document.getElementById('populationLayer')?.checked) {
+            refreshPopulationChoropleth(map, layers, addLegendEntry);
+        }
     });
 }
 
@@ -2654,7 +2869,7 @@ function applySVStripePatternStyle(layerId, layer, config, opacity, map, addLege
                 ? getSelectedSubindicators('svAdmin2Layer')
                       .map(value => getEconomicSubindicatorLegendTitle(value, config))
                       .join(' · ') || getEconomicSubindicatorLegendTitle(stripeAttr, config)
-                : 'Economic Vulnerability';
+                : 'Socioeconomic Vulnerability';
         const economicOverlayNote =
             layerId === 'svAdmin2Layer'
                 ? buildSubindicatorLegendNote('svAdmin2Layer', value =>
@@ -3770,13 +3985,14 @@ function getLayerDisplayName(layerId, config) {
         'geojsonLayer3': 'Statistics: Cadastre',
         'svOverallTensionLayer': 'Overall Vulnerability Index',
         'svAdmin1Layer': 'Displacement Pressure',
-        'svAdmin2Layer': 'Economic Vulnerability',
+        'svAdmin2Layer': 'Socioeconomic Vulnerability',
         'svAdmin3Layer': 'Tension and Conflict Risk',
         'svAdmin4Layer': 'Service & Infrastructure Vulnerability',
         'svAdmin5Layer': 'Demographic Shock Factor',
         'streetNetworkLayer': 'Street Network',
         'roadStatusLayer': 'Road Access Status',
         'ttfHotspotsLayer': 'TTF Hotspots (Q1 2026)',
+        'populationLayer': 'Population',
         'vulnerabilityCadastreLayer': 'Vulnerability: Cadastre',
         'pointLayer': 'Household Survey Statistics',
         'pointLayer2': 'Cities',
@@ -3860,7 +4076,7 @@ function applySelectedStyle(featureLayer) {
     featureLayer.setStyle({
         color: '#f59e0b',
         weight: 3,
-        fillOpacity: 0.8
+        opacity: 1
     });
 
     // Ensure the selected polygon border is drawn above adjacent boundaries.
@@ -4056,9 +4272,16 @@ function getSelectionAttributeLabel(layerId, config, attributeName) {
         const opt = PEACE_CADASTRE_SUBINDICATOR_OPTIONS.find(o => o.value === attributeName);
         if (opt) return opt.label;
     }
+    if (layerId === 'populationLayer') {
+        const opt = getPopulationSubindicatorOptions().find(o => o.value === attributeName);
+        if (opt) return opt.label;
+        if (attributeName === POPULATION_SCORE_FIELD) {
+            return 'All Populations';
+        }
+    }
 
     // For composite index layers, use the active layer name instead of raw field names.
-    if (config.type === 'sv-vector' && config.svAttribute) {
+    if (config.type === 'sv-vector' && config.svAttribute && !config.stressorLayer) {
         return `${getLayerDisplayName(layerId, config)} (score)`;
     }
 

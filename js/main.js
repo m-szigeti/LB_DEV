@@ -74,7 +74,12 @@ document.addEventListener('DOMContentLoaded', async function() {
     const stressorsDropdownBtn = document.querySelector('.stressors-section-btn');
     if (stressorsDropdownBtn) {
         stressorsDropdownBtn.addEventListener('click', () => {
-            setTimeout(syncEscalationControlsWrapVisibility, 0);
+            setTimeout(() => {
+                syncEscalationControlsWrapVisibility();
+                if (typeof window.syncSVSubindicatorPanelsVisibility === 'function') {
+                    window.syncSVSubindicatorPanelsVisibility();
+                }
+            }, 0);
         });
     }
     
@@ -442,6 +447,9 @@ function setupDropdownToggles() {
             }
             if (this.classList.contains('stressors-section-btn')) {
                 syncEscalationControlsWrapVisibility();
+                if (typeof window.syncSVSubindicatorPanelsVisibility === 'function') {
+                    window.syncSVSubindicatorPanelsVisibility();
+                }
             }
         });
     });

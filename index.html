@@ -103,9 +103,9 @@
             <div id="svPeaceSubindicatorsWrap" class="sv-subindicators-panel sv-peace-subindicators-wrap" data-subindicator-layer="svAdmin3Layer" hidden>
                 <div class="sv-subindicators-header">
                     <span class="sv-subindicators-title">Sub-indicators</span>
-                    <span class="sv-subindicators-badge">Multi-select</span>
+                    <span class="sv-subindicators-badge">Single select</span>
                 </div>
-                <p class="sv-subindicators-hint">First selected drives the base map; additional selections add overlay views.</p>
+                <p class="sv-subindicators-hint">Select one sub-indicator, or none to show the composite score.</p>
                 <div class="sv-subindicator-chips" role="group" aria-label="Tension and Conflict Risk sub-indicators"></div>
             </div>
             <div class="sv-layer-toggle-row">
@@ -118,25 +118,25 @@
             <div id="svDisplacementSubindicatorsWrap" class="sv-subindicators-panel sv-peace-subindicators-wrap" data-subindicator-layer="svAdmin1Layer" hidden>
                 <div class="sv-subindicators-header">
                     <span class="sv-subindicators-title">Sub-indicators</span>
-                    <span class="sv-subindicators-badge">Multi-select</span>
+                    <span class="sv-subindicators-badge">Single select</span>
                 </div>
-                <p class="sv-subindicators-hint">First selected drives circle size; others appear as colored overlays.</p>
+                <p class="sv-subindicators-hint">Select one sub-indicator, or none to show the composite score.</p>
                 <div class="sv-subindicator-chips" role="group" aria-label="Displacement Pressure sub-indicators"></div>
             </div>
             <div class="sv-layer-toggle-row">
                 <input type="checkbox" id="svAdmin2Layer" class="sv-layer-toggle-input" name="svLayer" value="admin2">
                 <label class="sv-layer-toggle-btn" for="svAdmin2Layer">
-                    <span class="sv-layer-toggle-text">Economic Vulnerability</span>
+                    <span class="sv-layer-toggle-text">Socioeconomic Vulnerability</span>
                     <span class="sv-layer-toggle-check" aria-hidden="true"></span>
                 </label>
             </div>
             <div id="svEconomicSubindicatorsWrap" class="sv-subindicators-panel sv-peace-subindicators-wrap" data-subindicator-layer="svAdmin2Layer" hidden>
                 <div class="sv-subindicators-header">
                     <span class="sv-subindicators-title">Sub-indicators</span>
-                    <span class="sv-subindicators-badge">Multi-select</span>
+                    <span class="sv-subindicators-badge">Single select</span>
                 </div>
-                <p class="sv-subindicators-hint">First selected drives the stripe pattern; others add choropleth overlays.</p>
-                <div class="sv-subindicator-chips" role="group" aria-label="Economic Vulnerability sub-indicators"></div>
+                <p class="sv-subindicators-hint">Select one sub-indicator, or none to show the composite score.</p>
+                <div class="sv-subindicator-chips" role="group" aria-label="Socioeconomic Vulnerability sub-indicators"></div>
             </div>
             <div class="sv-layer-toggle-row sv-service-stress-row">
                 <input type="checkbox" id="svAdmin4Layer" class="sv-layer-toggle-input" name="svLayer" value="admin4" disabled>
@@ -160,9 +160,9 @@
             <div id="svDemographicSubindicatorsWrap" class="sv-subindicators-panel sv-peace-subindicators-wrap" data-subindicator-layer="svAdmin5Layer" hidden>
                 <div class="sv-subindicators-header">
                     <span class="sv-subindicators-title">Sub-indicators</span>
-                    <span class="sv-subindicators-badge">Multi-select</span>
+                    <span class="sv-subindicators-badge">Single select</span>
                 </div>
-                <p class="sv-subindicators-hint">First selected drives the base map; additional selections add overlay views.</p>
+                <p class="sv-subindicators-hint">Select one sub-indicator, or none to show the composite score.</p>
                 <div class="sv-subindicator-chips" role="group" aria-label="Demographic Shock Factor sub-indicators"></div>
             </div>
             </div>
@@ -235,6 +235,21 @@
                                     <span class="sv-layer-toggle-check" aria-hidden="true"></span>
                                 </label>
                             </div>
+                            <div class="sv-layer-toggle-row">
+                                <input type="checkbox" id="populationLayer" class="sv-layer-toggle-input">
+                                <label class="sv-layer-toggle-btn" for="populationLayer">
+                                    <span class="sv-layer-toggle-text">Population</span>
+                                    <span class="sv-layer-toggle-check" aria-hidden="true"></span>
+                                </label>
+                            </div>
+                        </div>
+                        <div id="svPopulationSubindicatorsWrap" class="sv-subindicators-panel sv-peace-subindicators-wrap sv-stressor-subindicators-wrap" data-subindicator-layer="populationLayer" hidden>
+                            <div class="sv-subindicators-header">
+                                <span class="sv-subindicators-title">Population columns</span>
+                                <span class="sv-subindicators-badge">Single select</span>
+                            </div>
+                            <p class="sv-subindicators-hint">Select one population group, or none to show all populations.</p>
+                            <div class="sv-subindicator-chips" role="group" aria-label="Population sub-indicators"></div>
                         </div>
                         <div id="svEscalationControlsWrap" class="sv-peace-subindicators-wrap sv-stressor-controls-wrap" hidden>
                             <div class="layer-controls sv-stressor-layer-controls">

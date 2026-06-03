@@ -359,6 +359,22 @@
     line-height: 1.4;
 }
 
+.layer-inputs-list ul ul {
+    margin-top: 6px;
+}
+
+.layer-inputs-nested-intro {
+    margin: 6px 0 4px;
+    padding-left: 0;
+    font-size: 13px;
+    color: #6c757d;
+    line-height: 1.35;
+}
+
+.layer-inputs-nested-list {
+    margin-bottom: 4px;
+}
+
 .selected-feature-summary {
     margin-top: 8px;
     padding: 8px;

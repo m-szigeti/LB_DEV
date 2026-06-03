@@ -3,6 +3,41 @@
 import { WELCOME_TAB_HTML } from './welcome_tab_content.js';
 import { OVERALL_VULNERABILITY_INDEX_DESCRIPTION_HTML } from './overall_vulnerability_index_content.js';
 
+const NEGATIVE_COPING_SURVEY_PREFIX =
+    'In the last year, have you had to engage in any of the following?';
+
+const NEGATIVE_COPING_CONSTRUCT_INPUTS = [
+    'Cut the electricity / generator',
+    'Stopped phone service',
+    'Restricted food consumption of adults so that children can eat',
+    'Went into debt',
+    'Sent children to work',
+    'Sold assets',
+    'Spent savings',
+    'Removed children from school'
+];
+
+function generateSocioeconomicVulnerabilityInputsHtml() {
+    const copingItems = NEGATIVE_COPING_CONSTRUCT_INPUTS.map(item => `<li>${item}</li>`).join('');
+    return `
+        <div class="layer-inputs-list">
+            <div class="layer-inputs-title">Used inputs:</div>
+            <ul>
+                <li>Nighttime light radiance</li>
+                <li>332 Most Vulnerability Map</li>
+                <li>
+                    Negative coping behavior
+                    <p class="layer-inputs-nested-intro">${NEGATIVE_COPING_SURVEY_PREFIX}</p>
+                    <ul class="layer-inputs-nested-list">${copingItems}</ul>
+                </li>
+                <li>Unemployment rate per district</li>
+                <li>Population dependency ratio (governorate)</li>
+                <li>IPC</li>
+            </ul>
+        </div>
+    `;
+}
+
 /**
  * InfoPanel class - Creates and manages a floating info/analysis panel
  */
@@ -626,6 +661,10 @@ setupEventListeners() {
             return OVERALL_VULNERABILITY_INDEX_DESCRIPTION_HTML;
         }
 
+        if (layer.id === 'svAdmin2Layer') {
+            return generateSocioeconomicVulnerabilityInputsHtml();
+        }
+
         if (layer.type === 'sv-vector') {
             const inputMap = {
                 svAdmin1Layer: [
@@ -634,15 +673,6 @@ setupEventListeners() {
                     'Net Human Mobility Balance',
                     'Concentration of displaced Syrians',
                     'Concentration of Palestinians'
-                ],
-                svAdmin2Layer: [
-                    'Unemployment rate',
-                    'Nightlight intensity',
-                    '332 vulnerability map',
-                    'Climate mitigation: renewable energy',
-                    'Climate mitigation: reducing vehicle use',
-                    'Climate mitigation: using water wisely',
-                    'Climate mitigation: solid waste recycling'
                 ],
                 svAdmin3Layer: [
                     'Annual rate of UNDPTMS incidents tagged as “intersectarian” or “intercommunal” per 1000 residents → Inter-sectarian and inter-communal conflict incidents',
@@ -763,10 +793,10 @@ setupEventListeners() {
     getRankingChartLabels(layer, unitLabel) {
         if (layer.id === 'svOverallTensionLayer') {
             return {
-                lowTitle: `Highest vulnerability — bottom 20 ${unitLabel}`,
-                highTitle: `Lowest vulnerability — top 20 ${unitLabel}`,
-                lowFootnote: 'Lower scores indicate higher vulnerability.',
-                highFootnote: 'Higher scores indicate lower vulnerability.'
+                lowTitle: `Highest vulnerability — top 20 ${unitLabel}`,
+                highTitle: `Lowest vulnerability — bottom 20 ${unitLabel}`,
+                lowFootnote: 'Higher scores indicate higher vulnerability.',
+                highFootnote: 'Lower scores indicate lower vulnerability.'
             };
         }
         if (layer.id === 'ttfHotspotsLayer') {
@@ -1145,6 +1175,18 @@ setupEventListeners() {
         const sorted = [...entries].sort((a, b) => a.score - b.score);
         const unitLabel = this.inferAdminUnitLabel(rankableLayer);
         const count = Math.min(20, sorted.length);
+
+        if (layer.id === 'svOverallTensionLayer') {
+            return {
+                attribute,
+                attributeLabel: this.formatRankingAttributeLabel(attribute),
+                unitLabel,
+                // High scores = high vulnerability; list descending (most vulnerable at top).
+                lowest: sorted.slice(-count).reverse(),
+                // Low scores = low vulnerability; lowest scores at the bottom of the list.
+                highest: [...sorted.slice(0, count)].reverse()
+            };
+        }
 
         return {
             attribute,
