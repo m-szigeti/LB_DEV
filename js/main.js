@@ -42,6 +42,7 @@ document.addEventListener('DOMContentLoaded', async function() {
 
     // Store main map reference globally
     window.map = mainMap;
+    window.mapLayers = layers;
     
     // Initialize UI components
     initializeLegend();

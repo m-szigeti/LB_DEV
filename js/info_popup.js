@@ -1,6 +1,34 @@
 // info_popup.js - Information popup functionality
 
 import { getPrimarySubindicator, getSelectedSubindicators } from './sv_subindicators.js';
+import { getClassLabelForLayerValue, getQuantilePresentation } from './vector_layers.js';
+import { getColorRamp } from './color_ramp_selector.js';
+
+const VULNERABILITY_CLASS_LABELS = ['Low', 'Medium', 'High'];
+
+/** Pillar scores shown in Additional Data (aligned with composite index names). */
+const PILLAR_SCORE_FIELDS = [
+    {
+        field: 'overall_tension_index_score',
+        label: 'Overall Vulnerability Index',
+        colorRampId: 'yellowOrangeRed3'
+    },
+    {
+        field: 'tension_peace_score',
+        label: 'Tension and Conflict Risk',
+        colorRampId: 'whiteToDarkPurple'
+    },
+    {
+        field: 'displacement_pressure_score',
+        label: 'Displacement Pressure',
+        colorRampId: 'whiteToDarkGreen'
+    },
+    {
+        field: 'economic_vulnerability_score',
+        label: 'Socioeconomic Vulnerability',
+        colorRampId: 'whiteToDarkBlue'
+    }
+];
 
 const SV_LAYER_TYPE_TO_ID = {
     'sv-admin5': 'svAdmin5Layer',
@@ -90,7 +118,7 @@ export function initializeInfoPopup() {
  * @param {Object} feature - GeoJSON feature object
  * @param {string} layerType - Type of layer (e.g., 'sv-admin1', 'sv-admin2', etc.)
  */
-export function showInfoPopup(feature, layerType = 'default', clickEvent = null) {
+export function showInfoPopup(feature, layerType = 'default', clickEvent = null, sourceLayer = null) {
     const popup = document.getElementById('info-popup');
     const title = document.getElementById('info-popup-title');
     const body = document.getElementById('info-popup-body');
@@ -104,7 +132,7 @@ export function showInfoPopup(feature, layerType = 'default', clickEvent = null)
     title.textContent = areaName || 'Area Information';
     
     // Generate content based on layer type
-    const content = generatePopupContent(feature.properties, layerType);
+    const content = generatePopupContent(feature.properties, layerType, sourceLayer);
     body.innerHTML = content;
     
     // Show popup
@@ -220,19 +248,19 @@ function getAreaName(properties, layerType) {
  * @param {string} layerType - Type of layer
  * @returns {string} - HTML content for popup
  */
-function generatePopupContent(properties, layerType) {
+function generatePopupContent(properties, layerType, sourceLayer = null) {
     let content = '';
 
     // Composite score section (if applicable)
-    if (layerType.includes('sv-admin') || getPrimaryVulnerabilityField(properties, layerType)) {
-        content += generateSocialVulnerabilitySection(properties, layerType);
+    if (layerType.includes('sv-admin') || layerType === 'sv-overall' || getPrimaryVulnerabilityField(properties, layerType)) {
+        content += generateSocialVulnerabilitySection(properties, layerType, sourceLayer);
     }
     
     // Statistics Section
     content += generateStatisticsSection(properties, layerType);
     
     // Additional Data Section
-    content += generateAdditionalDataSection(properties);
+    content += generateAdditionalDataSection(properties, sourceLayer);
     
     return content || '<p class="info-no-data">No detailed information available for this area.</p>';
 }
@@ -325,7 +353,7 @@ function isAcsCodeNoData(properties) {
     return Number.isFinite(n) && n === 0;
 }
 
-function generateSocialVulnerabilitySection(properties, layerType = 'default') {
+function generateSocialVulnerabilitySection(properties, layerType = 'default', sourceLayer = null) {
     const sectionTitle = getLayerScoreSectionTitle(layerType);
     let content = `<div class="info-section"><h4>${sectionTitle}</h4>`;
 
@@ -351,10 +379,15 @@ function generateSocialVulnerabilitySection(properties, layerType = 'default') {
                     String(primaryField).includes('Demographic_Factor')));
         let svCategory = '';
         if (!skipVulnCategory && Number.isFinite(numericValue)) {
-            svCategory = ` (${categorizeSVScore(numericValue)})`;
+            const categoryLabel =
+                getSubindicatorCategoryLabel(numericValue, primaryField, layerType, sourceLayer) ||
+                categorizeSVScore(numericValue);
+            if (categoryLabel) {
+                svCategory = ` (${categoryLabel})`;
+            }
         }
         const label = getPrimaryFieldDisplayLabel(primaryField, layerType);
-        content += createInfoItem(label, `${svValue}${svCategory}`, true);
+        content += createInfoItem(label, `${svValue}${svCategory}`, false);
     }
 
     const subLayerId = SV_LAYER_TYPE_TO_ID[layerType];
@@ -366,7 +399,20 @@ function generateSocialVulnerabilitySection(properties, layerType = 'default') {
                 const rawValue = properties[fieldKey];
                 if (rawValue === undefined || rawValue === null || rawValue === '') return;
                 const label = getPrimaryFieldDisplayLabel(fieldKey, layerType);
-                content += createInfoItem(label, formatValue(rawValue));
+                const numericValue = Number(rawValue);
+                let subCategory = '';
+                if (Number.isFinite(numericValue)) {
+                    const categoryLabel = getSubindicatorCategoryLabel(
+                        numericValue,
+                        fieldKey,
+                        layerType,
+                        sourceLayer
+                    );
+                    if (categoryLabel) {
+                        subCategory = ` (${categoryLabel})`;
+                    }
+                }
+                content += createInfoItem(label, `${formatValue(rawValue)}${subCategory}`, false);
                 hasVulnData = true;
             });
     }
@@ -468,6 +514,20 @@ function getPrimaryVulnerabilityField(properties, layerType = '') {
 
     if (layerType === 'sv-overall') {
         if (
+            properties.composite_score !== undefined &&
+            properties.composite_score !== null &&
+            properties.composite_score !== ''
+        ) {
+            return 'composite_score';
+        }
+        if (
+            properties.composite_score_mean !== undefined &&
+            properties.composite_score_mean !== null &&
+            properties.composite_score_mean !== ''
+        ) {
+            return 'composite_score_mean';
+        }
+        if (
             properties.overall_tension_index_score !== undefined &&
             properties.overall_tension_index_score !== null &&
             properties.overall_tension_index_score !== ''
@@ -532,6 +592,12 @@ function getPrimaryFieldDisplayLabel(fieldName, layerType) {
     if (layerType === 'sv-admin1' && fieldName === 'composite_score') {
         return 'Displacement Pressure Score';
     }
+    if (layerType === 'sv-overall' && fieldName === 'composite_score') {
+        return 'Overall Vulnerability Index';
+    }
+    if (layerType === 'sv-overall' && fieldName === 'composite_score_mean') {
+        return 'Overall Vulnerability Index';
+    }
     if (layerType === 'sv-admin3' && fieldName === 'composite_score') {
         return 'Tension and Conflict Risk';
     }
@@ -563,9 +629,9 @@ function getPrimaryFieldDisplayLabel(fieldName, layerType) {
         'displace_composite_score': 'Displacement Pressure Score',
         'displace_composite_score_mean': 'Displacement Pressure Score (mean)',
         overall_tension_index_score: 'Overall Vulnerability Index',
-        tension_peace_score: 'Tension and Conflict Risk score',
-        displacement_pressure_score: 'Displacement Pressure score',
-        economic_vulnerability_score: 'Socioeconomic Vulnerability score',
+        tension_peace_score: 'Tension and Conflict Risk',
+        displacement_pressure_score: 'Displacement Pressure',
+        economic_vulnerability_score: 'Socioeconomic Vulnerability',
         composite_score: 'Socioeconomic Vulnerability',
         'Unemployment Rate': 'Unemployment rate',
         'Nightlight Intensity': 'Nightlight intensity',
@@ -617,7 +683,66 @@ function generateStatisticsSection(properties, layerType) {
  * @param {Object} properties - Feature properties
  * @returns {string} - HTML content
  */
-function generateAdditionalDataSection(properties) {
+function getThreeClassColorRamp(rampId) {
+    const ramp = getColorRamp(rampId);
+    if (!ramp?.colors?.length) return null;
+    if (ramp.colors.length === 3) return ramp;
+    const colors = ramp.colors;
+    return {
+        ...ramp,
+        colors: [colors[0], colors[Math.floor((colors.length - 1) / 2)], colors[colors.length - 1]]
+    };
+}
+
+function getOviReferenceGeoJson(sourceLayer) {
+    return (
+        window.mapLayers?.vector?.svOverallTensionLayer?.layerData?.raw ||
+        (sourceLayer?.layerData?.raw?.features ? sourceLayer.layerData.raw : null)
+    );
+}
+
+const LAYER_TYPE_TO_MAP_LAYER_ID = {
+    'sv-overall': 'svOverallTensionLayer',
+    'sv-admin1': 'svAdmin1Layer',
+    'sv-admin2': 'svAdmin2Layer',
+    'sv-admin3': 'svAdmin3Layer',
+    'sv-admin5': 'svAdmin5Layer'
+};
+
+function getPillarScoreClassLabel(value, field, colorRampId, referenceGeoJson) {
+    const ramp = getThreeClassColorRamp(colorRampId);
+    if (!ramp || !referenceGeoJson) return null;
+    const presentation = getQuantilePresentation(value, referenceGeoJson, field, ramp, VULNERABILITY_CLASS_LABELS);
+    return presentation?.label || null;
+}
+
+function getSubindicatorCategoryLabel(numericValue, fieldKey, layerType, sourceLayer) {
+    if (layerType === 'sv-overall') {
+        return getClassLabelForLayerValue(numericValue, sourceLayer, VULNERABILITY_CLASS_LABELS);
+    }
+    const mapLayerId = LAYER_TYPE_TO_MAP_LAYER_ID[layerType];
+    const mapLayer = mapLayerId ? window.mapLayers?.vector?.[mapLayerId] : null;
+    if (mapLayer?.layerData?.colorSpec) {
+        return getClassLabelForLayerValue(numericValue, mapLayer, VULNERABILITY_CLASS_LABELS);
+    }
+    if (mapLayer?.layerData?.raw && fieldKey) {
+        const rampId = layerType === 'sv-admin5' ? 'yellowOrangeRed3' : null;
+        if (rampId) {
+            return getPillarScoreClassLabel(numericValue, fieldKey, rampId, mapLayer.layerData.raw);
+        }
+    }
+    return null;
+}
+
+function createScoreInfoItem(label, rawValue, classLabel = null) {
+    const formatted = formatValue(rawValue);
+    const classSuffix = classLabel ? ` (${classLabel})` : '';
+    return createInfoItem(label, `${formatted}${classSuffix}`, false);
+}
+
+function generateAdditionalDataSection(properties, sourceLayer = null) {
+    const pillarFieldKeys = new Set(PILLAR_SCORE_FIELDS.map(entry => entry.field));
+
     // Fields to exclude from additional data (already shown in other sections)
     const excludeFields = new Set([
         'fid', 'GID_0', 'GID_1', 'GID_2', 'GID_3',
@@ -627,15 +752,26 @@ function generateAdditionalDataSection(properties) {
         'ADMIN_ID', 'Social-Vulnerability', 'POPULATION', 'POP',
         'AREA', 'DENSITY', 'HOUSEHOLDS', 'GDP_PC',
         'Shape_Area', 'Shape_Length',
-        'CODE', 'ACS_CODE', 'CODE_2', 'CODE_2_int', 'ACS_Code_2'
+        'CODE', 'ACS_CODE', 'CODE_2', 'CODE_2_int', 'ACS_Code_2',
+        ...pillarFieldKeys
     ]);
     
     let content = '<div class="info-section"><h4>Additional Data</h4>';
     let hasAdditionalData = false;
+
+    const referenceGeoJson = getOviReferenceGeoJson(sourceLayer);
+    PILLAR_SCORE_FIELDS.forEach(({ field, label, colorRampId }) => {
+        const rawValue = properties[field];
+        if (rawValue === undefined || rawValue === null || rawValue === '') return;
+        const classLabel = getPillarScoreClassLabel(rawValue, field, colorRampId, referenceGeoJson);
+        content += createScoreInfoItem(label, rawValue, classLabel);
+        hasAdditionalData = true;
+    });
     
     Object.entries(properties).forEach(([key, value]) => {
         if (!excludeFields.has(key) && value !== null && value !== undefined && value !== '') {
-            content += createInfoItem(key.replace(/_/g, ' '), formatValue(value));
+            const displayLabel = getPrimaryFieldDisplayLabel(key, 'default');
+            content += createInfoItem(displayLabel, formatValue(value));
             hasAdditionalData = true;
         }
     });
@@ -733,7 +869,7 @@ export function addInfoPopupHandler(layer, layerType = 'default') {
                 L.DomEvent.stopPropagation(e);
                 
                 // Show info popup
-                showInfoPopup(featureLayer.feature, layerType, e);
+                showInfoPopup(featureLayer.feature, layerType, e, layer);
             });
             
             // Change cursor on hover

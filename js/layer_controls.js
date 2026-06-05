@@ -75,7 +75,7 @@ const layerConfig = {
     svOverallTensionLayer: {
         fixedColorRamp: 'yellowOrangeRed3',
         type: 'sv-vector',
-        url: 'data/Overall_tension_risk_dummy_adm3.geojson',
+        url: 'data/ADM3_OVERALL_VUL_JUNE_04.geojson',
         legendName: 'Overall Vulnerability Index',
         style: {
             color: '#2b83ba',
@@ -87,7 +87,7 @@ const layerConfig = {
         opacityDisplay: 'svOpacityValue',
         colorRampSelector: 'svColorRamp',
         colorRampPreview: 'svColorPreview',
-        svAttribute: 'overall_tension_index_score',
+        svAttribute: 'composite_score',
         layerType: 'sv-overall'
     },
     svAdmin1Layer: {
@@ -486,9 +486,9 @@ const SV_BASE_LAYER_CONFIG = {
 const SV_RESOLUTION_CONFIG = {
     district: {
         svOverallTensionLayer: {
-            url: 'data/Overall_tension_risk_dummy_adm2.geojson',
+            url: 'data/ADM2_OVERALL_VUL_JUNE_04.geojson',
             available: true,
-            svAttribute: 'overall_tension_index_score'
+            svAttribute: 'composite_score_mean'
         },
         svAdmin1Layer: {
             url: 'data/ADM2_Displacement%20Pressure.geojson',
@@ -511,9 +511,9 @@ const SV_RESOLUTION_CONFIG = {
     },
     cadastre: {
         svOverallTensionLayer: {
-            url: 'data/Overall_tension_risk_dummy_adm3.geojson',
+            url: 'data/ADM3_OVERALL_VUL_JUNE_04.geojson',
             available: true,
-            svAttribute: 'overall_tension_index_score',
+            svAttribute: 'composite_score',
             thinBoundaries: true
         },
         svAdmin1Layer: {
@@ -539,9 +539,9 @@ const SV_RESOLUTION_CONFIG = {
     },
     governorate: {
         svOverallTensionLayer: {
-            url: 'data/Overall_tension_risk_dummy_adm1.geojson',
+            url: 'data/ADM1_OVERALL_VUL_JUNE_04.geojson',
             available: true,
-            svAttribute: 'overall_tension_index_score'
+            svAttribute: 'composite_score_mean'
         },
         svAdmin1Layer: {
             url: 'data/ADM1_Displacement%20Pressure.geojson',

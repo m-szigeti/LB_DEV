@@ -168,6 +168,7 @@ export function updateVectorLayerStyle(layer, property, colorRamp, opacity = 1, 
     
     try {
         const colorSpec = buildColorSpec(layer.layerData.raw, property, colorRamp);
+        layer.layerData.colorSpec = colorSpec;
         const styleSignature = buildStyleSignature(property, colorRamp, opacity, colorSpec.mode);
         const needsStyleUpdate = layer.layerData._styleSignature !== styleSignature;
         const skipTooltips = options?.skipTooltips === true;
@@ -376,6 +377,69 @@ function buildColorSpec(data, property, colorRamp) {
         mode: 'continuous',
         hasValues: true,
         breaks
+    };
+}
+
+/**
+ * Map a numeric value to a legend class label using the same quantile breaks as the choropleth.
+ * @param {number} value - Feature value
+ * @param {number[]} breaks - Quantile break points
+ * @param {string[]} classLabels - One label per color class (e.g. Low, Medium, High)
+ * @returns {string|null}
+ */
+export function getQuantileClassLabel(value, breaks, classLabels) {
+    const numValue = Number(value);
+    if (!Number.isFinite(numValue) || !Array.isArray(breaks) || breaks.length < 2) {
+        return null;
+    }
+    const labels = Array.isArray(classLabels) ? classLabels : [];
+    for (let i = 0; i < breaks.length - 1; i++) {
+        if (numValue >= breaks[i] && numValue <= breaks[i + 1]) {
+            return labels[Math.min(i, labels.length - 1)] || null;
+        }
+    }
+    return labels[labels.length - 1] || null;
+}
+
+export function getClassLabelForLayerValue(value, leafletLayer, classLabels) {
+    const spec = leafletLayer?.layerData?.colorSpec;
+    if (!spec || spec.mode !== 'continuous' || !spec.breaks) {
+        return null;
+    }
+    return getQuantileClassLabel(value, spec.breaks, classLabels);
+}
+
+export function getValueClassIndex(numValue, breaks, numClasses) {
+    if (!Number.isFinite(numValue) || !Array.isArray(breaks) || breaks.length < 2) {
+        return null;
+    }
+    for (let i = 0; i < breaks.length - 1; i++) {
+        if (numValue >= breaks[i] && numValue <= breaks[i + 1]) {
+            return Math.min(i, (numClasses || breaks.length) - 1);
+        }
+    }
+    return Math.max(0, (numClasses || breaks.length) - 1);
+}
+
+/**
+ * Label and fill color for a value using quantile breaks from a GeoJSON dataset.
+ */
+export function getQuantilePresentation(value, geoJsonData, property, colorRamp, classLabels) {
+    const numValue = Number(value);
+    if (!Number.isFinite(numValue) || !geoJsonData || !colorRamp?.colors?.length) {
+        return null;
+    }
+    const spec = buildColorSpec(geoJsonData, property, colorRamp);
+    if (spec.mode !== 'continuous' || !spec.breaks) {
+        return null;
+    }
+    const classIndex = getValueClassIndex(numValue, spec.breaks, colorRamp.colors.length);
+    if (classIndex === null) {
+        return null;
+    }
+    return {
+        label: getQuantileClassLabel(numValue, spec.breaks, classLabels),
+        color: colorRamp.colors[classIndex]
     };
 }
 
