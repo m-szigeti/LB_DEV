@@ -173,7 +173,7 @@ const layerConfig = {
         fixedColorRamp: 'yellowOrangeRed3',
         type: 'sv-vector',
         url: 'data/ADM3_Demographic_Shock_Factor.geojson',
-        legendName: 'Demographic Shock Factor',
+        legendName: 'Demographic Tension / Stress',
         style: {
             color: '#2b83ba',
             weight: 2,
@@ -405,7 +405,7 @@ const SV_PILLAR_DEFINITIONS = [
         layerId: 'svAdmin3Layer',
         label: 'Tension and Conflict Risk',
         color: '#7b3294',
-        attribute: 'peace_composite_score'
+        attribute: 'composite_score'
     }
 ];
 
@@ -477,7 +477,7 @@ const SV_BASE_LAYER_CONFIG = {
     },
     svAdmin5Layer: {
         fixedColorRamp: 'yellowOrangeRed3',
-        legendName: 'Demographic Shock Factor',
+        legendName: 'Demographic Tension / Stress',
         renderMode: 'choropleth',
         svAttribute: 'Demographic_Factor (DF = S*H)'
     }
@@ -496,16 +496,25 @@ const SV_RESOLUTION_CONFIG = {
             svAttribute: 'Displacement Pressure Score'
         },
         svAdmin2Layer: {
-            url: 'data/ADM2_ECONOMIC_VUL.geojson',
+            url: 'data/NEW_ADM2_SOCIO_ECONOMIC_VULNERABILITY_SCORE.geojson',
             available: true,
             svAttribute: 'composite_score'
         },
-        svAdmin3Layer: { url: 'data/sv_peace_adm2.geojson', available: true, svAttribute: 'peace_composite_score' },
-        svAdmin4Layer: { url: null, available: false, svAttribute: null },
-        svAdmin5Layer: {
-            url: 'data/ADM2_Demographic_Shock_Factor.geojson',
+        svAdmin3Layer: {
+            url: 'data/NEW_ADM2_TENSION_AND_CONFLICT_RISK_SCORE.geojson',
             available: true,
-            svAttribute: 'Demographic_Factor (DF = S*H)_mean',
+            svAttribute: 'composite_score'
+        },
+        svAdmin4Layer: {
+            url: 'data/NEW_ADM2_SERVICE_AND_INFRASTRUCTURE_VULNERABILITY_SCORE.geojson',
+            available: true,
+            svAttribute: 'composite_score',
+            thinBoundaries: false
+        },
+        svAdmin5Layer: {
+            url: 'data/NEW_ADM2_DEMOGRAPHIC_TENSION_AND_STRESS_SCORE.geojson',
+            available: true,
+            svAttribute: 'composite_score',
             thinBoundaries: false
         }
     },
@@ -589,6 +598,13 @@ const DEMOGRAPHIC_SUBINDICATOR_OPTIONS_CADASTRE = [
     { value: 'Displacement_Ratio (S = D/R)', label: 'Displacement ratio' }
 ];
 
+const DEMOGRAPHIC_SUBINDICATOR_OPTIONS_DISTRICT = [
+    { value: 'Resident_Population (R)', label: 'Resident population' },
+    { value: 'Displaced_Population (D)', label: 'Displaced population' },
+    { value: 'Heterogeneity (H)', label: 'Heterogeneity' },
+    { value: 'Displacement_Ratio (S = D/R)', label: 'Displacement ratio' }
+];
+
 const DEMOGRAPHIC_SUBINDICATOR_OPTIONS_AGGREGATE = [
     { value: 'Resident_Population (R)_mean', label: 'Resident population (mean)' },
     { value: 'Displaced_Population (D)_mean', label: 'Displaced population (mean)' },
@@ -622,13 +638,51 @@ const POP_RESOLUTION_CONFIG = {
 
 const ECONOMIC_SCORE_FIELD = 'composite_score';
 
-/** Property keys from ADM1/ADM2/ADM3_ECONOMIC_VUL.geojson (must match GeoJSON properties). */
-const ECONOMIC_SUBINDICATOR_OPTIONS = [
+/** Property keys from ADM1/ADM3_ECONOMIC_VUL.geojson (must match GeoJSON properties). */
+const ECONOMIC_SUBINDICATOR_OPTIONS_CADASTRE = [
     { value: 'Unemployment Rate', label: 'Unemployment rate' },
     { value: 'Nightlight Intensity', label: 'Nightlight intensity' },
     { value: '332 Vulnerability Map', label: '332 vulnerability map' },
     { value: 'Coping', label: 'Coping' },
     { value: 'Population dependency ratio', label: 'Population dependency ratio' }
+];
+
+/** Property keys from NEW_ADM2_SOCIO_ECONOMIC_VULNERABILITY_SCORE.geojson. */
+const ECONOMIC_SUBINDICATOR_OPTIONS_DISTRICT = [
+    { value: 'Unemployment rate', label: 'Unemployment rate' },
+    { value: 'Nighttime light radiance', label: 'Nighttime light radiance' },
+    { value: 'Negative coping tendency', label: 'Negative coping tendency' },
+    { value: 'Food insecurity level (IPC)', label: 'Food insecurity level (IPC)' },
+    { value: 'Population dependency ratio', label: 'Population dependency ratio' },
+    { value: 'HDS', label: 'HDS' }
+];
+
+/** District tension: field keys from NEW_ADM2_TENSION_AND_CONFLICT_RISK_SCORE.geojson. */
+const PEACE_DISTRICT_SUBINDICATOR_OPTIONS = [
+    {
+        value: 'Inter-sectarian and inter-communal conflict incidents',
+        label: 'Inter-sectarian and inter-communal conflict incidents'
+    },
+    {
+        value: 'Number of violent incidents',
+        label: 'Number of violent incidents'
+    },
+    {
+        value: 'Number of crime incidents',
+        label: 'Number of crime incidents'
+    },
+    {
+        value: 'Number of fatalities in tension incidents',
+        label: 'Number of fatalities in tension incidents'
+    },
+    {
+        value: 'Fear of traveling within Lebanon safely',
+        label: 'Fear of traveling within Lebanon safely'
+    },
+    {
+        value: 'Feeling lack of safety during the night',
+        label: 'Feeling lack of safety during the night'
+    }
 ];
 
 /** Cadastre Peace: field keys merged from CSV (must match GeoJSON properties + select option values). */
@@ -665,7 +719,7 @@ function getActiveAdminResolution() {
 
 registerSVSubindicatorPanel('svAdmin3Layer', {
     wrapId: 'svPeaceSubindicatorsWrap',
-    getOptions: () => PEACE_CADASTRE_SUBINDICATOR_OPTIONS,
+    getOptions: () => getPeaceSubindicatorOptions(),
     getDefaultValues: () => []
 });
 registerSVSubindicatorPanel('svAdmin1Layer', {
@@ -693,13 +747,25 @@ const SUBINDICATOR_OVERLAY_OUTLINE = ['#7c3aed', '#0891b2', '#ca8a04', '#be185d'
 const DISPLACEMENT_EXTRA_COLORS = ['#6366f1', '#0d9488', '#d97706', '#be185d'];
 
 function getDemographicSubindicatorOptions(resolution = getActiveAdminResolution()) {
-    return resolution === 'cadastre'
-        ? DEMOGRAPHIC_SUBINDICATOR_OPTIONS_CADASTRE
-        : DEMOGRAPHIC_SUBINDICATOR_OPTIONS_AGGREGATE;
+    if (resolution === 'cadastre') {
+        return DEMOGRAPHIC_SUBINDICATOR_OPTIONS_CADASTRE;
+    }
+    if (resolution === 'district') {
+        return DEMOGRAPHIC_SUBINDICATOR_OPTIONS_DISTRICT;
+    }
+    return DEMOGRAPHIC_SUBINDICATOR_OPTIONS_AGGREGATE;
 }
 
-function getEconomicSubindicatorOptions() {
-    return ECONOMIC_SUBINDICATOR_OPTIONS;
+function getPeaceSubindicatorOptions(resolution = getActiveAdminResolution()) {
+    return resolution === 'cadastre'
+        ? PEACE_CADASTRE_SUBINDICATOR_OPTIONS
+        : PEACE_DISTRICT_SUBINDICATOR_OPTIONS;
+}
+
+function getEconomicSubindicatorOptions(resolution = getActiveAdminResolution()) {
+    return resolution === 'district'
+        ? ECONOMIC_SUBINDICATOR_OPTIONS_DISTRICT
+        : ECONOMIC_SUBINDICATOR_OPTIONS_CADASTRE;
 }
 
 function populateEconomicSubindicatorSelect(resolution = getActiveAdminResolution()) {
@@ -791,7 +857,7 @@ function getPopulationChoroplethLegendTitle(attributeKey, config) {
 }
 
 function getEffectiveChoroplethAttribute(layerId, config) {
-    if (layerId === 'svAdmin3Layer' && config?.thinBoundaries) {
+    if (layerId === 'svAdmin3Layer' && (config?.thinBoundaries || getActiveAdminResolution() === 'district')) {
         return getPrimarySubindicator(layerId) || config?.svAttribute;
     }
     if (layerId === 'svAdmin5Layer') {
@@ -934,10 +1000,14 @@ function getEffectiveStripeAttribute(layerId, config) {
 }
 
 function getPeaceCadastreChoroplethLegendTitle(layerId, attributeKey, config) {
-    if (layerId !== 'svAdmin3Layer' || !config?.thinBoundaries) {
+    if (layerId !== 'svAdmin3Layer') {
         return config?.legendName || 'Layer';
     }
-    const opt = PEACE_CADASTRE_SUBINDICATOR_OPTIONS.find(o => o.value === attributeKey);
+    const resolution = getActiveAdminResolution();
+    if (!config?.thinBoundaries && resolution !== 'district') {
+        return config?.legendName || 'Layer';
+    }
+    const opt = getPeaceSubindicatorOptions(resolution).find(o => o.value === attributeKey);
     return opt ? opt.label : config.legendName || 'Tension and Conflict Risk';
 }
 
@@ -947,7 +1017,7 @@ function getDemographicChoroplethLegendTitle(layerId, attributeKey, config) {
     }
     const options = getDemographicSubindicatorOptions();
     const opt = options.find(o => o.value === attributeKey);
-    return opt ? opt.label : config.legendName || 'Demographic Shock Factor';
+    return opt ? opt.label : config.legendName || 'Demographic Tension / Stress';
 }
 
 function getChoroplethLegendTitle(layerId, attributeKey, config) {
@@ -1007,7 +1077,8 @@ function refreshSVPeaceCadastreChoropleth(map, layers, addLegendEntry) {
     const layer = layers.vector[layerId];
     if (!config || !layer || !activeSVLayers.has(layerId)) return;
     if (config.renderMode) return;
-    if (!config.thinBoundaries) return;
+    const resolution = getActiveAdminResolution();
+    if (!config.thinBoundaries && resolution !== 'district') return;
 
     const attr = getEffectiveChoroplethAttribute(layerId, config);
     const opacitySlider = document.getElementById('svOpacity');
@@ -1258,6 +1329,7 @@ function syncSVSubindicatorPanelsVisibility() {
         const sectionOpen = isStressorPanel ? stressorsOpen : compositeOpen;
         const peaceApplicable =
             layerId !== 'svAdmin3Layer' ||
+            getActiveAdminResolution() === 'district' ||
             (getActiveAdminResolution() === 'cadastre' && Boolean(layerConfig.svAdmin3Layer?.thinBoundaries));
         wrap.hidden = !sectionOpen || !layerOn || !peaceApplicable;
         if (!wrap.hidden) {
@@ -1816,7 +1888,10 @@ async function loadSVLayer(layerId, map, layers, colorScales, addLegendEntry, re
                 );
                 applySVPolygonOutlineStyle(layers.vector[layerId], config);
                 reapplySelectedPolygonHighlight(layerId);
-                if (layerId === 'svAdmin3Layer' && config.thinBoundaries) {
+                if (
+                    layerId === 'svAdmin3Layer' &&
+                    (config.thinBoundaries || getActiveAdminResolution() === 'district')
+                ) {
                     refreshSVPeaceCadastreChoropleth(map, layers, addLegendEntry);
                 } else if (layerId === 'svAdmin5Layer') {
                     refreshSVDemographicChoropleth(map, layers, addLegendEntry);
@@ -3988,7 +4063,7 @@ function getLayerDisplayName(layerId, config) {
         'svAdmin2Layer': 'Socioeconomic Vulnerability',
         'svAdmin3Layer': 'Tension and Conflict Risk',
         'svAdmin4Layer': 'Service & Infrastructure Vulnerability',
-        'svAdmin5Layer': 'Demographic Shock Factor',
+        'svAdmin5Layer': 'Demographic Tension / Stress',
         'streetNetworkLayer': 'Street Network',
         'roadStatusLayer': 'Road Access Status',
         'ttfHotspotsLayer': 'TTF Hotspots (Q1 2026)',
@@ -4269,7 +4344,7 @@ function getSelectionAttributeLabel(layerId, config, attributeName) {
         if (opt) return opt.label;
     }
     if (layerId === 'svAdmin3Layer') {
-        const opt = PEACE_CADASTRE_SUBINDICATOR_OPTIONS.find(o => o.value === attributeName);
+        const opt = getPeaceSubindicatorOptions().find(o => o.value === attributeName);
         if (opt) return opt.label;
     }
     if (layerId === 'populationLayer') {
@@ -4345,7 +4420,11 @@ async function getSVPillarBreakdown(properties, layers) {
     for (const pillar of SV_PILLAR_DEFINITIONS) {
         const lookup = await getSVLayerLookup(pillar.layerId, layers);
         const matchedProps = lookup?.get(featureKey);
-        const rawValue = matchedProps?.[pillar.attribute];
+        const pillarConfig = layerConfig[pillar.layerId];
+        const attributeKey = pillar.layerId === 'svAdmin3Layer'
+            ? (pillarConfig?.svAttribute || pillar.attribute)
+            : pillar.attribute;
+        const rawValue = matchedProps?.[attributeKey];
         const value = typeof rawValue === 'number' ? rawValue : Number(rawValue);
         pillars.push({
             label: pillar.label,

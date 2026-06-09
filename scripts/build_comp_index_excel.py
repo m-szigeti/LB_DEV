@@ -28,10 +28,13 @@ LEVEL_CONFIG = {
         "admin_cols": ["ADM2_NAME"],
         "files": [
             ("Displacement Pressure", "ADM2_Displacement Pressure.geojson"),
-            ("Socioeconomic Vulnerability", "ADM2_ECONOMIC_VUL.geojson"),
-            ("Tension and Conflict Risk", "sv_peace_adm2.geojson"),
-            ("Demographic Shock Factor", "ADM2_Demographic_Shock_Factor.geojson"),
-            ("Service & Infrastructure Vulnerability", "ADM2_SERVICE_STRESS.geojson"),
+            ("Socioeconomic Vulnerability", "NEW_ADM2_SOCIO_ECONOMIC_VULNERABILITY_SCORE.geojson"),
+            ("Tension and Conflict Risk", "NEW_ADM2_TENSION_AND_CONFLICT_RISK_SCORE.geojson"),
+            ("Demographic Tension / Stress", "NEW_ADM2_DEMOGRAPHIC_TENSION_AND_STRESS_SCORE.geojson"),
+            (
+                "Service & Infrastructure Vulnerability",
+                "NEW_ADM2_SERVICE_AND_INFRASTRUCTURE_VULNERABILITY_SCORE.geojson",
+            ),
         ],
     },
     "CAD": {

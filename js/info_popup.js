@@ -459,6 +459,13 @@ function getPrimaryVulnerabilityField(properties, layerType = '') {
             return key;
         }
         if (
+            properties.composite_score !== undefined &&
+            properties.composite_score !== null &&
+            properties.composite_score !== ''
+        ) {
+            return 'composite_score';
+        }
+        if (
             properties['Demographic_Factor (DF = S*H)'] !== undefined &&
             properties['Demographic_Factor (DF = S*H)'] !== null &&
             properties['Demographic_Factor (DF = S*H)'] !== ''
@@ -503,12 +510,20 @@ function getPrimaryVulnerabilityField(properties, layerType = '') {
     }
 
     if (layerType === 'sv-admin3') {
-        const cadastreActive =
+        const activeResolution =
             typeof document !== 'undefined' &&
-            document.querySelector('.sv-admin-resolution-btn.active[data-resolution="cadastre"]');
+            document.querySelector('.sv-admin-resolution-btn.active')?.dataset?.resolution;
+        const subindicatorActive = activeResolution === 'cadastre' || activeResolution === 'district';
         const key = getPrimarySubindicator('svAdmin3Layer');
-        if (cadastreActive && key && properties[key] !== undefined && properties[key] !== null && properties[key] !== '') {
+        if (subindicatorActive && key && properties[key] !== undefined && properties[key] !== null && properties[key] !== '') {
             return key;
+        }
+        if (
+            properties.composite_score !== undefined &&
+            properties.composite_score !== null &&
+            properties.composite_score !== ''
+        ) {
+            return 'composite_score';
         }
     }
 
@@ -580,7 +595,7 @@ function getLayerScoreSectionTitle(layerType) {
     if (layerType === 'sv-admin1') return 'Displacement Pressure';
     if (layerType === 'sv-admin2') return 'Socioeconomic Vulnerability';
     if (layerType === 'sv-admin3') return 'Tension and Conflict Risk';
-    if (layerType === 'sv-admin5') return 'Demographic Shock Factor';
+    if (layerType === 'sv-admin5') return 'Demographic Tension / Stress';
     if (layerType === 'population') return 'Population';
     return 'Layer Score';
 }
@@ -604,14 +619,17 @@ function getPrimaryFieldDisplayLabel(fieldName, layerType) {
     if (layerType === 'sv-admin2' && fieldName === 'composite_score') {
         return 'Socioeconomic Vulnerability';
     }
+    if (layerType === 'sv-admin5' && fieldName === 'composite_score') {
+        return 'Demographic Tension / Stress';
+    }
     if (layerType === 'population' && fieldName === 'All Populations') {
         return 'All Populations';
     }
 
     const labelByField = {
         'Social-Vulnerability': 'Composite Score',
-        'Demographic_Factor (DF = S*H)': 'Demographic Shock Factor',
-        'Demographic_Factor (DF = S*H)_mean': 'Demographic Shock Factor (mean)',
+        'Demographic_Factor (DF = S*H)': 'Demographic Tension / Stress',
+        'Demographic_Factor (DF = S*H)_mean': 'Demographic Tension / Stress (mean)',
         'Resident_Population (R)': 'Resident population',
         'Resident_Population (R)_mean': 'Resident population (mean)',
         'Displaced_Population (D)': 'Displaced population',
@@ -638,6 +656,18 @@ function getPrimaryFieldDisplayLabel(fieldName, layerType) {
         '332 Vulnerability Map': '332 vulnerability map',
         Coping: 'Coping',
         'Population dependency ratio': 'Population dependency ratio',
+        'Unemployment rate': 'Unemployment rate',
+        'Nighttime light radiance': 'Nighttime light radiance',
+        'Negative coping tendency': 'Negative coping tendency',
+        'Food insecurity level (IPC)': 'Food insecurity level (IPC)',
+        HDS: 'HDS',
+        'Inter-sectarian and inter-communal conflict incidents':
+            'Inter-sectarian and inter-communal conflict incidents',
+        'Number of violent incidents': 'Number of violent incidents',
+        'Number of crime incidents': 'Number of crime incidents',
+        'Number of fatalities in tension incidents': 'Number of fatalities in tension incidents',
+        'Fear of traveling within Lebanon safely': 'Fear of traveling within Lebanon safely',
+        'Feeling lack of safety during the night': 'Feeling lack of safety during the night',
         'All Populations': 'All Populations',
         LEB: 'Lebanese (LEB)',
         PRL: 'Palestinians — Lebanon (PRL)',
@@ -664,7 +694,7 @@ function getPrimaryFieldDisplayLabel(fieldName, layerType) {
     if (layerType === 'sv-admin1') return 'Displacement Pressure Score';
     if (layerType === 'sv-admin2') return 'Socioeconomic Vulnerability';
     if (layerType === 'sv-admin3') return 'Tension and Conflict Risk';
-    if (layerType === 'sv-admin5') return 'Demographic Shock Factor';
+    if (layerType === 'sv-admin5') return 'Demographic Tension / Stress';
     return fieldName.replace(/_/g, ' ');
 }
 
