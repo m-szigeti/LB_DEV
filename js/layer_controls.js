@@ -9,7 +9,10 @@ import { loadVectorLayer,
     isAcsCodeNoData,
     layerHasAcsCodeNoData,
     ACS_CODE_NO_DATA_COLOR,
-    ACS_CODE_NO_DATA_LEGEND_LABEL } from './vector_layers.js';
+    ACS_CODE_NO_DATA_LEGEND_LABEL,
+    calculateQuantileBreaks,
+    getValueClassIndex,
+    formatClassLegendRanges } from './vector_layers.js';
 import { loadTiff } from './zoom-adaptive-tiff-loader.js';
 import { setupColorRampSelector, getColorRamp } from './color_ramp_selector.js';
 import { generateAdminLabels } from './admin_labels.js';
@@ -131,7 +134,7 @@ const layerConfig = {
         layerType: 'sv-admin2'
     },
     svAdmin3Layer: {
-        fixedColorRamp: 'whiteToDarkPurple',
+        fixedColorRamp: 'whiteToDarkPurple3',
         type: 'sv-vector',
         url: 'data/sv_peace_adm2.geojson',
         legendName: 'Tension and Conflict Risk',
@@ -410,6 +413,7 @@ const SV_PILLAR_DEFINITIONS = [
 ];
 
 const SV_ADMIN_RESOLUTION_BUTTON_SELECTOR = '.sv-admin-resolution-btn';
+const DEFAULT_SV_ADMIN_RESOLUTION = 'district';
 const SV_LAYER_IDS = ['svOverallTensionLayer', 'svAdmin1Layer', 'svAdmin2Layer', 'svAdmin3Layer', 'svAdmin4Layer', 'svAdmin5Layer'];
 const SV_OVERALL_LAYER_ID = 'svOverallTensionLayer';
 const SV_COMPOSITE_LAYER_IDS = SV_LAYER_IDS.filter(id => id !== SV_OVERALL_LAYER_ID);
@@ -462,7 +466,7 @@ const SV_BASE_LAYER_CONFIG = {
         svAttribute: 'composite_score'
     },
     svAdmin3Layer: {
-        fixedColorRamp: 'whiteToDarkPurple',
+        fixedColorRamp: 'whiteToDarkPurple3',
         legendName: 'Tension and Conflict Risk',
         renderMode: 'choropleth',
         svAttribute: 'peace_composite_score'
@@ -491,9 +495,9 @@ const SV_RESOLUTION_CONFIG = {
             svAttribute: 'composite_score_mean'
         },
         svAdmin1Layer: {
-            url: 'data/ADM2_Displacement%20Pressure.geojson',
+            url: 'data/ADM2_Displacement_Pressure_June_11.geojson',
             available: true,
-            svAttribute: 'Displacement Pressure Score'
+            svAttribute: 'Displacement Ratio'
         },
         svAdmin2Layer: {
             url: 'data/NEW_ADM2_SOCIO_ECONOMIC_VULNERABILITY_SCORE.geojson',
@@ -574,8 +578,27 @@ const SV_RESOLUTION_CONFIG = {
 };
 
 const DISPLACEMENT_SCORE_FIELD = 'Displacement Pressure Score';
+const DISPLACEMENT_RATIO_FIELD = 'Displacement Ratio';
 
-const DISPLACEMENT_SUBINDICATOR_OPTIONS = [
+const DISPLACEMENT_ID_FIELDS = new Set([
+    'ADM1_NAME',
+    'ADM2_NAME',
+    'ADM2_Name',
+    'ADM3_NAME',
+    'adm1_name',
+    'adm2_name',
+    'adm3_name',
+    'ACS_CODE',
+    'CODE',
+    'CODE_NEW',
+    'rank'
+]);
+
+const DISPLACEMENT_SUBINDICATOR_OPTIONS_DISTRICT = [
+    { value: DISPLACEMENT_RATIO_FIELD, label: 'Displacement ratio' }
+];
+
+const DISPLACEMENT_SUBINDICATOR_OPTIONS_CADASTRE = [
     { value: 'Number of IDPs', label: 'Number of IDPs' },
     { value: 'Number of of Palestinians', label: 'Number of Palestinians' },
     {
@@ -587,6 +610,8 @@ const DISPLACEMENT_SUBINDICATOR_OPTIONS = [
         label: 'Ratio of IDPs, Syrians, and Palestinians per host residents'
     }
 ];
+
+const DISPLACEMENT_SUBINDICATOR_OPTIONS = DISPLACEMENT_SUBINDICATOR_OPTIONS_CADASTRE;
 
 const DEMOGRAPHIC_DF_FIELD_CADASTRE = 'Demographic_Factor (DF = S*H)';
 const DEMOGRAPHIC_DF_FIELD_AGG = 'Demographic_Factor (DF = S*H)_mean';
@@ -685,6 +710,21 @@ const PEACE_DISTRICT_SUBINDICATOR_OPTIONS = [
     }
 ];
 
+const SERVICE_SCORE_FIELD = 'composite_score';
+
+/** Property keys from NEW_ADM2_SERVICE_AND_INFRASTRUCTURE_VULNERABILITY_SCORE.geojson. */
+const SERVICE_SUBINDICATOR_OPTIONS_DISTRICT = [
+    { value: 'Service-related incidents', label: 'Service-related incidents' },
+    { value: 'Perceptions on quality of services: Water', label: 'Quality of services: Water' },
+    { value: 'Perceptions on quality of services: Electricity', label: 'Quality of services: Electricity' },
+    { value: 'Perceptions on quality of services: Waste removal', label: 'Quality of services: Waste removal' },
+    { value: 'Worry about access to healthcare services', label: 'Worry about access to healthcare' },
+    { value: 'Worry about access to safe drinking water', label: 'Worry about access to safe drinking water' },
+    { value: 'Water availability and accessibility', label: 'Water availability and accessibility' },
+    { value: 'Services as a tension driver', label: 'Services as a tension driver' },
+    { value: 'Solid waste pressure (displacement)', label: 'Solid waste pressure (displacement)' }
+];
+
 /** Cadastre Peace: field keys merged from CSV (must match GeoJSON properties + select option values). */
 const PEACE_CADASTRE_SUBINDICATOR_OPTIONS = [
     {
@@ -714,7 +754,7 @@ const PEACE_CADASTRE_SUBINDICATOR_OPTIONS = [
 ];
 
 function getActiveAdminResolution() {
-    return document.querySelector('.sv-admin-resolution-btn.active')?.dataset?.resolution || 'cadastre';
+    return document.querySelector('.sv-admin-resolution-btn.active')?.dataset?.resolution || DEFAULT_SV_ADMIN_RESOLUTION;
 }
 
 registerSVSubindicatorPanel('svAdmin3Layer', {
@@ -724,12 +764,17 @@ registerSVSubindicatorPanel('svAdmin3Layer', {
 });
 registerSVSubindicatorPanel('svAdmin1Layer', {
     wrapId: 'svDisplacementSubindicatorsWrap',
-    getOptions: () => DISPLACEMENT_SUBINDICATOR_OPTIONS,
+    getOptions: () => getDisplacementSubindicatorOptions(),
     getDefaultValues: () => []
 });
 registerSVSubindicatorPanel('svAdmin2Layer', {
     wrapId: 'svEconomicSubindicatorsWrap',
     getOptions: () => getEconomicSubindicatorOptions(),
+    getDefaultValues: () => []
+});
+registerSVSubindicatorPanel('svAdmin4Layer', {
+    wrapId: 'svServiceSubindicatorsWrap',
+    getOptions: () => getServiceSubindicatorOptions(),
     getDefaultValues: () => []
 });
 registerSVSubindicatorPanel('svAdmin5Layer', {
@@ -768,6 +813,10 @@ function getEconomicSubindicatorOptions(resolution = getActiveAdminResolution())
         : ECONOMIC_SUBINDICATOR_OPTIONS_CADASTRE;
 }
 
+function getServiceSubindicatorOptions(resolution = getActiveAdminResolution()) {
+    return resolution === 'district' ? SERVICE_SUBINDICATOR_OPTIONS_DISTRICT : [];
+}
+
 function populateEconomicSubindicatorSelect(resolution = getActiveAdminResolution()) {
     renderSVSubindicatorPanel('svAdmin2Layer');
 }
@@ -781,6 +830,56 @@ function getEconomicSubindicatorLegendTitle(attributeKey, config) {
     return opt ? opt.label : config?.legendName || 'Socioeconomic Vulnerability';
 }
 
+function populateServiceSubindicatorSelect(resolution = getActiveAdminResolution()) {
+    renderSVSubindicatorPanel('svAdmin4Layer');
+}
+
+function getEffectiveServiceAttribute(config) {
+    return getPrimarySubindicator('svAdmin4Layer') || config?.svAttribute || SERVICE_SCORE_FIELD;
+}
+
+function getServiceSubindicatorLegendTitle(attributeKey, config) {
+    const opt = getServiceSubindicatorOptions().find(o => o.value === attributeKey);
+    return opt ? opt.label : config?.legendName || 'Service & Infrastructure Vulnerability';
+}
+
+function getDisplacementFieldLabel(fieldKey) {
+    const labels = {
+        [DISPLACEMENT_RATIO_FIELD]: 'Displacement ratio',
+        [DISPLACEMENT_SCORE_FIELD]: 'Displacement pressure score',
+        'Number of IDPs': 'Number of IDPs',
+        'Number of of Palestinians': 'Number of Palestinians',
+        'Number of registered Syrians': 'Number of registered Syrians',
+        'Ratio of IDPs, SYR, and palestinians per host residents, at cadastre level':
+            'Ratio of IDPs, Syrians, and Palestinians per host residents',
+        composite_score: 'Composite score'
+    };
+    return labels[fieldKey] || fieldKey;
+}
+
+function getDisplacementSubindicatorOptions(resolution = getActiveAdminResolution()) {
+    const config = layerConfig.svAdmin1Layer;
+    const compositeAttr = config?.svAttribute || DISPLACEMENT_SCORE_FIELD;
+    const staticOptions =
+        resolution === 'district'
+            ? DISPLACEMENT_SUBINDICATOR_OPTIONS_DISTRICT
+            : DISPLACEMENT_SUBINDICATOR_OPTIONS_CADASTRE;
+
+    const sampleProps = window.mapLayers?.vector?.svAdmin1Layer?.layerData?.raw?.features?.[0]?.properties;
+    const options = sampleProps
+        ? Object.keys(sampleProps)
+              .filter(
+                  key =>
+                      !DISPLACEMENT_ID_FIELDS.has(key) &&
+                      key !== compositeAttr &&
+                      key !== 'composite_score'
+              )
+              .map(key => ({ value: key, label: getDisplacementFieldLabel(key) }))
+        : staticOptions.filter(opt => opt.value !== compositeAttr);
+
+    return options;
+}
+
 function populateDisplacementSubindicatorSelect() {
     renderSVSubindicatorPanel('svAdmin1Layer');
 }
@@ -791,16 +890,13 @@ function getEffectiveDisplacementCircleAttribute(config) {
 
 function resolveDisplacementPropertyKey(props, attr) {
     if (!props) return attr;
-    if (attr === DISPLACEMENT_SCORE_FIELD) {
-        if (
-            props[DISPLACEMENT_SCORE_FIELD] !== undefined &&
-            props[DISPLACEMENT_SCORE_FIELD] !== null &&
-            props[DISPLACEMENT_SCORE_FIELD] !== ''
-        ) {
-            return DISPLACEMENT_SCORE_FIELD;
-        }
-        if (props.composite_score !== undefined && props.composite_score !== null && props.composite_score !== '') {
-            return 'composite_score';
+    const compositeAttr = layerConfig.svAdmin1Layer?.svAttribute || DISPLACEMENT_SCORE_FIELD;
+    if (attr === DISPLACEMENT_SCORE_FIELD || attr === compositeAttr) {
+        const fallbacks = [compositeAttr, DISPLACEMENT_RATIO_FIELD, DISPLACEMENT_SCORE_FIELD, 'composite_score'];
+        for (const key of fallbacks) {
+            if (key && props[key] !== undefined && props[key] !== null && props[key] !== '') {
+                return key;
+            }
         }
     }
     return attr;
@@ -812,7 +908,7 @@ function resolveDisplacementPropertyValue(props, attr) {
 }
 
 function getDisplacementSubindicatorLegendTitle(attributeKey, config) {
-    const opt = DISPLACEMENT_SUBINDICATOR_OPTIONS.find(o => o.value === attributeKey);
+    const opt = getDisplacementSubindicatorOptions().find(o => o.value === attributeKey);
     return opt ? opt.label : config?.legendName || 'Displacement Pressure';
 }
 
@@ -1048,6 +1144,47 @@ function applyDemographicShockLegendLabels(labels) {
         : [...DEMOGRAPHIC_SHOCK_LEGEND_LABELS];
 }
 
+function applyCompositeIndexLegendLabels(labels) {
+    const hasNoData = Array.isArray(labels)
+        && labels.some(label => String(label || '').trim().toLowerCase() === ACS_CODE_NO_DATA_LEGEND_LABEL);
+    return hasNoData
+        ? [...OVERALL_VULNERABILITY_LEGEND_LABELS, ACS_CODE_NO_DATA_LEGEND_LABEL]
+        : [...OVERALL_VULNERABILITY_LEGEND_LABELS];
+}
+
+function combineQualitativeAndRangeLabels(qualitativeLabels, rangeLabels) {
+    const noDataLabel = ACS_CODE_NO_DATA_LEGEND_LABEL;
+    const combined = qualitativeLabels.map((term, index) => {
+        const range = String(rangeLabels[index] || '').trim();
+        return range ? `${term} (${range})` : term;
+    });
+    const hasNoData = (rangeLabels || []).some(
+        label => String(label || '').trim().toLowerCase() === noDataLabel.toLowerCase()
+    );
+    if (hasNoData && rangeLabels.length > qualitativeLabels.length) {
+        combined.push(noDataLabel);
+    }
+    return combined;
+}
+
+function getChoroplethLegendLabels(layerId, labels) {
+    const subIndicatorSelected = Boolean(getPrimarySubindicator(layerId));
+
+    if (layerId === 'svAdmin5Layer') {
+        if (subIndicatorSelected) {
+            return combineQualitativeAndRangeLabels(DEMOGRAPHIC_SHOCK_LEGEND_LABELS, labels);
+        }
+        return applyDemographicShockLegendLabels(labels);
+    }
+    if (layerId === 'svAdmin3Layer') {
+        if (subIndicatorSelected) {
+            return combineQualitativeAndRangeLabels(OVERALL_VULNERABILITY_LEGEND_LABELS, labels);
+        }
+        return applyCompositeIndexLegendLabels(labels);
+    }
+    return labels;
+}
+
 function buildOverallVulnerabilityLegendEntry(config, colorScheme, rawGeoJson) {
     const scheme = [...(colorScheme || [])];
     const labels = [...OVERALL_VULNERABILITY_LEGEND_LABELS];
@@ -1091,12 +1228,12 @@ function refreshSVPeaceCadastreChoropleth(map, layers, addLegendEntry) {
         getPeaceCadastreChoroplethLegendTitle(layerId, value, config)
     );
     const updateLegendForLayer = (layerName, colorScheme, description, labels) => {
-        const demographicLabels = applyDemographicShockLegendLabels(labels);
         addLegendEntry(layerId, {
             layerName: legendTitle,
             colorScheme,
             description: [description, overlayNote].filter(Boolean).join(' '),
-            labels: demographicLabels
+            labels: getChoroplethLegendLabels(layerId, labels),
+            scaleDirection: 'yellow-orange-red'
         });
     };
     updateVectorLayerStyle(layer, attr, fixedRamp, opacity, updateLegendForLayer, { skipTooltips: true });
@@ -1156,7 +1293,7 @@ function refreshSVDemographicChoropleth(map, layers, addLegendEntry) {
             layerName: legendTitle,
             colorScheme,
             description: [description, overlayNote].filter(Boolean).join(' '),
-            labels
+            labels: getChoroplethLegendLabels(layerId, labels)
         });
     };
     updateVectorLayerStyle(layer, attr, fixedRamp, opacity, updateLegendForLayer, { skipTooltips: true });
@@ -1331,7 +1468,11 @@ function syncSVSubindicatorPanelsVisibility() {
             layerId !== 'svAdmin3Layer' ||
             getActiveAdminResolution() === 'district' ||
             (getActiveAdminResolution() === 'cadastre' && Boolean(layerConfig.svAdmin3Layer?.thinBoundaries));
-        wrap.hidden = !sectionOpen || !layerOn || !peaceApplicable;
+        const serviceApplicable =
+            layerId !== 'svAdmin4Layer' || getActiveAdminResolution() === 'district';
+        const displacementApplicable =
+            layerId !== 'svAdmin1Layer' || getDisplacementSubindicatorOptions().length > 0;
+        wrap.hidden = !sectionOpen || !layerOn || !peaceApplicable || !serviceApplicable || !displacementApplicable;
         if (!wrap.hidden) {
             renderSVSubindicatorPanel(layerId);
         }
@@ -1418,6 +1559,8 @@ function setupSVRadioControls(map, layers, colorScales, addLegendEntry, removeLe
                 refreshSVDisplacementLayerCircles('svAdmin1Layer', layers, layerConfig.svAdmin1Layer, map);
             } else if (layerId === 'svAdmin2Layer') {
                 refreshSVEconomicStripePattern(map, layers, addLegendEntry);
+            } else if (layerId === 'svAdmin4Layer') {
+                refreshSVServiceSymbolLayer(map, layers, addLegendEntry);
             } else if (layerId === 'populationLayer') {
                 refreshPopulationChoropleth(map, layers, addLegendEntry);
             }
@@ -1431,7 +1574,7 @@ function setupSVRadioControls(map, layers, colorScales, addLegendEntry, removeLe
     // Setup Social-Vulnerability color ramp selector
     setupSVColorRampSelector(map, layers, addLegendEntry, updateLegend);
 
-    ['svAdmin3Layer', 'svAdmin1Layer', 'svAdmin2Layer', 'svAdmin5Layer'].forEach(layerId => {
+    ['svAdmin3Layer', 'svAdmin1Layer', 'svAdmin2Layer', 'svAdmin4Layer', 'svAdmin5Layer'].forEach(layerId => {
         const cb = document.getElementById(layerId);
         if (!cb) return;
         cb.addEventListener('change', () => {
@@ -1483,7 +1626,7 @@ function setupSVServicePriorityToggle(layers) {
 function setupSVResolutionSelector(map, layers, colorScales, addLegendEntry, removeLegendEntry, updateLegend, hideLegend) {
     const buttons = Array.from(document.querySelectorAll(SV_ADMIN_RESOLUTION_BUTTON_SELECTOR));
     const activeButton = buttons.find(button => button.classList.contains('active'));
-    const resolution = activeButton?.dataset?.resolution || 'cadastre';
+    const resolution = activeButton?.dataset?.resolution || DEFAULT_SV_ADMIN_RESOLUTION;
 
     applySVResolution(
         resolution,
@@ -1499,7 +1642,7 @@ function setupSVResolutionSelector(map, layers, colorScales, addLegendEntry, rem
 
     buttons.forEach(button => {
         button.addEventListener('click', async () => {
-            const selectedResolution = button.dataset?.resolution || 'cadastre';
+            const selectedResolution = button.dataset?.resolution || DEFAULT_SV_ADMIN_RESOLUTION;
             await applySVResolution(
                 selectedResolution,
                 map,
@@ -1517,7 +1660,7 @@ function setupSVResolutionSelector(map, layers, colorScales, addLegendEntry, rem
 
 async function applySVResolution(resolution, map, layers, colorScales, addLegendEntry, removeLegendEntry, updateLegend, hideLegend, resolutionButtons = null) {
     const requestVersion = ++svResolutionVersion;
-    const selectedResolution = SV_RESOLUTION_CONFIG[resolution] ? resolution : 'cadastre';
+    const selectedResolution = SV_RESOLUTION_CONFIG[resolution] ? resolution : DEFAULT_SV_ADMIN_RESOLUTION;
     const resolutionConfig = SV_RESOLUTION_CONFIG[selectedResolution];
     const buttons = resolutionButtons || Array.from(document.querySelectorAll(SV_ADMIN_RESOLUTION_BUTTON_SELECTOR));
     const previouslySelectedLayerIds = Array.from(document.querySelectorAll('input[name="svLayer"]:checked')).map(input => input.id);
@@ -1608,12 +1751,16 @@ async function applySVResolution(resolution, map, layers, colorScales, addLegend
     populateDemographicSubindicatorSelect(selectedResolution);
     populateDisplacementSubindicatorSelect();
     populateEconomicSubindicatorSelect(selectedResolution);
+    populateServiceSubindicatorSelect(selectedResolution);
     renderSVSubindicatorPanels();
     if (typeof window.syncSVSubindicatorPanelsVisibility === 'function') {
         window.syncSVSubindicatorPanelsVisibility();
     }
     if (activeSVLayers.has('svAdmin2Layer')) {
         refreshSVEconomicStripePattern(map, layers, window.addLegendEntry);
+    }
+    if (activeSVLayers.has('svAdmin4Layer')) {
+        refreshSVServiceSymbolLayer(map, layers, window.addLegendEntry);
     }
     await applyPopulationResolution(
         selectedResolution,
@@ -1849,9 +1996,13 @@ async function loadSVLayer(layerId, map, layers, colorScales, addLegendEntry, re
             attachSVDisplacementZoomSync(map, layerId, layers, config);
             if (layerId === 'svAdmin1Layer') {
                 populateDisplacementSubindicatorSelect();
+                if (typeof window.syncSVSubindicatorPanelsVisibility === 'function') {
+                    window.syncSVSubindicatorPanelsVisibility();
+                }
             }
             refreshSVDisplacementLayerCircles(layerId, layers, config, map);
         } else if (config.renderMode === 'service-symbol') {
+            populateServiceSubindicatorSelect();
             applySVLayerOpacity(layerId, layers, opacity, map, addLegendEntry);
         } else if (config.renderMode === 'stripe-pattern' || config.renderMode === 'service-pattern') {
             applySVLayerOpacity(layerId, layers, opacity, map, addLegendEntry);
@@ -1875,7 +2026,8 @@ async function loadSVLayer(layerId, map, layers, colorScales, addLegendEntry, re
                         layerName: getChoroplethLegendTitle(layerId, chAttr, config) || config.legendName || layerName,
                         colorScheme,
                         description,
-                        labels: layerId === 'svAdmin5Layer' ? applyDemographicShockLegendLabels(labels) : labels
+                        labels: getChoroplethLegendLabels(layerId, labels),
+                        ...(layerId === 'svAdmin3Layer' ? { scaleDirection: 'yellow-orange-red' } : {})
                     });
                 };
                 updateVectorLayerStyle(
@@ -2152,7 +2304,7 @@ async function loadSVServiceSymbolLayer(config) {
     const numericValues = pointFeatures
         .map(feature => Number(feature.properties?.[config.svAttribute]))
         .filter(value => Number.isFinite(value));
-    const breaks = buildQuantileBreaks(numericValues, SOCIO_STRIPE_CLASS_COUNT);
+    const breaks = calculateQuantileBreaks(numericValues, SOCIO_STRIPE_CLASS_COUNT);
     const symbolColors = config.serviceSymbolColors || ['#22c55e', '#f59e0b', '#dc2626'];
 
     const markerLayer = L.geoJSON({ type: 'FeatureCollection', features: pointFeatures }, {
@@ -2162,12 +2314,7 @@ async function loadSVServiceSymbolLayer(config) {
             const color = symbolColors[classIndex] || symbolColors[symbolColors.length - 1] || '#dc2626';
             feature.properties = { ...(feature.properties || {}), __svServiceClassIndex: classIndex };
             return L.marker(latlng, {
-                icon: L.divIcon({
-                    className: 'sv-service-symbol-wrapper',
-                    html: `<span style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:#ffffff;color:${color};border:1px solid rgba(17,24,39,0.35);font-weight:800;font-size:12px;line-height:1;box-shadow:0 1px 3px rgba(0,0,0,0.35);opacity:1;">!</span>`,
-                    iconSize: [16, 16],
-                    iconAnchor: [8, 8]
-                }),
+                icon: buildSVServiceMarkerIcon(color),
                 opacity: 1
             });
         }
@@ -2324,6 +2471,83 @@ async function loadSVSectarianGlyphLayer(config) {
     finalLayer._svAdminOutlineLayer = adminOutlineLayer;
     finalLayer._svSectarianGlyphAttr = attr;
     return finalLayer;
+}
+
+function buildSVServiceMarkerIcon(color) {
+    return L.divIcon({
+        className: 'sv-service-symbol-wrapper',
+        html: `<span style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:#ffffff;color:${color};border:1px solid rgba(17,24,39,0.35);font-weight:800;font-size:12px;line-height:1;box-shadow:0 1px 3px rgba(0,0,0,0.35);opacity:1;">!</span>`,
+        iconSize: [16, 16],
+        iconAnchor: [8, 8]
+    });
+}
+
+function refreshSVServiceSymbolLayer(map, layers, addLegendEntry) {
+    const layerId = 'svAdmin4Layer';
+    const config = layerConfig[layerId];
+    const layer = layers.vector[layerId];
+    if (!config || !layer || !layer._isSVServiceSymbolLayer) return;
+
+    const attr = getEffectiveServiceAttribute(config);
+    const pointFeatures = layer.layerData?.raw?.features || [];
+    const numericValues = pointFeatures
+        .map(feature => Number(feature.properties?.[attr]))
+        .filter(value => Number.isFinite(value));
+    const breaks = calculateQuantileBreaks(numericValues, SOCIO_STRIPE_CLASS_COUNT);
+    const symbolColors = config.serviceSymbolColors || ['#22c55e', '#f59e0b', '#dc2626'];
+    const allMarkers = layer._svServiceAllMarkers || [];
+
+    allMarkers.forEach(marker => {
+        if (!marker.feature?.properties) return;
+        const raw = Number(marker.feature.properties[attr]);
+        const classIndex = getPatternClassIndex(raw, breaks);
+        const color = symbolColors[classIndex] || symbolColors[symbolColors.length - 1] || '#dc2626';
+        marker.feature.properties.__svServiceClassIndex = classIndex;
+        if (typeof marker.setIcon === 'function') {
+            marker.setIcon(buildSVServiceMarkerIcon(color));
+        }
+    });
+
+    layer._svServiceSymbolMeta = { breaks, symbolColors, svAttribute: attr };
+    if (layer.layerData) {
+        layer.layerData.selectedProperty = attr;
+    }
+
+    const clusterLayer = layer._svServiceClusterLayer;
+    if (clusterLayer?.refreshClusters) {
+        clusterLayer.refreshClusters();
+    }
+
+    applySVServicePriorityFilter(layer, isSVServicePriorityOnlyEnabled());
+
+    const pushLegend = addLegendEntry || window.addLegendEntry;
+    if (typeof pushLegend === 'function') {
+        const selected = getSelectedSubindicators(layerId);
+        const layerTitle =
+            selected.map(value => getServiceSubindicatorLegendTitle(value, config)).join(' · ') ||
+            getServiceSubindicatorLegendTitle(attr, config);
+        const terms = ['Low', 'Medium', 'High'];
+        const rangeLabels =
+            breaks.length >= 4
+                ? formatClassLegendRanges(breaks)
+                : ['—', '—', '—'];
+        pushLegend(layerId, {
+            layerName: layerTitle,
+            type: 'service-symbol',
+            markerSymbol: '!',
+            items: terms.map((term, idx) => ({
+                label: `${term} (${rangeLabels[idx] || '—'})`,
+                color: symbolColors[idx] || '#dc2626'
+            }))
+        });
+    }
+
+    updateSVHoverTooltips(layer);
+    if (window.currentInfoPanel) {
+        const opacitySlider = document.getElementById(config.opacityControl);
+        const opacity = opacitySlider ? parseFloat(opacitySlider.value) : 0.6;
+        window.currentInfoPanel.updateLayer(layerId, { selectedAttribute: attr, opacity });
+    }
 }
 
 function applySVServicePriorityFilter(layer, priorityOnlyHigh = true) {
@@ -2672,7 +2896,8 @@ function setupSVColorRampSelector(map, layers, addLegendEntry, updateLegend) {
                     layerName: getChoroplethLegendTitle(layerId, chAttr, config) || config.legendName || layerName,
                     colorScheme,
                     description,
-                    labels: layerId === 'svAdmin5Layer' ? applyDemographicShockLegendLabels(labels) : labels
+                    labels: getChoroplethLegendLabels(layerId, labels),
+                    ...(layerId === 'svAdmin3Layer' ? { scaleDirection: 'yellow-orange-red' } : {})
                 });
             };
             updateVectorLayerStyle(
@@ -2709,33 +2934,7 @@ function formatSocioIntensityValue(v) {
 
 function getPatternClassIndex(value, breaks) {
     if (!Number.isFinite(value) || !breaks.length) return 0;
-    for (let i = 0; i < breaks.length - 1; i++) {
-        if (value <= breaks[i + 1]) return i;
-    }
-    return breaks.length - 2;
-}
-
-function buildQuantileBreaks(values, classCount) {
-    const sorted = values.slice().sort((a, b) => a - b);
-    if (!sorted.length) return [0, 1];
-    const breaks = [sorted[0]];
-    for (let i = 1; i < classCount; i++) {
-        const index = Math.min(sorted.length - 1, Math.floor((i / classCount) * sorted.length));
-        breaks.push(sorted[index]);
-    }
-    breaks.push(sorted[sorted.length - 1]);
-    return breaks;
-}
-
-/**
- * Build legend labels for 3 intensity classes from tertile breakpoints [v0, v1, v2, v3].
- */
-function formatSocioIntensityRange(lo, hi) {
-    if (!Number.isFinite(lo) || !Number.isFinite(hi)) return '—';
-    if (Math.abs(hi - lo) < 1e-9) {
-        return formatSocioIntensityValue(lo);
-    }
-    return `${formatSocioIntensityValue(lo)} – ${formatSocioIntensityValue(hi)}`;
+    return getValueClassIndex(value, breaks, breaks.length - 1) ?? 0;
 }
 
 function socioStripeSwatchInlineStyle(specIndex, patternColor) {
@@ -2756,24 +2955,13 @@ function buildSocioStripeLegendItems(breaks, patternColor) {
             { label: 'High intensity', color: patternColor, swatchStyle: socioStripeSwatchInlineStyle(2, patternColor) }
         ];
     }
-    const [a, b, c, d] = breaks;
-    return [
-        {
-            label: `Low (${formatSocioIntensityRange(a, b)})`,
-            color: patternColor,
-            swatchStyle: socioStripeSwatchInlineStyle(0, patternColor)
-        },
-        {
-            label: `Medium (${formatSocioIntensityRange(b, c)})`,
-            color: patternColor,
-            swatchStyle: socioStripeSwatchInlineStyle(1, patternColor)
-        },
-        {
-            label: `High (${formatSocioIntensityRange(c, d)})`,
-            color: patternColor,
-            swatchStyle: socioStripeSwatchInlineStyle(2, patternColor)
-        }
-    ];
+    const terms = ['Low', 'Medium', 'High'];
+    const rangeLabels = formatClassLegendRanges(breaks);
+    return rangeLabels.map((range, idx) => ({
+        label: `${terms[idx] || 'Class'} (${range})`,
+        color: patternColor,
+        swatchStyle: socioStripeSwatchInlineStyle(idx, patternColor)
+    }));
 }
 
 /**
@@ -2891,7 +3079,7 @@ function applySVStripePatternStyle(layerId, layer, config, opacity, map, addLege
             if (Number.isFinite(value)) values.push(value);
         });
 
-        const breaks = buildQuantileBreaks(values, SOCIO_STRIPE_CLASS_COUNT);
+        const breaks = calculateQuantileBreaks(values, SOCIO_STRIPE_CLASS_COUNT);
         const isServicePattern = config.renderMode === 'service-pattern';
         const patternSpecs = isServicePattern ? SERVICE_PATTERN_CLASS_SPECS : SOCIO_STRIPE_CLASS_SPECS;
         const patterns = createStripePatterns(targetMap, config.patternColor || '#2b83ba', opacity, patternSpecs);
@@ -2981,30 +3169,10 @@ function applySVLayerOpacity(layerId, layers, opacity, map = null, addLegendEntr
     }
 
     if (config.renderMode === 'service-symbol') {
-        const meta = layer._svServiceSymbolMeta || {};
-        const breaks = meta.breaks || [0, 1, 2, 3];
-        const symbolColors = meta.symbolColors || config.serviceSymbolColors || ['#22c55e', '#f59e0b', '#dc2626'];
         layer.eachLayer(marker => {
             if (typeof marker.setOpacity === 'function') marker.setOpacity(1);
         });
-        if (typeof window.removeLegendEntry === 'function') {
-            window.removeLegendEntry(layerId);
-        }
-        const pushLegend = addLegendEntry || window.addLegendEntry;
-        if (typeof pushLegend === 'function') {
-            const [a, b, c, d] = breaks.length >= 4 ? breaks : [null, null, null, null];
-            pushLegend(layerId, {
-                layerName: 'Service & Infrastructure Vulnerability',
-                type: 'service-symbol',
-                markerSymbol: '!',
-                items: [
-                    { label: `Low (${formatSocioIntensityRange(a, b)})`, color: symbolColors[0] || '#22c55e' },
-                    { label: `Medium (${formatSocioIntensityRange(b, c)})`, color: symbolColors[1] || '#f59e0b' },
-                    { label: `High (${formatSocioIntensityRange(c, d)})`, color: symbolColors[2] || '#dc2626' }
-                ]
-            });
-        }
-        updateSVHoverTooltips(layer);
+        refreshSVServiceSymbolLayer(map, layers, addLegendEntry);
         return;
     }
 
@@ -3076,7 +3244,8 @@ function applySVLayerOpacity(layerId, layers, opacity, map = null, addLegendEntr
                     layerName: getChoroplethLegendTitle(layerId, chAttr, config) || config.legendName || layerName,
                     colorScheme,
                     description,
-                    labels: layerId === 'svAdmin5Layer' ? applyDemographicShockLegendLabels(labels) : labels
+                    labels: getChoroplethLegendLabels(layerId, labels),
+                    ...(layerId === 'svAdmin3Layer' ? { scaleDirection: 'yellow-orange-red' } : {})
                 });
             }
         }, { skipTooltips: true });
@@ -4229,6 +4398,7 @@ function getSelectedFeatureName(properties) {
 
     const nameFields = [
         'ADM2_NAME',
+        'adm2_name',
         'Districts',
         'NAME_2',
         'District',
@@ -4366,7 +4536,7 @@ function getSelectionAttributeLabel(layerId, config, attributeName) {
 function getFeatureLookupKey(properties) {
     if (!properties) return null;
 
-    const candidateFields = ['ADM2_NAME', 'NAME_2', 'NAME_1', 'NAME_3', 'name', 'Name'];
+    const candidateFields = ['ADM2_NAME', 'adm2_name', 'NAME_2', 'NAME_1', 'NAME_3', 'name', 'Name'];
     for (const field of candidateFields) {
         if (properties[field] !== undefined && properties[field] !== null) {
             const normalized = String(properties[field]).trim().toLowerCase();

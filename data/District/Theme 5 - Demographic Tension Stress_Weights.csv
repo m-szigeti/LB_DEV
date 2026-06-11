@@ -1,0 +1,7 @@
+Indicator,Mean_Abs_Kendall_tau,Final_Weight
+District,0.0,0.0
+Resident_Population (R),0.15876923076923077,0.1
+Displaced_Population (D),0.3310769230769231,0.20852713178294574
+Heterogeneity (H),0.37415384615384617,0.23565891472868217
+Displacement_Ratio (S = D/R),0.35692307692307695,0.2248062015503876
+Demographic_Factor (DF = S*H),0.3667692307692308,0.2310077519379845

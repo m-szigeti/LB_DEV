@@ -16,7 +16,7 @@ const PILLAR_SCORE_FIELDS = [
     {
         field: 'tension_peace_score',
         label: 'Tension and Conflict Risk',
-        colorRampId: 'whiteToDarkPurple'
+        colorRampId: 'whiteToDarkPurple3'
     },
     {
         field: 'displacement_pressure_score',
@@ -487,6 +487,13 @@ function getPrimaryVulnerabilityField(properties, layerType = '') {
             return key;
         }
         if (
+            properties['Displacement Ratio'] !== undefined &&
+            properties['Displacement Ratio'] !== null &&
+            properties['Displacement Ratio'] !== ''
+        ) {
+            return 'Displacement Ratio';
+        }
+        if (
             properties['Displacement Pressure Score'] !== undefined &&
             properties['Displacement Pressure Score'] !== null &&
             properties['Displacement Pressure Score'] !== ''
@@ -601,6 +608,9 @@ function getLayerScoreSectionTitle(layerType) {
 }
 
 function getPrimaryFieldDisplayLabel(fieldName, layerType) {
+    if (layerType === 'sv-admin1' && fieldName === 'Displacement Ratio') {
+        return 'Displacement ratio';
+    }
     if (layerType === 'sv-admin1' && fieldName === 'Displacement Pressure Score') {
         return 'Displacement Pressure Score';
     }
@@ -638,6 +648,7 @@ function getPrimaryFieldDisplayLabel(fieldName, layerType) {
         'Heterogeneity (H)_mean': 'Heterogeneity (mean)',
         'Displacement_Ratio (S = D/R)': 'Displacement ratio',
         'Displacement_Ratio (S = D/R)_mean': 'Displacement ratio (mean)',
+        'Displacement Ratio': 'Displacement ratio',
         'Displacement Pressure Score': 'Displacement Pressure Score',
         'Number of IDPs': 'Number of IDPs',
         'Number of of Palestinians': 'Number of Palestinians',
@@ -756,7 +767,12 @@ function getSubindicatorCategoryLabel(numericValue, fieldKey, layerType, sourceL
         return getClassLabelForLayerValue(numericValue, mapLayer, VULNERABILITY_CLASS_LABELS);
     }
     if (mapLayer?.layerData?.raw && fieldKey) {
-        const rampId = layerType === 'sv-admin5' ? 'yellowOrangeRed3' : null;
+        const rampId =
+            layerType === 'sv-admin5'
+                ? 'yellowOrangeRed3'
+                : layerType === 'sv-admin3'
+                  ? 'whiteToDarkPurple3'
+                  : null;
         if (rampId) {
             return getPillarScoreClassLabel(numericValue, fieldKey, rampId, mapLayer.layerData.raw);
         }

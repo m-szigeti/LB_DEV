@@ -289,21 +289,100 @@ function getColorFromRamp(value, data, property, colorRamp) {
 }
 
 /**
- * Calculate quantile breaks for classification
+ * Calculate class breaks for choropleth maps (3-class aware, handles zero-heavy counts).
  */
-function calculateQuantileBreaks(values, numClasses) {
-    const breaks = [];
-    for (let i = 0; i < numClasses; i++) {
-        const index = Math.floor((i / numClasses) * values.length);
-        breaks.push(values[index]);
+export function calculateQuantileBreaks(values, numClasses) {
+    const sorted = values.filter(v => Number.isFinite(v)).sort((a, b) => a - b);
+    const n = sorted.length;
+    if (n === 0) {
+        return Array.from({ length: numClasses + 1 }, () => 0);
     }
-    
-    // Ensure the last break includes the maximum value
-    if (breaks[breaks.length - 1] !== values[values.length - 1]) {
-        breaks.push(values[values.length - 1]);
+
+    const min = sorted[0];
+    const max = sorted[n - 1];
+    if (min === max) {
+        return Array.from({ length: numClasses + 1 }, () => min);
     }
-    
+
+    if (numClasses === 3) {
+        const zeroCount = sorted.filter(v => v === 0).length;
+        const positives = sorted.filter(v => v > 0);
+        if (zeroCount > 0 && positives.length > 0 && zeroCount / n >= 0.2) {
+            const pMax = positives[positives.length - 1];
+            if (positives.length === 1) {
+                return [0, 0, pMax, pMax];
+            }
+            const midIdx = Math.floor((positives.length - 1) / 2);
+            const pMid = positives[midIdx];
+            if (pMid >= pMax) {
+                return [0, 0, pMax, pMax];
+            }
+            return [0, 0, pMid, pMax];
+        }
+    }
+
+    const breaks = [min];
+    for (let i = 1; i < numClasses; i++) {
+        const idx = Math.min(n - 1, Math.round((i / numClasses) * (n - 1)));
+        breaks.push(sorted[idx]);
+    }
+    breaks.push(max);
+
+    if (new Set(breaks).size < numClasses + 1) {
+        const step = (max - min) / numClasses;
+        return Array.from({ length: numClasses + 1 }, (_, i) =>
+            i === numClasses ? max : min + step * i
+        );
+    }
+
     return breaks;
+}
+
+function isZeroInflatedBreaks(breaks) {
+    return (
+        Array.isArray(breaks) &&
+        breaks.length === 4 &&
+        breaks[0] === 0 &&
+        breaks[1] === 0 &&
+        breaks[3] >= breaks[2]
+    );
+}
+
+/**
+ * Format non-overlapping class ranges for legend display.
+ */
+export function formatClassLegendRanges(breaks) {
+    if (isZeroInflatedBreaks(breaks)) {
+        const pMid = breaks[2];
+        const pMax = breaks[3];
+        const integerEdges = Number.isInteger(pMid) && Number.isInteger(pMax);
+
+        if (pMid >= pMax) {
+            return [
+                formatValue(0),
+                integerEdges
+                    ? `${formatValue(1)} - ${formatValue(pMax)}`
+                    : `> ${formatValue(0)} - ${formatValue(pMax)}`,
+                formatValue(pMax)
+            ];
+        }
+
+        return [
+            formatValue(0),
+            integerEdges
+                ? `${formatValue(1)} - ${formatValue(pMid)}`
+                : `> ${formatValue(0)} - ${formatValue(pMid)}`,
+            integerEdges
+                ? `${formatValue(pMid + 1)} - ${formatValue(pMax)}`
+                : `> ${formatValue(pMid)} - ${formatValue(pMax)}`
+        ];
+    }
+
+    const labels = [];
+    for (let i = 0; i < breaks.length - 1; i++) {
+        labels.push(`${formatValue(breaks[i])} - ${formatValue(breaks[i + 1])}`);
+    }
+    return labels;
 }
 
 /**
@@ -342,7 +421,7 @@ function updateVectorLegend(layer, property, colorRamp, updateLegend, colorSpec 
     const numClasses = colorRamp.colors.length;
     const legend = appendAcsNoDataLegend(
         colorRamp.colors,
-        formatLegendLabels(spec.breaks).slice(0, numClasses),
+        formatClassLegendRanges(spec.breaks).slice(0, numClasses),
         raw
     );
     updateLegend(property, legend.colorScheme, '', legend.labels);
@@ -388,17 +467,10 @@ function buildColorSpec(data, property, colorRamp) {
  * @returns {string|null}
  */
 export function getQuantileClassLabel(value, breaks, classLabels) {
-    const numValue = Number(value);
-    if (!Number.isFinite(numValue) || !Array.isArray(breaks) || breaks.length < 2) {
-        return null;
-    }
     const labels = Array.isArray(classLabels) ? classLabels : [];
-    for (let i = 0; i < breaks.length - 1; i++) {
-        if (numValue >= breaks[i] && numValue <= breaks[i + 1]) {
-            return labels[Math.min(i, labels.length - 1)] || null;
-        }
-    }
-    return labels[labels.length - 1] || null;
+    const classIndex = getValueClassIndex(Number(value), breaks, labels.length);
+    if (classIndex === null) return null;
+    return labels[classIndex] || null;
 }
 
 export function getClassLabelForLayerValue(value, leafletLayer, classLabels) {
@@ -413,12 +485,23 @@ export function getValueClassIndex(numValue, breaks, numClasses) {
     if (!Number.isFinite(numValue) || !Array.isArray(breaks) || breaks.length < 2) {
         return null;
     }
+    const classes = numClasses || breaks.length - 1;
+
+    if (isZeroInflatedBreaks(breaks)) {
+        const pMid = breaks[2];
+        const pMax = breaks[3];
+        if (numValue === 0) return 0;
+        if (numValue <= pMid) return 1;
+        if (numValue <= pMax) return Math.min(2, classes - 1);
+        return classes - 1;
+    }
+
     for (let i = 0; i < breaks.length - 1; i++) {
         if (numValue >= breaks[i] && numValue <= breaks[i + 1]) {
-            return Math.min(i, (numClasses || breaks.length) - 1);
+            return Math.min(i, classes - 1);
         }
     }
-    return Math.max(0, (numClasses || breaks.length) - 1);
+    return Math.max(0, classes - 1);
 }
 
 /**
@@ -453,12 +536,12 @@ function createColorResolverFromSpec(spec, colorRamp) {
     return value => {
         const numValue = Number(value);
         if (isNaN(numValue)) return colorRamp.colors[0];
-        for (let i = 0; i < spec.breaks.length - 1; i++) {
-            if (numValue >= spec.breaks[i] && numValue <= spec.breaks[i + 1]) {
-                return colorRamp.colors[Math.min(i, colorRamp.colors.length - 1)];
-            }
-        }
-        return colorRamp.colors[colorRamp.colors.length - 1];
+        const classIndex = getValueClassIndex(
+            numValue,
+            spec.breaks,
+            colorRamp.colors.length
+        );
+        return colorRamp.colors[classIndex ?? 0];
     };
 }
 
@@ -486,15 +569,12 @@ function computePropertyStats(data, property) {
         .sort((a, b) => a - b);
     const uniqueRawValues = Array.from(new Set(rawValues.map(normalizeCategoryValue)));
     const allNumeric = uniqueRawValues.length > 0 && uniqueRawValues.every(val => !isNaN(Number(val)));
-    const allIntegerLikeNumeric = allNumeric && uniqueRawValues.every(val => Number.isInteger(Number(val)));
     const categories = allNumeric
         ? uniqueRawValues.sort((a, b) => Number(a) - Number(b))
         : uniqueRawValues.sort((a, b) => String(a).localeCompare(String(b)));
-    // Treat as categorical only when low-cardinality values are truly class-like.
-    // Numeric decimal score fields (e.g., peace/socio composite scores) should remain continuous.
-    const isCategorical = categories.length > 0
-        && categories.length <= 10
-        && (!allNumeric || allIntegerLikeNumeric);
+    // Categorical only for non-numeric class labels (e.g. yes/no strings).
+    // Integer counts must stay continuous so sub-indicators use 3-class ramps.
+    const isCategorical = categories.length > 0 && categories.length <= 10 && !allNumeric;
     return {
         rawValues,
         values: numericValues,
@@ -525,17 +605,6 @@ function buildCategoricalColorPool(baseColors, neededCount) {
         pool.push(distinctPalette[pool.length % distinctPalette.length]);
     }
     return pool.slice(0, neededCount);
-}
-
-/**
- * Format legend labels from break values
- */
-function formatLegendLabels(breaks) {
-    const labels = [];
-    for (let i = 0; i < breaks.length - 1; i++) {
-        labels.push(`${formatValue(breaks[i])} - ${formatValue(breaks[i + 1])}`);
-    }
-    return labels;
 }
 
 /**

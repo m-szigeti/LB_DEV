@@ -434,7 +434,7 @@ function getLabelName(properties, level) {
     if (!properties) return null;
     const candidates = level === 'adm1'
         ? ['NAME_1', 'ADM1_NAME', 'name', 'Name']
-        : ['ADM2_NAME', 'NAME_2', 'Cercle/District', 'District', 'name', 'Name'];
+        : ['ADM2_NAME', 'adm2_name', 'NAME_2', 'Cercle/District', 'District', 'name', 'Name'];
 
     for (const field of candidates) {
         if (properties[field] !== undefined && properties[field] !== null) {

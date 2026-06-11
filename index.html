@@ -59,10 +59,10 @@
                 <div class="attribute-selector sv-admin-resolution-selector">
                     <div class="sv-admin-resolution-title">Administrative resolution</div>
                     <div class="sv-admin-resolution-buttons" role="group" aria-label="Administrative resolution">
-                        <button type="button" class="sv-admin-resolution-btn active" data-resolution="cadastre">
+                        <button type="button" class="sv-admin-resolution-btn" data-resolution="cadastre">
                             <span class="sv-admin-resolution-label">Cadastre</span>
                         </button>
-                        <button type="button" class="sv-admin-resolution-btn" data-resolution="district">
+                        <button type="button" class="sv-admin-resolution-btn active" data-resolution="district">
                             <span class="sv-admin-resolution-label">District</span>
                         </button>
                         <button type="button" class="sv-admin-resolution-btn" data-resolution="governorate">
@@ -144,6 +144,14 @@
                     <span class="sv-layer-toggle-text">Service &amp; Infrastructure Vulnerability</span>
                     <span class="sv-layer-toggle-check" aria-hidden="true"></span>
                 </label>
+            </div>
+            <div id="svServiceSubindicatorsWrap" class="sv-subindicators-panel sv-peace-subindicators-wrap" data-subindicator-layer="svAdmin4Layer" hidden>
+                <div class="sv-subindicators-header">
+                    <span class="sv-subindicators-title">Sub-indicators</span>
+                    <span class="sv-subindicators-badge">Single select</span>
+                </div>
+                <p class="sv-subindicators-hint">Select one sub-indicator, or none to show the composite score.</p>
+                <div class="sv-subindicator-chips" role="group" aria-label="Service &amp; Infrastructure Vulnerability sub-indicators"></div>
             </div>
             <div id="svServicePriorityWrap" class="sv-service-priority-wrap" hidden>
                 <button type="button" id="svServicePriorityToggle" class="sv-priority-btn active" aria-pressed="true">
