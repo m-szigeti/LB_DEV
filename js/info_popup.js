@@ -466,6 +466,13 @@ function getPrimaryVulnerabilityField(properties, layerType = '') {
             return 'composite_score';
         }
         if (
+            properties['Demographic Factor'] !== undefined &&
+            properties['Demographic Factor'] !== null &&
+            properties['Demographic Factor'] !== ''
+        ) {
+            return 'Demographic Factor';
+        }
+        if (
             properties['Demographic_Factor (DF = S*H)'] !== undefined &&
             properties['Demographic_Factor (DF = S*H)'] !== null &&
             properties['Demographic_Factor (DF = S*H)'] !== ''
@@ -629,6 +636,9 @@ function getPrimaryFieldDisplayLabel(fieldName, layerType) {
     if (layerType === 'sv-admin2' && fieldName === 'composite_score') {
         return 'Socioeconomic Vulnerability';
     }
+    if (layerType === 'sv-admin5' && fieldName === 'Demographic Factor') {
+        return 'Demographic factor';
+    }
     if (layerType === 'sv-admin5' && fieldName === 'composite_score') {
         return 'Demographic Tension / Stress';
     }
@@ -638,8 +648,12 @@ function getPrimaryFieldDisplayLabel(fieldName, layerType) {
 
     const labelByField = {
         'Social-Vulnerability': 'Composite Score',
+        'Demographic Factor': 'Demographic factor',
         'Demographic_Factor (DF = S*H)': 'Demographic Tension / Stress',
         'Demographic_Factor (DF = S*H)_mean': 'Demographic Tension / Stress (mean)',
+        'Resident Population': 'Resident population',
+        'Displaced Population': 'Displaced population',
+        'Displacement Ratio': 'Displacement ratio',
         'Resident_Population (R)': 'Resident population',
         'Resident_Population (R)_mean': 'Resident population (mean)',
         'Displaced_Population (D)': 'Displaced population',

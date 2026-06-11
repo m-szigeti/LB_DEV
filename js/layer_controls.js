@@ -96,7 +96,7 @@ const layerConfig = {
     svAdmin1Layer: {
         fixedColorRamp: 'whiteToDarkGreen',
         type: 'sv-vector',
-        url: 'data/ADM3_Displacement%20Pressure.geojson',
+        url: 'data/ADM3_Displacement_Pressure_June_11.geojson',
         renderMode: 'proportional-circles',
         minRadius: 7,
         maxRadius: 22,
@@ -111,7 +111,7 @@ const layerConfig = {
         opacityDisplay: 'svOpacityValue',
         colorRampSelector: 'svColorRamp',
         colorRampPreview: 'svColorPreview',
-        svAttribute: 'Displacement Pressure Score',
+        svAttribute: 'Displacement Ratio',
         layerType: 'sv-admin1'
     },
     svAdmin2Layer: {
@@ -175,7 +175,7 @@ const layerConfig = {
     svAdmin5Layer: {
         fixedColorRamp: 'yellowOrangeRed3',
         type: 'sv-vector',
-        url: 'data/ADM3_Demographic_Shock_Factor.geojson',
+        url: 'data/ADM3_T5_Demgraphic_Tension_Stress_June_11.geojson',
         legendName: 'Demographic Tension / Stress',
         style: {
             color: '#2b83ba',
@@ -187,7 +187,7 @@ const layerConfig = {
         opacityDisplay: 'svOpacityValue',
         colorRampSelector: 'svColorRamp',
         colorRampPreview: 'svColorPreview',
-        svAttribute: 'Demographic_Factor (DF = S*H)',
+        svAttribute: 'Demographic Factor',
         layerType: 'sv-admin5'
     },
     streetNetworkLayer: {
@@ -530,9 +530,9 @@ const SV_RESOLUTION_CONFIG = {
             thinBoundaries: true
         },
         svAdmin1Layer: {
-            url: 'data/ADM3_Displacement%20Pressure.geojson',
+            url: 'data/ADM3_Displacement_Pressure_June_11.geojson',
             available: true,
-            svAttribute: 'Displacement Pressure Score',
+            svAttribute: 'Displacement Ratio',
             thinBoundaries: true
         },
         svAdmin2Layer: {
@@ -544,9 +544,9 @@ const SV_RESOLUTION_CONFIG = {
         svAdmin3Layer: { url: 'data/TENSION_PEACE_CAD_MAY_04.geojson', available: true, svAttribute: 'composite_score', thinBoundaries: true },
         svAdmin4Layer: { url: 'data/service_stress_infra_vul_adm3.geojson', available: true, svAttribute: 'composite_score', thinBoundaries: true },
         svAdmin5Layer: {
-            url: 'data/ADM3_Demographic_Shock_Factor.geojson',
+            url: 'data/ADM3_T5_Demgraphic_Tension_Stress_June_11.geojson',
             available: true,
-            svAttribute: 'Demographic_Factor (DF = S*H)',
+            svAttribute: 'Demographic Factor',
             thinBoundaries: true
         }
     },
@@ -588,6 +588,7 @@ const DISPLACEMENT_ID_FIELDS = new Set([
     'adm1_name',
     'adm2_name',
     'adm3_name',
+    'adm3_pcode',
     'ACS_CODE',
     'CODE',
     'CODE_NEW',
@@ -613,14 +614,25 @@ const DISPLACEMENT_SUBINDICATOR_OPTIONS_CADASTRE = [
 
 const DISPLACEMENT_SUBINDICATOR_OPTIONS = DISPLACEMENT_SUBINDICATOR_OPTIONS_CADASTRE;
 
-const DEMOGRAPHIC_DF_FIELD_CADASTRE = 'Demographic_Factor (DF = S*H)';
+const DEMOGRAPHIC_DF_FIELD_CADASTRE = 'Demographic Factor';
 const DEMOGRAPHIC_DF_FIELD_AGG = 'Demographic_Factor (DF = S*H)_mean';
 
+const DEMOGRAPHIC_ID_FIELDS = new Set([
+    'adm3_name',
+    'adm3_pcode',
+    'ADM3_NAME',
+    'ACS Code',
+    'ACS_CODE',
+    'CODE',
+    'CODE_NEW',
+    'rank'
+]);
+
 const DEMOGRAPHIC_SUBINDICATOR_OPTIONS_CADASTRE = [
-    { value: 'Resident_Population (R)', label: 'Resident population' },
-    { value: 'Displaced_Population (D)', label: 'Displaced population' },
-    { value: 'Heterogeneity (H)', label: 'Heterogeneity' },
-    { value: 'Displacement_Ratio (S = D/R)', label: 'Displacement ratio' }
+    { value: 'Resident Population', label: 'Resident population' },
+    { value: 'Displaced Population', label: 'Displaced population' },
+    { value: 'Heterogeneity', label: 'Heterogeneity' },
+    { value: 'Displacement Ratio', label: 'Displacement ratio' }
 ];
 
 const DEMOGRAPHIC_SUBINDICATOR_OPTIONS_DISTRICT = [
@@ -791,8 +803,36 @@ registerSVSubindicatorPanel('populationLayer', {
 const SUBINDICATOR_OVERLAY_OUTLINE = ['#7c3aed', '#0891b2', '#ca8a04', '#be185d'];
 const DISPLACEMENT_EXTRA_COLORS = ['#6366f1', '#0d9488', '#d97706', '#be185d'];
 
+function getDemographicFieldLabel(fieldKey) {
+    const labels = {
+        'Demographic Factor': 'Demographic factor',
+        'Demographic_Factor (DF = S*H)': 'Demographic factor',
+        'Resident Population': 'Resident population',
+        'Displaced Population': 'Displaced population',
+        Heterogeneity: 'Heterogeneity',
+        'Displacement Ratio': 'Displacement ratio',
+        'Resident_Population (R)': 'Resident population',
+        'Displaced_Population (D)': 'Displaced population',
+        'Displacement_Ratio (S = D/R)': 'Displacement ratio'
+    };
+    return labels[fieldKey] || fieldKey;
+}
+
 function getDemographicSubindicatorOptions(resolution = getActiveAdminResolution()) {
     if (resolution === 'cadastre') {
+        const config = layerConfig.svAdmin5Layer;
+        const compositeAttr = config?.svAttribute || DEMOGRAPHIC_DF_FIELD_CADASTRE;
+        const sampleProps = window.mapLayers?.vector?.svAdmin5Layer?.layerData?.raw?.features?.[0]?.properties;
+        if (sampleProps) {
+            return Object.keys(sampleProps)
+                .filter(
+                    key =>
+                        !DEMOGRAPHIC_ID_FIELDS.has(key) &&
+                        key !== compositeAttr &&
+                        key !== 'composite_score'
+                )
+                .map(key => ({ value: key, label: getDemographicFieldLabel(key) }));
+        }
         return DEMOGRAPHIC_SUBINDICATOR_OPTIONS_CADASTRE;
     }
     if (resolution === 'district') {
@@ -2046,6 +2086,10 @@ async function loadSVLayer(layerId, map, layers, colorScales, addLegendEntry, re
                 ) {
                     refreshSVPeaceCadastreChoropleth(map, layers, addLegendEntry);
                 } else if (layerId === 'svAdmin5Layer') {
+                    populateDemographicSubindicatorSelect();
+                    if (typeof window.syncSVSubindicatorPanelsVisibility === 'function') {
+                        window.syncSVSubindicatorPanelsVisibility();
+                    }
                     refreshSVDemographicChoropleth(map, layers, addLegendEntry);
                 }
             }
@@ -4397,6 +4441,8 @@ function getSelectedFeatureName(properties) {
     if (!properties) return 'Selected polygon';
 
     const nameFields = [
+        'ADM3_NAME',
+        'adm3_name',
         'ADM2_NAME',
         'adm2_name',
         'Districts',
@@ -4418,9 +4464,9 @@ function getSelectedFeatureName(properties) {
 }
 
 function getSVHoverFeatureName(parts, layerId, config) {
-    const isCadastreView = parts?.ADM3_NAME || (config?.svAttribute === 'composite_score' && config?.url?.includes('cadastre'));
+    const isCadastreView = parts?.ADM3_NAME || parts?.adm3_name || (config?.svAttribute === 'composite_score' && config?.url?.includes('cadastre'));
     const featureName = isCadastreView
-        ? (parts?.ADM3_NAME || getSelectedFeatureName(parts))
+        ? (parts?.ADM3_NAME || parts?.adm3_name || getSelectedFeatureName(parts))
         : getSelectedFeatureName(parts);
 
     return {
@@ -4536,7 +4582,7 @@ function getSelectionAttributeLabel(layerId, config, attributeName) {
 function getFeatureLookupKey(properties) {
     if (!properties) return null;
 
-    const candidateFields = ['ADM2_NAME', 'adm2_name', 'NAME_2', 'NAME_1', 'NAME_3', 'name', 'Name'];
+    const candidateFields = ['ADM3_NAME', 'adm3_name', 'ADM2_NAME', 'adm2_name', 'NAME_2', 'NAME_1', 'NAME_3', 'name', 'Name'];
     for (const field of candidateFields) {
         if (properties[field] !== undefined && properties[field] !== null) {
             const normalized = String(properties[field]).trim().toLowerCase();
@@ -4591,9 +4637,7 @@ async function getSVPillarBreakdown(properties, layers) {
         const lookup = await getSVLayerLookup(pillar.layerId, layers);
         const matchedProps = lookup?.get(featureKey);
         const pillarConfig = layerConfig[pillar.layerId];
-        const attributeKey = pillar.layerId === 'svAdmin3Layer'
-            ? (pillarConfig?.svAttribute || pillar.attribute)
-            : pillar.attribute;
+        const attributeKey = pillarConfig?.svAttribute || pillar.attribute;
         const rawValue = matchedProps?.[attributeKey];
         const value = typeof rawValue === 'number' ? rawValue : Number(rawValue);
         pillars.push({
