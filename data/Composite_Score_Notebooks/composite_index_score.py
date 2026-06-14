@@ -14,8 +14,18 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-DIST_COLS = ("ADM2_Name", "ADM3_Name")
+DIST_COLS = ("ADM2_Name", "ADM3_Name", "ADM1_Name")
 OUTPUT_MARKERS = ("_Scored.csv", "_Weights.csv", "_Kendall_Matrix.csv")
+
+# Indicators where higher raw values mean lower vulnerability (invert after min-max).
+INVERTED_INDICATORS = frozenset({
+    "Nighttime light radiance",
+    "Nightlight Intensity",
+})
+
+
+def indicator_is_inverted(col: str) -> bool:
+    return col in INVERTED_INDICATORS
 
 
 def to_numeric_binary_aware(series: pd.Series) -> pd.Series:
@@ -34,6 +44,11 @@ def minmax01(series: pd.Series) -> pd.Series:
     if not np.isfinite(smin) or not np.isfinite(smax) or smax == smin:
         return pd.Series(np.zeros(len(s)), index=series.index)
     return (s - smin) / (smax - smin)
+
+
+def normalize_indicator(series: pd.Series, invert: bool = False) -> pd.Series:
+    norm = minmax01(series)
+    return 1.0 - norm if invert else norm
 
 
 def safe_kendall(x: pd.Series, y: pd.Series) -> float:
@@ -79,7 +94,7 @@ def process_file(input_path: Path) -> None:
     df[indicator_cols] = df[indicator_cols].apply(lambda s: s.fillna(s.median()))
 
     for col in indicator_cols:
-        df[f"norm_{col}"] = minmax01(df[col])
+        df[f"norm_{col}"] = normalize_indicator(df[col], invert=indicator_is_inverted(col))
 
     kendall_matrix = pd.DataFrame(index=indicator_cols, columns=indicator_cols, dtype=float)
     for c1 in indicator_cols:

@@ -433,7 +433,7 @@ export function generateAdminLabels(layer, level, labelLayer) {
 function getLabelName(properties, level) {
     if (!properties) return null;
     const candidates = level === 'adm1'
-        ? ['NAME_1', 'ADM1_NAME', 'name', 'Name']
+        ? ['NAME_1', 'ADM1_NAME', 'adm1_name', 'name', 'Name']
         : ['ADM2_NAME', 'adm2_name', 'NAME_2', 'Cercle/District', 'District', 'name', 'Name'];
 
     for (const field of candidates) {

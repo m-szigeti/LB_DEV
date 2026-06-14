@@ -527,7 +527,10 @@ function getPrimaryVulnerabilityField(properties, layerType = '') {
         const activeResolution =
             typeof document !== 'undefined' &&
             document.querySelector('.sv-admin-resolution-btn.active')?.dataset?.resolution;
-        const subindicatorActive = activeResolution === 'cadastre' || activeResolution === 'district';
+        const subindicatorActive =
+            activeResolution === 'cadastre' ||
+            activeResolution === 'district' ||
+            activeResolution === 'governorate';
         const key = getPrimarySubindicator('svAdmin3Layer');
         if (subindicatorActive && key && properties[key] !== undefined && properties[key] !== null && properties[key] !== '') {
             return key;
@@ -684,8 +687,14 @@ function getPrimaryFieldDisplayLabel(fieldName, layerType) {
         'Unemployment rate': 'Unemployment rate',
         'Nighttime light radiance': 'Nighttime light radiance',
         'Negative coping tendency': 'Negative coping tendency',
+        'Negative Coping Tendency': 'Negative coping tendency',
         'Food insecurity level (IPC)': 'Food insecurity level (IPC)',
         HDS: 'HDS',
+        'Household Deprivation Score': 'Household deprivation score',
+        'Poverty Level (Relative Vulnerability - AMAAN)':
+            'Poverty level (relative vulnerability — AMAAN)',
+        'Poverty Level (Internal Vulnerability - AMAAN)':
+            'Poverty level (internal vulnerability — AMAAN)',
         'Inter-sectarian and inter-communal conflict incidents':
             'Inter-sectarian and inter-communal conflict incidents',
         'Number of violent incidents': 'Number of violent incidents',
