@@ -517,9 +517,9 @@ const SV_RESOLUTION_CONFIG = {
             thinBoundaries: false
         },
         svAdmin5Layer: {
-            url: 'data/NEW_ADM2_DEMOGRAPHIC_TENSION_AND_STRESS_SCORE.geojson',
+            url: 'data/NEW_ADM2_DIS%20Theme%202%20-%20Demographic%20Tension%20Stress%20_June_15.geojson',
             available: true,
-            svAttribute: 'composite_score',
+            svAttribute: 'Demographic Factor',
             thinBoundaries: false
         }
     },
@@ -548,7 +548,12 @@ const SV_RESOLUTION_CONFIG = {
             svAttribute: 'composite_score',
             thinBoundaries: true
         },
-        svAdmin4Layer: { url: 'data/service_stress_infra_vul_adm3.geojson', available: true, svAttribute: 'composite_score', thinBoundaries: true },
+        svAdmin4Layer: {
+            url: 'data/NEW_ADM3_CAD%20Theme%204%20-%20Service%20and%20Infrastructure%20Stress_June_15.geojson',
+            available: true,
+            svAttribute: 'composite_score',
+            thinBoundaries: true
+        },
         svAdmin5Layer: {
             url: 'data/ADM3_T5_Demgraphic_Tension_Stress_June_11.geojson',
             available: true,
@@ -563,9 +568,9 @@ const SV_RESOLUTION_CONFIG = {
             svAttribute: 'composite_score_mean'
         },
         svAdmin1Layer: {
-            url: 'data/ADM1_Displacement%20Pressure.geojson',
+            url: 'data/ADM1_Displacement_Pressure_June_14.geojson',
             available: true,
-            svAttribute: 'Displacement Pressure Score'
+            svAttribute: 'Displacement Ratio'
         },
         svAdmin2Layer: {
             url: 'data/ADM1_GOV_Theme_3_Socioeconomic_Vulnerability_June_14.geojson',
@@ -810,11 +815,34 @@ const SERVICE_SUBINDICATOR_OPTIONS_DISTRICT = [
 
 const SERVICE_SUBINDICATOR_OPTIONS_GOVERNORATE = SERVICE_SUBINDICATOR_OPTIONS_DISTRICT;
 
+/** Property keys from NEW_ADM3_CAD Theme 4 Service and Infrastructure Stress (cadastre). */
+const SERVICE_SUBINDICATOR_OPTIONS_CADASTRE = [
+    { value: 'Service-related tension incidents', label: 'Service-related tension incidents' },
+    {
+        value: 'Perceptions on quality of services (water, electricity, waste removal)',
+        label: 'Perceptions on quality of services (water, electricity, waste removal)'
+    },
+    { value: 'Worry about access to healthcare services', label: 'Worry about access to healthcare services' },
+    { value: 'Worry about access to safe drinking water', label: 'Worry about access to safe drinking water' },
+    {
+        value: 'Competition for services believed to be driving tensions',
+        label: 'Competition for services believed to be driving tensions'
+    },
+    {
+        value: 'Additional solid waste generation following displacement',
+        label: 'Additional solid waste generation following displacement'
+    }
+];
+
 const SERVICE_ID_FIELDS = new Set([
     'adm1_name',
     'adm1_name1',
     'adm2_name',
     'adm2_name1',
+    'adm3_name',
+    'adm3_name1',
+    'adm3_pcode',
+    'ADM3_INT',
     'ADM2_NAME',
     'ADM3_NAME',
     'ACS_CODE',
@@ -983,18 +1011,23 @@ function getEconomicSubindicatorOptions(resolution = getActiveAdminResolution())
 }
 
 function getServiceFieldLabel(fieldKey) {
+    const cadastreOpt = SERVICE_SUBINDICATOR_OPTIONS_CADASTRE.find(o => o.value === fieldKey);
+    if (cadastreOpt) return cadastreOpt.label;
     const opt = SERVICE_SUBINDICATOR_OPTIONS_DISTRICT.find(o => o.value === fieldKey);
     if (opt) return opt.label;
     const legacyLabels = {
         'Perceptions on quality of services: Water': 'Quality of services: Water',
         'Perceptions on quality of services: Electricity': 'Quality of services: Electricity',
-        'Perceptions on quality of services: Waste removal': 'Quality of services: Waste removal'
+        'Perceptions on quality of services: Waste removal': 'Quality of services: Waste removal',
+        'Service-related incidents': 'Service-related incidents',
+        'Services as a tension driver': 'Services as a tension driver',
+        'Solid waste pressure (displacement)': 'Solid waste pressure (displacement)'
     };
     return legacyLabels[fieldKey] || fieldKey;
 }
 
 function supportsServiceSubindicators(resolution = getActiveAdminResolution()) {
-    return resolution === 'district' || resolution === 'governorate';
+    return resolution === 'district' || resolution === 'governorate' || resolution === 'cadastre';
 }
 
 function getServiceSubindicatorOptions(resolution = getActiveAdminResolution()) {
@@ -1005,7 +1038,13 @@ function getServiceSubindicatorOptions(resolution = getActiveAdminResolution()) 
     if (sampleProps) {
         return Object.keys(sampleProps)
             .filter(key => !SERVICE_ID_FIELDS.has(key) && key !== compositeAttr)
-            .map(key => ({ value: key, label: getServiceFieldLabel(key) }));
+            .map(key => ({
+                value: key,
+                label: resolution === 'cadastre' ? key : getServiceFieldLabel(key)
+            }));
+    }
+    if (resolution === 'cadastre') {
+        return SERVICE_SUBINDICATOR_OPTIONS_CADASTRE;
     }
     return resolution === 'governorate'
         ? SERVICE_SUBINDICATOR_OPTIONS_GOVERNORATE
@@ -1800,7 +1839,7 @@ function setupSVRadioControls(map, layers, colorScales, addLegendEntry, removeLe
 }
 
 function getDefaultServicePriorityOnly(resolution = getActiveAdminResolution()) {
-    return resolution === 'cadastre';
+    return false;
 }
 
 function syncSVServicePriorityToggleState(resolution = getActiveAdminResolution()) {
@@ -2233,6 +2272,9 @@ async function loadSVLayer(layerId, map, layers, colorScales, addLegendEntry, re
             refreshSVDisplacementLayerCircles(layerId, layers, config, map);
         } else if (config.renderMode === 'service-symbol') {
             populateServiceSubindicatorSelect();
+            if (typeof window.syncSVSubindicatorPanelsVisibility === 'function') {
+                window.syncSVSubindicatorPanelsVisibility();
+            }
             applySVLayerOpacity(layerId, layers, opacity, map, addLegendEntry);
         } else if (config.renderMode === 'stripe-pattern' || config.renderMode === 'service-pattern') {
             applySVLayerOpacity(layerId, layers, opacity, map, addLegendEntry);
