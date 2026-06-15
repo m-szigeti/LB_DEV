@@ -506,7 +506,7 @@ const SV_RESOLUTION_CONFIG = {
             svAttribute: 'composite_score'
         },
         svAdmin3Layer: {
-            url: 'data/NEW_ADM2_TENSION_AND_CONFLICT_RISK_SCORE.geojson',
+            url: 'data/NEW_ADM2_DIS%20Theme%202%20-%20Tensions%20and%20Conflict%20Risk%20_June_15.geojson',
             available: true,
             svAttribute: 'composite_score'
         },
