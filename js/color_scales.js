@@ -160,3 +160,52 @@ export const colorRamps = {
         colors: ['#d73027', '#fc8d59', '#ffffbf', '#91bfdb', '#4575b4']
     }
 };
+
+/**
+ * Blend a hex color over a background at the same effective opacity used on map fills.
+ * Matches how Leaflet renders fillColor with fillOpacity over a light basemap.
+ */
+export function blendHexOverBackground(hex, opacity, background = '#ffffff') {
+    const parseHex = (value) => {
+        if (typeof value !== 'string') return null;
+        const raw = value.trim().replace('#', '');
+        if (raw.length === 3) {
+            return [
+                parseInt(raw[0] + raw[0], 16),
+                parseInt(raw[1] + raw[1], 16),
+                parseInt(raw[2] + raw[2], 16)
+            ];
+        }
+        if (raw.length === 6) {
+            return [
+                parseInt(raw.slice(0, 2), 16),
+                parseInt(raw.slice(2, 4), 16),
+                parseInt(raw.slice(4, 6), 16)
+            ];
+        }
+        return null;
+    };
+
+    const fg = parseHex(hex);
+    const bg = parseHex(background);
+    if (!fg || !bg || !Number.isFinite(fg[0]) || !Number.isFinite(bg[0])) {
+        return hex;
+    }
+
+    const alpha = Math.max(0, Math.min(1, Number(opacity)));
+    const mix = (channel, bgChannel) =>
+        Math.round(channel * alpha + bgChannel * (1 - alpha));
+    const r = mix(fg[0], bg[0]);
+    const g = mix(fg[1], bg[1]);
+    const b = mix(fg[2], bg[2]);
+    return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+}
+
+/**
+ * Apply map fill opacity to legend swatch colors so they match on-screen choropleth fills.
+ */
+export function legendColorsForMapOpacity(colors, opacity, background = '#ffffff') {
+    if (!Array.isArray(colors) || !colors.length) return colors;
+    if (!Number.isFinite(Number(opacity)) || opacity >= 0.999) return colors;
+    return colors.map(color => blendHexOverBackground(color, opacity, background));
+}

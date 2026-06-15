@@ -2,20 +2,88 @@
 Compute composite index scores for every source CSV in the working directory.
 
 Expected columns:
-  - ADM2_Name or ADM3_Name (district / cadastre id)
-  - ACS_CODE (optional, kept in output)
-  - all other columns treated as indicators
+  - One admin id column (ADM1/2/3_Name, ACS_CODE, etc.) for labelling output
+  - Optional additional metadata columns (kept in output, excluded from scoring)
+  - All remaining columns treated as vulnerability indicators
 
 Writes per input file <name>_Scored.csv, <name>_Weights.csv, <name>_Kendall_Matrix.csv
 """
 
+import re
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 
-DIST_COLS = ("ADM2_Name", "ADM3_Name", "ADM1_Name")
 OUTPUT_MARKERS = ("_Scored.csv", "_Weights.csv", "_Kendall_Matrix.csv")
+
+# Preferred primary unit label for output (first match wins).
+DIST_COL_PRIORITY = (
+    ("ADM3_Name", "ADM3_NAME", "adm3_name", "adm3_name1"),
+    ("ADM2_Name", "ADM2_NAME", "adm2_name", "adm2_name1"),
+    ("ADM1_Name", "ADM1_NAME", "adm1_name", "adm1_name1"),
+    ("ACS_CODE", "ACS Code"),
+)
+
+# Never used as composite index inputs (matched case-insensitively).
+EXCLUDED_INDEX_COLUMN_NAMES = frozenset(
+    name.casefold()
+    for name in (
+        "ADM1_Name",
+        "ADM2_Name",
+        "ADM3_Name",
+        "ADM1_NAME",
+        "ADM2_NAME",
+        "ADM3_NAME",
+        "DISTRICT",
+        "district",
+        "adm1_pcode",
+        "adm2_pcode",
+        "adm3_pcode",
+        "adm1_name",
+        "adm2_name",
+        "adm3_name",
+    )
+)
+
+# Other metadata columns (case-insensitive).
+METADATA_COLUMNS = frozenset({
+    "acs_code", "acs code", "acs_name",
+    "cad_code", "cad_name",
+    "code", "code_new", "code_min", "code_max",
+    "adm0_name", "adm0_pcode",
+    "adm1_name1", "adm1_name2", "adm1_name3",
+    "adm1_name_max", "adm2_name_max", "adm3_name_max",
+    "adm2_name1", "adm2_name2", "adm2_name3",
+    "adm3_name1", "adm3_name2", "adm3_name3",
+    "adm3_int",
+    "governorate_ai", "district_ai",
+    "m_ref_name_n", "k_ref_name", "c_ref_name", "c_ref_ar",
+    "mohafaza_1_max",
+    "longitude", "latitude",
+    "rank", "composite_score", "composite_score_mean",
+    "eviction date",
+}) | EXCLUDED_INDEX_COLUMN_NAMES
+
+# Pattern-based metadata detection (admin ids, codes, join keys, prior outputs).
+METADATA_PATTERNS = tuple(
+    re.compile(p, re.IGNORECASE)
+    for p in (
+        r"^adm[123]_(name|pcode)(\d|_max)?$",  # adm1_name, ADM2_PCODE, adm3_name1, ...
+        r"^adm\d+_",                            # other admin fields (adm1_name_max, ...)
+        r"^acs_",                               # ACS_CODE, ACS_NAME
+        r"^cad_",                               # CAD_CODE, CAD_NAME
+        r"^district$",                          # DISTRICT, district
+        r"_pcode$",
+        r"_join_key$",
+        r"_ref_",
+        r"^governorate",
+        r"^district_ai$",
+        r"^norm_",
+        r"^weight_",
+        r"^weighted_",
+    )
+)
 
 # Indicators where higher raw values mean lower vulnerability (invert after min-max).
 INVERTED_INDICATORS = frozenset({
@@ -62,17 +130,39 @@ def safe_kendall(x: pd.Series, y: pd.Series) -> float:
     return float(pd.Series(x_[mask]).corr(pd.Series(y_[mask]), method="kendall"))
 
 
+def is_metadata_column(col: str) -> bool:
+    name = col.strip()
+    if not name:
+        return True
+    folded = name.casefold()
+    if folded in EXCLUDED_INDEX_COLUMN_NAMES:
+        return True
+    if folded in METADATA_COLUMNS:
+        return True
+    return any(pattern.search(name) for pattern in METADATA_PATTERNS)
+
+
+def pick_dist_column(columns: list[str]) -> str:
+    column_set = set(columns)
+    for variants in DIST_COL_PRIORITY:
+        for variant in variants:
+            if variant in column_set:
+                return variant
+    raise ValueError(
+        "No supported unit id column found. Expected one of: "
+        + ", ".join(v for group in DIST_COL_PRIORITY for v in group)
+    )
+
+
 def detect_columns(df: pd.DataFrame) -> tuple[str, list[str], list[str]]:
-    dist_cols = [c for c in DIST_COLS if c in df.columns]
-    if len(dist_cols) != 1:
-        raise ValueError(f"Expected exactly one of {DIST_COLS}, found: {dist_cols or 'none'}")
-    col_dist = dist_cols[0]
-    keep_id_cols = [col_dist]
-    if "ACS_CODE" in df.columns:
-        keep_id_cols.append("ACS_CODE")
-    indicator_cols = [c for c in df.columns if c not in keep_id_cols]
+    col_dist = pick_dist_column(list(df.columns))
+    id_cols = [c for c in df.columns if is_metadata_column(c)]
+    if col_dist not in id_cols:
+        id_cols.insert(0, col_dist)
+    keep_id_cols = [col_dist] + [c for c in id_cols if c != col_dist]
+    indicator_cols = [c for c in df.columns if c not in id_cols]
     if not indicator_cols:
-        raise ValueError("No indicator columns found after excluding id columns")
+        raise ValueError("No indicator columns found after excluding metadata/id columns")
     return col_dist, keep_id_cols, indicator_cols
 
 

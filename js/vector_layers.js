@@ -1,4 +1,6 @@
 // vector_layers.js - Functions for handling vector and point data
+import { legendColorsForMapOpacity } from './color_scales.js';
+
 export { getColorFromRamp, formatValue, updateVectorLegend };
 
 /** Parcels with ACS_CODE 0 are outside the cadastre linkage — render as neutral no-data. */
@@ -72,7 +74,7 @@ export function updatePointLayerStyle(layer, property, colorRamp, opacity = 1, u
         
         // Update legend if function provided
         if (typeof updateLegend === 'function') {
-            updateVectorLegend(layer, property, colorRamp, updateLegend);
+            updateVectorLegend(layer, property, colorRamp, updateLegend, null, opacity);
         }
     } catch (err) {
         console.error('Error updating point layer style:', err);
@@ -189,7 +191,7 @@ export function updateVectorLayerStyle(layer, property, colorRamp, opacity = 1, 
             // Keep legend in sync even when style/tooltip signatures didn't change.
             // This covers cases where legend was removed on toggle-off and the layer object is reused.
             if (typeof updateLegend === 'function') {
-                updateVectorLegend(layer, property, colorRamp, updateLegend, colorSpec);
+                updateVectorLegend(layer, property, colorRamp, updateLegend, colorSpec, opacity);
             }
         });
     } catch (err) {
@@ -388,17 +390,20 @@ export function formatClassLegendRanges(breaks) {
 /**
  * Update the legend for a vector layer based on attribute and color ramp
  */
-function appendAcsNoDataLegend(colorScheme, labels, data) {
+function appendAcsNoDataLegend(colorScheme, labels, data, opacity = 1) {
     if (!layerHasAcsCodeNoData(data)) {
         return { colorScheme, labels };
     }
     return {
-        colorScheme: [...colorScheme, ACS_CODE_NO_DATA_COLOR],
+        colorScheme: [
+            ...colorScheme,
+            legendColorsForMapOpacity([ACS_CODE_NO_DATA_COLOR], opacity)[0]
+        ],
         labels: [...labels, ACS_CODE_NO_DATA_LEGEND_LABEL]
     };
 }
 
-function updateVectorLegend(layer, property, colorRamp, updateLegend, colorSpec = null) {
+function updateVectorLegend(layer, property, colorRamp, updateLegend, colorSpec = null, opacity = 1) {
     const raw = layer.layerData?.raw;
     const spec = colorSpec || buildColorSpec(raw, property, colorRamp);
     if (!spec || !spec.hasValues) {
@@ -410,9 +415,10 @@ function updateVectorLegend(layer, property, colorRamp, updateLegend, colorSpec 
 
     if (spec.mode === 'categorical') {
         const legend = appendAcsNoDataLegend(
-            spec.colors,
+            legendColorsForMapOpacity(spec.colors, opacity),
             spec.categories.map(v => String(formatValue(v))),
-            raw
+            raw,
+            opacity
         );
         updateLegend(property, legend.colorScheme, '', legend.labels);
         return;
@@ -420,9 +426,10 @@ function updateVectorLegend(layer, property, colorRamp, updateLegend, colorSpec 
 
     const numClasses = colorRamp.colors.length;
     const legend = appendAcsNoDataLegend(
-        colorRamp.colors,
+        legendColorsForMapOpacity(colorRamp.colors, opacity),
         formatClassLegendRanges(spec.breaks).slice(0, numClasses),
-        raw
+        raw,
+        opacity
     );
     updateLegend(property, legend.colorScheme, '', legend.labels);
 }

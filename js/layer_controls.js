@@ -15,6 +15,7 @@ import { loadVectorLayer,
     formatClassLegendRanges } from './vector_layers.js';
 import { loadTiff } from './zoom-adaptive-tiff-loader.js';
 import { setupColorRampSelector, getColorRamp } from './color_ramp_selector.js';
+import { legendColorsForMapOpacity } from './color_scales.js';
 import { generateAdminLabels } from './admin_labels.js';
 import { addInfoPopupHandler, hideInfoPopup } from './info_popup.js';
 import {
@@ -79,7 +80,7 @@ const layerConfig = {
     svOverallTensionLayer: {
         fixedColorRamp: 'yellowOrangeRed3',
         type: 'sv-vector',
-        url: 'data/ADM3_OVERALL_VUL_JUNE_04.geojson',
+        url: 'data/CAD_OVERALL_VUL_JUNE_16.geojson',
         legendName: 'Overall Vulnerability Index',
         style: {
             color: '#2b83ba',
@@ -525,7 +526,7 @@ const SV_RESOLUTION_CONFIG = {
     },
     cadastre: {
         svOverallTensionLayer: {
-            url: 'data/ADM3_OVERALL_VUL_JUNE_04.geojson',
+            url: 'data/CAD_OVERALL_VUL_JUNE_16.geojson',
             available: true,
             svAttribute: 'composite_score',
             thinBoundaries: true
@@ -537,13 +538,13 @@ const SV_RESOLUTION_CONFIG = {
             thinBoundaries: true
         },
         svAdmin2Layer: {
-            url: 'data/ADM3_CAD_Theme_3_Socioeconomic_Vulnerability_June_14.geojson',
+            url: 'data/CAD%20Theme%203%20-%20Socioeconomic%20Vulnerability%20June%2016.geojson',
             available: true,
             svAttribute: 'composite_score',
             thinBoundaries: true
         },
         svAdmin3Layer: {
-            url: 'data/NEW_ADM3_CAD%20Theme%202%20-%20Tensions%20and%20Conflict%20Risk_June_15.geojson',
+            url: 'data/CAD%20Theme%202%20-%20Tensions%20and%20Conflict%20Risk%20June%2016.geojson',
             available: true,
             svAttribute: 'composite_score',
             thinBoundaries: true
@@ -694,7 +695,7 @@ const POP_RESOLUTION_CONFIG = {
 
 const ECONOMIC_SCORE_FIELD = 'composite_score';
 
-/** Property keys from ADM3_CAD_Theme_3_Socioeconomic_Vulnerability_June_14.geojson. */
+/** Property keys from CAD Theme 3 - Socioeconomic Vulnerability June 16.geojson (cadastre). */
 const ECONOMIC_SUBINDICATOR_OPTIONS_CADASTRE = [
     { value: 'Nighttime light radiance', label: 'Nighttime light radiance' },
     { value: 'Household Deprivation Score', label: 'Household deprivation score' },
@@ -1420,11 +1421,11 @@ function getChoroplethLegendLabels(layerId, labels) {
     return labels;
 }
 
-function buildOverallVulnerabilityLegendEntry(config, colorScheme, rawGeoJson) {
-    const scheme = [...(colorScheme || [])];
+function buildOverallVulnerabilityLegendEntry(config, colorScheme, rawGeoJson, opacity = 1) {
+    const scheme = legendColorsForMapOpacity(colorScheme || [], opacity);
     const labels = [...OVERALL_VULNERABILITY_LEGEND_LABELS];
     if (layerHasAcsCodeNoData(rawGeoJson)) {
-        scheme.push(ACS_CODE_NO_DATA_COLOR);
+        scheme.push(legendColorsForMapOpacity([ACS_CODE_NO_DATA_COLOR], opacity)[0]);
         labels.push(ACS_CODE_NO_DATA_LEGEND_LABEL);
     }
     return {
@@ -1436,11 +1437,11 @@ function buildOverallVulnerabilityLegendEntry(config, colorScheme, rawGeoJson) {
     };
 }
 
-function pushOverallVulnerabilityLegend(layerId, config, colorScheme, addLegendEntry, rawGeoJson) {
+function pushOverallVulnerabilityLegend(layerId, config, colorScheme, addLegendEntry, rawGeoJson, opacity = 1) {
     if (!addLegendEntry || layerId !== 'svOverallTensionLayer') {
         return;
     }
-    addLegendEntry(layerId, buildOverallVulnerabilityLegendEntry(config, colorScheme, rawGeoJson));
+    addLegendEntry(layerId, buildOverallVulnerabilityLegendEntry(config, colorScheme, rawGeoJson, opacity));
 }
 
 function refreshSVPeaceCadastreChoropleth(map, layers, addLegendEntry) {
@@ -2294,7 +2295,14 @@ async function loadSVLayer(layerId, map, layers, colorScales, addLegendEntry, re
                 const rawGeoJson = layers.vector[layerId]?.layerData?.raw;
                 const updateLegendForLayer = (layerName, colorScheme, description, labels) => {
                     if (layerId === 'svOverallTensionLayer') {
-                        pushOverallVulnerabilityLegend(layerId, config, colorRamp.colors, addLegendEntry, rawGeoJson);
+                        pushOverallVulnerabilityLegend(
+                            layerId,
+                            config,
+                            colorRamp.colors,
+                            addLegendEntry,
+                            rawGeoJson,
+                            opacity
+                        );
                         return;
                     }
                     addLegendEntry(layerId, {
@@ -3215,7 +3223,14 @@ function setupSVColorRampSelector(map, layers, addLegendEntry, updateLegend) {
             const rawGeoJson = layers.vector[layerId]?.layerData?.raw;
             const updateLegendForLayer = (layerName, colorScheme, description, labels) => {
                 if (layerId === 'svOverallTensionLayer') {
-                    pushOverallVulnerabilityLegend(layerId, config, fixedRamp.colors, addLegendEntry, rawGeoJson);
+                    pushOverallVulnerabilityLegend(
+                        layerId,
+                        config,
+                        fixedRamp.colors,
+                        addLegendEntry,
+                        rawGeoJson,
+                        opacity
+                    );
                     return;
                 }
                 addLegendEntry(layerId, {
