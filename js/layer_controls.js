@@ -501,7 +501,7 @@ const SV_RESOLUTION_CONFIG = {
             svAttribute: 'Displacement Ratio'
         },
         svAdmin2Layer: {
-            url: 'data/NEW_ADM2_SOCIO_ECONOMIC_VULNERABILITY_SCORE.geojson',
+            url: 'data/NEW_ADM2_DIS%20Theme%203%20-%20Socioeconomic%20Vulnerability%20_June_14.geojson',
             available: true,
             svAttribute: 'composite_score'
         },
@@ -511,7 +511,7 @@ const SV_RESOLUTION_CONFIG = {
             svAttribute: 'composite_score'
         },
         svAdmin4Layer: {
-            url: 'data/NEW_ADM2_SERVICE_AND_INFRASTRUCTURE_VULNERABILITY_SCORE.geojson',
+            url: 'data/NEW_ADM2_DIS%20Theme%204%20-%20Service%20and%20Infrastructure%20Vulnerability%20_June_14.geojson',
             available: true,
             svAttribute: 'composite_score',
             thinBoundaries: false
@@ -537,7 +537,7 @@ const SV_RESOLUTION_CONFIG = {
             thinBoundaries: true
         },
         svAdmin2Layer: {
-            url: 'data/ADM3_ECONOMIC_VUL.geojson',
+            url: 'data/ADM3_CAD_Theme_3_Socioeconomic_Vulnerability_June_14.geojson',
             available: true,
             svAttribute: 'composite_score',
             thinBoundaries: true
@@ -572,7 +572,11 @@ const SV_RESOLUTION_CONFIG = {
             available: true,
             svAttribute: 'composite_score'
         },
-        svAdmin4Layer: { url: null, available: false, svAttribute: null },
+        svAdmin4Layer: {
+            url: 'data/NEW_ADM1_DIS%20Theme%204%20-%20Service%20and%20Infrastructure%20Vulnerability%20_June_14.geojson',
+            available: true,
+            svAttribute: 'composite_score'
+        },
         svAdmin5Layer: {
             url: 'data/ADM1_Demographic_Shock_Factor.geojson',
             available: true,
@@ -680,23 +684,40 @@ const POP_RESOLUTION_CONFIG = {
 
 const ECONOMIC_SCORE_FIELD = 'composite_score';
 
-/** Property keys from ADM1/ADM3_ECONOMIC_VUL.geojson (must match GeoJSON properties). */
+/** Property keys from ADM3_CAD_Theme_3_Socioeconomic_Vulnerability_June_14.geojson. */
 const ECONOMIC_SUBINDICATOR_OPTIONS_CADASTRE = [
-    { value: 'Unemployment Rate', label: 'Unemployment rate' },
-    { value: 'Nightlight Intensity', label: 'Nightlight intensity' },
-    { value: '332 Vulnerability Map', label: '332 vulnerability map' },
-    { value: 'Coping', label: 'Coping' },
-    { value: 'Population dependency ratio', label: 'Population dependency ratio' }
+    { value: 'Nighttime light radiance', label: 'Nighttime light radiance' },
+    { value: 'Household Deprivation Score', label: 'Household deprivation score' },
+    { value: 'Negative Coping Tendency', label: 'Negative coping tendency' },
+    { value: 'Unemployment rate', label: 'Unemployment rate' },
+    { value: 'Population dependency ratio', label: 'Population dependency ratio' },
+    { value: 'Food insecurity level (IPC)', label: 'Food insecurity level (IPC)' },
+    {
+        value: 'Poverty Level (Relative Vulnerability - AMAAN)',
+        label: 'Poverty level (relative vulnerability — AMAAN)'
+    },
+    {
+        value: 'Poverty Level (Internal Vulnerability - AMAAN)',
+        label: 'Poverty level (internal vulnerability — AMAAN)'
+    }
 ];
 
-/** Property keys from NEW_ADM2_SOCIO_ECONOMIC_VULNERABILITY_SCORE.geojson. */
+/** Property keys from NEW_ADM2_DIS Theme 3 Socioeconomic Vulnerability (district). */
 const ECONOMIC_SUBINDICATOR_OPTIONS_DISTRICT = [
-    { value: 'Unemployment rate', label: 'Unemployment rate' },
     { value: 'Nighttime light radiance', label: 'Nighttime light radiance' },
-    { value: 'Negative coping tendency', label: 'Negative coping tendency' },
-    { value: 'Food insecurity level (IPC)', label: 'Food insecurity level (IPC)' },
+    { value: 'Household Deprivation Score', label: 'Household deprivation score' },
+    { value: 'Negative Coping Tendency', label: 'Negative coping tendency' },
+    { value: 'Unemployment rate_max_mean', label: 'Unemployment rate' },
     { value: 'Population dependency ratio', label: 'Population dependency ratio' },
-    { value: 'HDS', label: 'HDS' }
+    { value: 'Food insecurity level (IPC)', label: 'Food insecurity level (IPC)' },
+    {
+        value: 'Poverty Level (Relative Vulnerability - AMAAN)',
+        label: 'Poverty level (relative vulnerability — AMAAN)'
+    },
+    {
+        value: 'Poverty Level (Internal Vulnerability - AMAAN)',
+        label: 'Poverty level (internal vulnerability — AMAAN)'
+    }
 ];
 
 /** Property keys from ADM1_GOV_Theme_3_Socioeconomic_Vulnerability_June_14.geojson. */
@@ -720,6 +741,11 @@ const ECONOMIC_SUBINDICATOR_OPTIONS_GOVERNORATE = [
 const ECONOMIC_ID_FIELDS = new Set([
     'adm1_name',
     'adm1_name1',
+    'adm2_name',
+    'adm2_name1',
+    'adm3_name',
+    'adm3_name1',
+    'adm3_pcode',
     'ADM1_NAME',
     'ADM2_NAME',
     'ADM2_Name',
@@ -776,18 +802,34 @@ const PEACE_ID_FIELDS = new Set([
 
 const SERVICE_SCORE_FIELD = 'composite_score';
 
-/** Property keys from NEW_ADM2_SERVICE_AND_INFRASTRUCTURE_VULNERABILITY_SCORE.geojson. */
+/** Property keys from NEW_ADM2_DIS Theme 4 Service and Infrastructure Vulnerability (district). */
 const SERVICE_SUBINDICATOR_OPTIONS_DISTRICT = [
     { value: 'Service-related incidents', label: 'Service-related incidents' },
-    { value: 'Perceptions on quality of services: Water', label: 'Quality of services: Water' },
-    { value: 'Perceptions on quality of services: Electricity', label: 'Quality of services: Electricity' },
-    { value: 'Perceptions on quality of services: Waste removal', label: 'Quality of services: Waste removal' },
+    { value: 'Perceptions on quality of services: water', label: 'Quality of services: Water' },
+    { value: 'Perceptions on quality of services: electricity', label: 'Quality of services: Electricity' },
+    { value: 'Perceptions on quality of services: waste removal', label: 'Quality of services: Waste removal' },
     { value: 'Worry about access to healthcare services', label: 'Worry about access to healthcare' },
     { value: 'Worry about access to safe drinking water', label: 'Worry about access to safe drinking water' },
     { value: 'Water availability and accessibility', label: 'Water availability and accessibility' },
     { value: 'Services as a tension driver', label: 'Services as a tension driver' },
     { value: 'Solid waste pressure (displacement)', label: 'Solid waste pressure (displacement)' }
 ];
+
+const SERVICE_SUBINDICATOR_OPTIONS_GOVERNORATE = SERVICE_SUBINDICATOR_OPTIONS_DISTRICT;
+
+const SERVICE_ID_FIELDS = new Set([
+    'adm1_name',
+    'adm1_name1',
+    'adm2_name',
+    'adm2_name1',
+    'ADM2_NAME',
+    'ADM3_NAME',
+    'ACS_CODE',
+    'ACS Code',
+    'CODE',
+    'CODE_NEW',
+    'rank'
+]);
 
 /** Cadastre Peace: field keys merged from CSV (must match GeoJSON properties + select option values). */
 const PEACE_CADASTRE_SUBINDICATOR_OPTIONS = [
@@ -824,27 +866,32 @@ function getActiveAdminResolution() {
 registerSVSubindicatorPanel('svAdmin3Layer', {
     wrapId: 'svPeaceSubindicatorsWrap',
     getOptions: () => getPeaceSubindicatorOptions(),
-    getDefaultValues: () => []
+    getDefaultValues: () => [],
+    resolveLabelForValue: value => getPeaceFieldLabel(value)
 });
 registerSVSubindicatorPanel('svAdmin1Layer', {
     wrapId: 'svDisplacementSubindicatorsWrap',
     getOptions: () => getDisplacementSubindicatorOptions(),
-    getDefaultValues: () => []
+    getDefaultValues: () => [],
+    resolveLabelForValue: value => getDisplacementFieldLabel(value)
 });
 registerSVSubindicatorPanel('svAdmin2Layer', {
     wrapId: 'svEconomicSubindicatorsWrap',
     getOptions: () => getEconomicSubindicatorOptions(),
-    getDefaultValues: () => []
+    getDefaultValues: () => [],
+    resolveLabelForValue: value => getEconomicFieldLabel(value)
 });
 registerSVSubindicatorPanel('svAdmin4Layer', {
     wrapId: 'svServiceSubindicatorsWrap',
     getOptions: () => getServiceSubindicatorOptions(),
-    getDefaultValues: () => []
+    getDefaultValues: () => [],
+    resolveLabelForValue: value => getServiceFieldLabel(value)
 });
 registerSVSubindicatorPanel('svAdmin5Layer', {
     wrapId: 'svDemographicSubindicatorsWrap',
     getOptions: () => getDemographicSubindicatorOptions(),
-    getDefaultValues: () => []
+    getDefaultValues: () => [],
+    resolveLabelForValue: value => getDemographicFieldLabel(value)
 });
 registerSVSubindicatorPanel('populationLayer', {
     wrapId: 'svPopulationSubindicatorsWrap',
@@ -928,6 +975,7 @@ function getEconomicFieldLabel(fieldKey) {
     const labels = {
         'Unemployment Rate': 'Unemployment rate',
         'Unemployment rate': 'Unemployment rate',
+        'Unemployment rate_max_mean': 'Unemployment rate',
         'Nightlight Intensity': 'Nightlight intensity',
         'Nighttime light radiance': 'Nighttime light radiance',
         '332 Vulnerability Map': '332 vulnerability map',
@@ -948,25 +996,51 @@ function getEconomicFieldLabel(fieldKey) {
 }
 
 function getEconomicSubindicatorOptions(resolution = getActiveAdminResolution()) {
+    const config = layerConfig.svAdmin2Layer;
+    const compositeAttr = config?.svAttribute || ECONOMIC_SCORE_FIELD;
+    const sampleProps = window.mapLayers?.vector?.svAdmin2Layer?.layerData?.raw?.features?.[0]?.properties;
+    if (sampleProps) {
+        return Object.keys(sampleProps)
+            .filter(key => !ECONOMIC_ID_FIELDS.has(key) && key !== compositeAttr)
+            .map(key => ({ value: key, label: getEconomicFieldLabel(key) }));
+    }
     if (resolution === 'district') {
         return ECONOMIC_SUBINDICATOR_OPTIONS_DISTRICT;
     }
     if (resolution === 'governorate') {
-        const config = layerConfig.svAdmin2Layer;
-        const compositeAttr = config?.svAttribute || ECONOMIC_SCORE_FIELD;
-        const sampleProps = window.mapLayers?.vector?.svAdmin2Layer?.layerData?.raw?.features?.[0]?.properties;
-        if (sampleProps) {
-            return Object.keys(sampleProps)
-                .filter(key => !ECONOMIC_ID_FIELDS.has(key) && key !== compositeAttr)
-                .map(key => ({ value: key, label: getEconomicFieldLabel(key) }));
-        }
         return ECONOMIC_SUBINDICATOR_OPTIONS_GOVERNORATE;
     }
     return ECONOMIC_SUBINDICATOR_OPTIONS_CADASTRE;
 }
 
+function getServiceFieldLabel(fieldKey) {
+    const opt = SERVICE_SUBINDICATOR_OPTIONS_DISTRICT.find(o => o.value === fieldKey);
+    if (opt) return opt.label;
+    const legacyLabels = {
+        'Perceptions on quality of services: Water': 'Quality of services: Water',
+        'Perceptions on quality of services: Electricity': 'Quality of services: Electricity',
+        'Perceptions on quality of services: Waste removal': 'Quality of services: Waste removal'
+    };
+    return legacyLabels[fieldKey] || fieldKey;
+}
+
+function supportsServiceSubindicators(resolution = getActiveAdminResolution()) {
+    return resolution === 'district' || resolution === 'governorate';
+}
+
 function getServiceSubindicatorOptions(resolution = getActiveAdminResolution()) {
-    return resolution === 'district' ? SERVICE_SUBINDICATOR_OPTIONS_DISTRICT : [];
+    if (!supportsServiceSubindicators(resolution)) return [];
+    const config = layerConfig.svAdmin4Layer;
+    const compositeAttr = config?.svAttribute || SERVICE_SCORE_FIELD;
+    const sampleProps = window.mapLayers?.vector?.svAdmin4Layer?.layerData?.raw?.features?.[0]?.properties;
+    if (sampleProps) {
+        return Object.keys(sampleProps)
+            .filter(key => !SERVICE_ID_FIELDS.has(key) && key !== compositeAttr)
+            .map(key => ({ value: key, label: getServiceFieldLabel(key) }));
+    }
+    return resolution === 'governorate'
+        ? SERVICE_SUBINDICATOR_OPTIONS_GOVERNORATE
+        : SERVICE_SUBINDICATOR_OPTIONS_DISTRICT;
 }
 
 function populateEconomicSubindicatorSelect(resolution = getActiveAdminResolution()) {
@@ -1517,6 +1591,13 @@ const SV_OUTLINE_PEACE_CADASTRE_OPACITY = 0.9;
 
 const SV_SERVICE_DISABLE_CLUSTERING_AT_ZOOM = 13;
 const SV_SERVICE_CADASTRE_OUTLINE_MAX_ZOOM = 12;
+const SV_SERVICE_MARKER_SIZE_DEFAULT = 16;
+const SV_SERVICE_MARKER_SIZE_AGGREGATE = 28;
+const SV_SERVICE_MARKER_SIZE_UNCLUSTERED_CADASTRE = 22;
+
+function usesServiceMarkerClustering(resolution = getActiveAdminResolution()) {
+    return resolution === 'cadastre';
+}
 
 /**
  * Setup all layer controls and their event listeners
@@ -1620,7 +1701,7 @@ function syncSVSubindicatorPanelsVisibility() {
         const peaceApplicable =
             layerId !== 'svAdmin3Layer' || supportsPeaceSubindicators(layerConfig.svAdmin3Layer);
         const serviceApplicable =
-            layerId !== 'svAdmin4Layer' || getActiveAdminResolution() === 'district';
+            layerId !== 'svAdmin4Layer' || supportsServiceSubindicators();
         const displacementApplicable =
             layerId !== 'svAdmin1Layer' || getDisplacementSubindicatorOptions().length > 0;
         const demographicApplicable =
@@ -1686,6 +1767,7 @@ function setupSVRadioControls(map, layers, colorScales, addLegendEntry, removeLe
                     clearPolygonSelection(layerId, layers);
                     map.removeLayer(layers.vector[layerId]);
                     removeLegendEntry(layerId);
+                    delete layers.vector[layerId];
                 }
                 if (window.currentInfoPanel) {
                     window.currentInfoPanel.removeLayer(layerId);
@@ -1709,6 +1791,7 @@ function setupSVRadioControls(map, layers, colorScales, addLegendEntry, removeLe
     });
 
     configureSVSubindicators({
+        isLayerActive: layerId => activeSVLayers.has(layerId),
         onChange: layerId => {
             if (layerId === 'svAdmin3Layer') {
                 refreshSVPeaceCadastreChoropleth(map, layers, addLegendEntry);
@@ -1747,9 +1830,24 @@ function setupSVRadioControls(map, layers, colorScales, addLegendEntry, removeLe
     });
 }
 
+function getDefaultServicePriorityOnly(resolution = getActiveAdminResolution()) {
+    return resolution === 'cadastre';
+}
+
+function syncSVServicePriorityToggleState(resolution = getActiveAdminResolution()) {
+    const toggle = document.getElementById(SV_SERVICE_PRIORITY_TOGGLE_ID);
+    const priorityOn = getDefaultServicePriorityOnly(resolution);
+    if (toggle) {
+        toggle.classList.toggle('active', priorityOn);
+        toggle.setAttribute('aria-pressed', priorityOn ? 'true' : 'false');
+    }
+    return priorityOn;
+}
+
 function isSVServicePriorityOnlyEnabled() {
     const toggle = document.getElementById(SV_SERVICE_PRIORITY_TOGGLE_ID);
-    return toggle ? toggle.classList.contains('active') : true;
+    if (!toggle) return getDefaultServicePriorityOnly();
+    return toggle.classList.contains('active');
 }
 
 function syncSVServicePriorityControl() {
@@ -1767,7 +1865,7 @@ function setupSVServicePriorityToggle(layers) {
     if (!toggle || toggle.dataset.initialized === 'true') return;
 
     toggle.dataset.initialized = 'true';
-    toggle.setAttribute('aria-pressed', 'true');
+    syncSVServicePriorityToggleState();
 
     toggle.addEventListener('click', () => {
         const wrap = document.getElementById('svServicePriorityWrap');
@@ -1842,6 +1940,7 @@ async function applySVResolution(resolution, map, layers, colorScales, addLegend
                 disposeSocioStripePatterns(patternCache);
                 svPatternCache.delete(layerId);
             }
+            removeSubindicatorMapExtras(map, currentLayer);
             removeSVAuxiliaryLayers(map, currentLayer);
             clearPolygonSelection(layerId, layers);
             map.removeLayer(currentLayer);
@@ -1886,6 +1985,7 @@ async function applySVResolution(resolution, map, layers, colorScales, addLegend
         toggle.disabled = !resolutionLayer.available;
     });
 
+    syncSVServicePriorityToggleState(selectedResolution);
     syncSVServicePriorityControl();
 
     const controlsContainer = document.querySelector('.social-vulnerability-btn')?.nextElementSibling?.querySelector('.layer-controls');
@@ -2140,6 +2240,8 @@ async function loadSVLayer(layerId, map, layers, colorScales, addLegendEntry, re
             applySVServicePriorityFilter(layers.vector[layerId], isSVServicePriorityOnlyEnabled());
             updateSVServiceCadastreOutlineVisibility(map, layers.vector[layerId]);
             attachSVServiceCadastreOutlineZoomSync(map, layers.vector[layerId]);
+            attachSVServiceMarkerZoomSync(map, layers.vector[layerId]);
+            updateSVServiceMarkerIconSizes(map, layers.vector[layerId]);
         } else if (config.renderMode === 'proportional-circles' && layers.vector[layerId]?._svAdminOutlineLayer) {
             layers.vector[layerId]._svAdminOutlineLayer.addTo(map);
         } else if (config.renderMode === 'sectarian-glyph' && layers.vector[layerId]?._svAdminOutlineLayer) {
@@ -2473,6 +2575,8 @@ async function loadSVServiceSymbolLayer(config) {
         .filter(value => Number.isFinite(value));
     const breaks = calculateQuantileBreaks(numericValues, SOCIO_STRIPE_CLASS_COUNT);
     const symbolColors = config.serviceSymbolColors || ['#22c55e', '#f59e0b', '#dc2626'];
+    const resolution = getActiveAdminResolution();
+    const markerSize = getSVServiceMarkerSize(null, resolution);
 
     const markerLayer = L.geoJSON({ type: 'FeatureCollection', features: pointFeatures }, {
         pointToLayer: (feature, latlng) => {
@@ -2481,13 +2585,13 @@ async function loadSVServiceSymbolLayer(config) {
             const color = symbolColors[classIndex] || symbolColors[symbolColors.length - 1] || '#dc2626';
             feature.properties = { ...(feature.properties || {}), __svServiceClassIndex: classIndex };
             return L.marker(latlng, {
-                icon: buildSVServiceMarkerIcon(color),
+                icon: buildSVServiceMarkerIcon(color, markerSize),
                 opacity: 1
             });
         }
     });
 
-    const clusterLayer = typeof L.markerClusterGroup === 'function'
+    const clusterLayer = usesServiceMarkerClustering(resolution) && typeof L.markerClusterGroup === 'function'
         ? L.markerClusterGroup({
             showCoverageOnHover: false,
             spiderfyOnMaxZoom: true,
@@ -2528,7 +2632,7 @@ async function loadSVServiceSymbolLayer(config) {
     finalLayer._svServiceMarkerLayer = markerLayer;
     finalLayer._svServiceClusterLayer = clusterLayer;
     finalLayer._svServiceAllMarkers = allMarkers;
-    finalLayer._svServicePriorityOnly = true;
+    finalLayer._svServicePriorityOnly = getDefaultServicePriorityOnly();
     finalLayer._svCadastreOutlineLayer = cadastreOutlineLayer;
     return finalLayer;
 }
@@ -2640,13 +2744,55 @@ async function loadSVSectarianGlyphLayer(config) {
     return finalLayer;
 }
 
-function buildSVServiceMarkerIcon(color) {
+function buildSVServiceMarkerIcon(color, sizePx = SV_SERVICE_MARKER_SIZE_DEFAULT) {
+    const fontSize = Math.max(10, Math.round(sizePx * 0.75));
+    const anchor = Math.round(sizePx / 2);
     return L.divIcon({
         className: 'sv-service-symbol-wrapper',
-        html: `<span style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:#ffffff;color:${color};border:1px solid rgba(17,24,39,0.35);font-weight:800;font-size:12px;line-height:1;box-shadow:0 1px 3px rgba(0,0,0,0.35);opacity:1;">!</span>`,
-        iconSize: [16, 16],
-        iconAnchor: [8, 8]
+        html: `<span style="display:inline-flex;align-items:center;justify-content:center;width:${sizePx}px;height:${sizePx}px;border-radius:50%;background:#ffffff;color:${color};border:1px solid rgba(17,24,39,0.35);font-weight:800;font-size:${fontSize}px;line-height:1;box-shadow:0 1px 3px rgba(0,0,0,0.35);opacity:1;">!</span>`,
+        iconSize: [sizePx, sizePx],
+        iconAnchor: [anchor, anchor]
     });
+}
+
+function getSVServiceMarkerSize(map, resolution = getActiveAdminResolution()) {
+    if (resolution === 'district' || resolution === 'governorate') {
+        return SV_SERVICE_MARKER_SIZE_AGGREGATE;
+    }
+    if (!map || typeof map.getZoom !== 'function') {
+        return SV_SERVICE_MARKER_SIZE_DEFAULT;
+    }
+    if (map.getZoom() >= SV_SERVICE_DISABLE_CLUSTERING_AT_ZOOM) {
+        return SV_SERVICE_MARKER_SIZE_UNCLUSTERED_CADASTRE;
+    }
+    return SV_SERVICE_MARKER_SIZE_DEFAULT;
+}
+
+function updateSVServiceMarkerIconSizes(map, layer) {
+    if (!layer?._isSVServiceSymbolLayer) return;
+    const size = getSVServiceMarkerSize(map);
+    const symbolColors = layer._svServiceSymbolMeta?.symbolColors || ['#22c55e', '#f59e0b', '#dc2626'];
+    (layer._svServiceAllMarkers || []).forEach(marker => {
+        const classIndex = Number(marker?.feature?.properties?.__svServiceClassIndex);
+        const color = symbolColors[classIndex] || symbolColors[symbolColors.length - 1] || '#dc2626';
+        if (typeof marker.setIcon === 'function') {
+            marker.setIcon(buildSVServiceMarkerIcon(color, size));
+        }
+    });
+}
+
+function attachSVServiceMarkerZoomSync(map, layer) {
+    if (!map || !layer?._isSVServiceSymbolLayer) return;
+    detachSVServiceMarkerZoomSync(map, layer);
+    const handler = () => updateSVServiceMarkerIconSizes(map, layer);
+    layer._svServiceMarkerZoomHandler = handler;
+    map.on('zoomend', handler);
+}
+
+function detachSVServiceMarkerZoomSync(map, layer) {
+    if (!map || !layer?._svServiceMarkerZoomHandler) return;
+    map.off('zoomend', layer._svServiceMarkerZoomHandler);
+    layer._svServiceMarkerZoomHandler = null;
 }
 
 function refreshSVServiceSymbolLayer(map, layers, addLegendEntry) {
@@ -2670,10 +2816,9 @@ function refreshSVServiceSymbolLayer(map, layers, addLegendEntry) {
         const classIndex = getPatternClassIndex(raw, breaks);
         const color = symbolColors[classIndex] || symbolColors[symbolColors.length - 1] || '#dc2626';
         marker.feature.properties.__svServiceClassIndex = classIndex;
-        if (typeof marker.setIcon === 'function') {
-            marker.setIcon(buildSVServiceMarkerIcon(color));
-        }
     });
+
+    updateSVServiceMarkerIconSizes(map, layer);
 
     layer._svServiceSymbolMeta = { breaks, symbolColors, svAttribute: attr };
     if (layer.layerData) {
@@ -2709,7 +2854,7 @@ function refreshSVServiceSymbolLayer(map, layers, addLegendEntry) {
         });
     }
 
-    updateSVHoverTooltips(layer);
+    updateSVHoverTooltips(layer, layerId, config);
     if (window.currentInfoPanel) {
         const opacitySlider = document.getElementById(config.opacityControl);
         const opacity = opacitySlider ? parseFloat(opacitySlider.value) : 0.6;
@@ -2828,7 +2973,9 @@ function toRgbaColor(color, alpha) {
 
 function removeSVAuxiliaryLayers(map, layer) {
     if (!map || !layer) return;
+    removeSubindicatorMapExtras(map, layer);
     detachSVServiceCadastreOutlineZoom(map, layer);
+    detachSVServiceMarkerZoomSync(map, layer);
     if (layer._svAdminOutlineLayer && map.hasLayer(layer._svAdminOutlineLayer)) map.removeLayer(layer._svAdminOutlineLayer);
     if (layer._svCadastreOutlineLayer && map.hasLayer(layer._svCadastreOutlineLayer)) map.removeLayer(layer._svCadastreOutlineLayer);
 }
@@ -2976,6 +3123,7 @@ function refreshSVDisplacementCircles(layerId, layers, config, map) {
     }
 
     syncDisplacementSubindicatorExtras(map, 'svAdmin1Layer', layers, config);
+    updateSVHoverTooltips(layer, layerId, config);
 }
 
 function detachSVDisplacementZoom(map, layer) {
@@ -3001,7 +3149,7 @@ function attachSVPatternZoomSync(map, layerId, layers, config, addLegendEntry) {
         const opacitySlider = document.getElementById(config.opacityControl);
         const opacity = opacitySlider ? parseFloat(opacitySlider.value) : 0.6;
         applySVStripePatternStyle(layerId, layer, config, opacity, map, addLegendEntry || window.addLegendEntry);
-        updateSVHoverTooltips(layer);
+        updateSVHoverTooltips(layer, layerId, config);
     };
     layer._svPatternZoomHandler = handler;
     map.on('zoomend', handler);
@@ -3328,7 +3476,7 @@ function applySVLayerOpacity(layerId, layers, opacity, map = null, addLegendEntr
         markerSub.eachLayer(marker => {
             if (typeof marker.setOpacity === 'function') marker.setOpacity(1);
         });
-        updateSVHoverTooltips(layer);
+        updateSVHoverTooltips(layer, layerId, config);
         if (window.currentInfoPanel) {
             window.currentInfoPanel.updateLayer(layerId, { opacity });
         }
@@ -3390,7 +3538,7 @@ function applySVLayerOpacity(layerId, layers, opacity, map = null, addLegendEntr
 
     if (config.renderMode === 'stripe-pattern' || config.renderMode === 'service-pattern') {
         applySVStripePatternStyle(layerId, layer, config, opacity, map, addLegendEntry);
-        updateSVHoverTooltips(layer);
+        updateSVHoverTooltips(layer, layerId, config);
         if (layerId === 'svAdmin2Layer' && map) {
             syncChoroplethSubindicatorOverlays(map, layerId, layers, config);
         }
@@ -4566,10 +4714,13 @@ function getSelectedFeatureName(properties) {
     const nameFields = [
         'ADM1_NAME',
         'adm1_name',
+        'adm1_name1',
         'ADM3_NAME',
         'adm3_name',
+        'adm3_name1',
         'ADM2_NAME',
         'adm2_name',
+        'adm2_name1',
         'Districts',
         'NAME_2',
         'District',
@@ -4588,20 +4739,83 @@ function getSelectedFeatureName(properties) {
     return 'Selected polygon';
 }
 
-function getSVHoverFeatureName(parts, layerId, config) {
-    const isCadastreView = parts?.ADM3_NAME || parts?.adm3_name || (config?.svAttribute === 'composite_score' && config?.url?.includes('cadastre'));
-    const featureName = isCadastreView
-        ? (parts?.ADM3_NAME || parts?.adm3_name || getSelectedFeatureName(parts))
-        : getSelectedFeatureName(parts);
+function getSVHoverAdminLabel(resolution = getActiveAdminResolution()) {
+    if (resolution === 'governorate') return 'Governorate name';
+    if (resolution === 'cadastre') return 'Cadastre name';
+    return 'District name';
+}
 
+function getSVHoverFeatureName(props, layerId, config) {
     return {
-        label: isCadastreView ? 'Cadastre name' : 'District name',
-        name: featureName || 'Selected polygon'
+        label: getSVHoverAdminLabel(),
+        name: getSelectedFeatureName(props) || 'Selected polygon'
     };
+}
+
+function resolveSVLayerContext(layer, layerId, config) {
+    if (layerId && config) {
+        return { layerId, config };
+    }
+    const vectorLayers = window.mapLayers?.vector;
+    if (vectorLayers && layer) {
+        for (const [id, storedLayer] of Object.entries(vectorLayers)) {
+            if (
+                storedLayer === layer ||
+                storedLayer?._svAdminOutlineLayer === layer ||
+                storedLayer?._svCadastreOutlineLayer === layer
+            ) {
+                return { layerId: id, config: layerConfig[id] };
+            }
+        }
+    }
+    return { layerId: layerId || null, config: config || null };
+}
+
+function formatSVHoverScoreValue(value) {
+    if (value === undefined || value === null || value === '') return '—';
+    if (typeof value === 'number' && Number.isFinite(value)) {
+        return value.toLocaleString(undefined, { maximumFractionDigits: 2 });
+    }
+    const num = Number(value);
+    if (Number.isFinite(num)) {
+        return num.toLocaleString(undefined, { maximumFractionDigits: 2 });
+    }
+    return String(value);
+}
+
+function buildSVHoverTooltipText(props, layerId, config) {
+    const { label, name } = getSVHoverFeatureName(props, layerId, config);
+    const lines = [`${label}: ${name}`];
+
+    if (!layerId || !config) {
+        return lines.join('<br>');
+    }
+
+    if (isAcsCodeNoData(props)) {
+        lines.push('No data');
+        return lines.join('<br>');
+    }
+
+    const attributeName = getSelectionAttributeFromConfig(config, layerId);
+    if (
+        attributeName &&
+        props[attributeName] !== undefined &&
+        props[attributeName] !== null &&
+        props[attributeName] !== ''
+    ) {
+        const attributeLabel = getSelectionAttributeLabel(layerId, config, attributeName);
+        lines.push(`${attributeLabel}: ${formatSVHoverScoreValue(props[attributeName])}`);
+    }
+
+    return lines.join('<br>');
 }
 
 function updateSVHoverTooltips(layer, layerId, config) {
     if (!layer || typeof layer.eachLayer !== 'function') return;
+
+    const context = resolveSVLayerContext(layer, layerId, config);
+    layerId = context.layerId;
+    config = context.config;
 
     const target =
         layer._svDisplacementMarkerLayer ||
@@ -4612,8 +4826,7 @@ function updateSVHoverTooltips(layer, layerId, config) {
         const props = featureLayer?.feature?.properties;
         if (!props || typeof featureLayer.bindTooltip !== 'function') return;
 
-        const { label, name } = getSVHoverFeatureName(props, layerId, config);
-        const tooltipText = `${label}: ${name}`;
+        const tooltipText = buildSVHoverTooltipText(props, layerId, config);
         if (featureLayer._svHoverTooltipText === tooltipText) return;
         featureLayer.unbindTooltip();
         featureLayer.bindTooltip(tooltipText, {
@@ -4659,6 +4872,14 @@ function getSelectionAttributeFromConfig(config, layerId = null) {
         return getEffectiveChoroplethAttribute(layerId, config);
     }
 
+    if (layerId === 'svAdmin1Layer') {
+        return getEffectiveDisplacementCircleAttribute(config);
+    }
+
+    if (layerId === 'svAdmin4Layer') {
+        return getEffectiveServiceAttribute(config);
+    }
+
     if (config.svAttribute) {
         return config.svAttribute;
     }
@@ -4688,6 +4909,15 @@ function getSelectionAttributeLabel(layerId, config, attributeName) {
         const opt = getPeaceSubindicatorOptions().find(o => o.value === attributeName);
         if (opt) return opt.label;
     }
+    if (layerId === 'svAdmin4Layer') {
+        return getServiceSubindicatorLegendTitle(attributeName, config);
+    }
+    if (layerId === 'svAdmin1Layer') {
+        const opt = getDisplacementSubindicatorOptions().find(o => o.value === attributeName);
+        if (opt) return opt.label;
+        if (attributeName === DISPLACEMENT_RATIO_FIELD) return 'Displacement ratio';
+        if (attributeName === DISPLACEMENT_SCORE_FIELD) return 'Displacement pressure score';
+    }
     if (layerId === 'populationLayer') {
         const opt = getPopulationSubindicatorOptions().find(o => o.value === attributeName);
         if (opt) return opt.label;
@@ -4698,6 +4928,9 @@ function getSelectionAttributeLabel(layerId, config, attributeName) {
 
     // For composite index layers, use the active layer name instead of raw field names.
     if (config.type === 'sv-vector' && config.svAttribute && !config.stressorLayer) {
+        if (attributeName === config.svAttribute || attributeName === 'composite_score') {
+            return getLayerDisplayName(layerId, config);
+        }
         return `${getLayerDisplayName(layerId, config)} (score)`;
     }
 

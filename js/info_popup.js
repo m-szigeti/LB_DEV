@@ -685,6 +685,7 @@ function getPrimaryFieldDisplayLabel(fieldName, layerType) {
         Coping: 'Coping',
         'Population dependency ratio': 'Population dependency ratio',
         'Unemployment rate': 'Unemployment rate',
+        'Unemployment rate_max_mean': 'Unemployment rate',
         'Nighttime light radiance': 'Nighttime light radiance',
         'Negative coping tendency': 'Negative coping tendency',
         'Negative Coping Tendency': 'Negative coping tendency',

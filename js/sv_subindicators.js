@@ -10,16 +10,19 @@ export function supportsDemographicSubindicators() {
 }
 
 const selections = new Map();
+const selectionLabels = new Map();
 const PANEL_REGISTRY = new Map();
 
 let onSelectionChange = () => {};
+let isSubindicatorLayerActive = () => true;
 
-export function configureSVSubindicators({ onChange } = {}) {
+export function configureSVSubindicators({ onChange, isLayerActive } = {}) {
     onSelectionChange = typeof onChange === 'function' ? onChange : () => {};
+    isSubindicatorLayerActive = typeof isLayerActive === 'function' ? isLayerActive : () => true;
 }
 
-export function registerSVSubindicatorPanel(layerId, { wrapId, getOptions, getDefaultValues }) {
-    PANEL_REGISTRY.set(layerId, { wrapId, getOptions, getDefaultValues });
+export function registerSVSubindicatorPanel(layerId, { wrapId, getOptions, getDefaultValues, resolveLabelForValue }) {
+    PANEL_REGISTRY.set(layerId, { wrapId, getOptions, getDefaultValues, resolveLabelForValue });
 }
 
 export function getSelectedSubindicators(layerId) {
@@ -40,6 +43,7 @@ export function getPrimarySubindicator(layerId) {
 
 export function clearSubindicatorSelection(layerId) {
     selections.delete(layerId);
+    selectionLabels.delete(layerId);
 }
 
 function escapeHtml(text) {
@@ -50,14 +54,64 @@ function escapeHtml(text) {
         .replace(/"/g, '&quot;');
 }
 
+function normalizeSubindicatorLabel(label) {
+    return String(label || '')
+        .trim()
+        .toLowerCase()
+        .replace(/\s+/g, ' ')
+        .replace(/[—–]/g, '-');
+}
+
+function resolveStoredLabel(layerId, prevValue) {
+    const stored = selectionLabels.get(layerId);
+    if (stored) return stored;
+    const resolver = PANEL_REGISTRY.get(layerId)?.resolveLabelForValue;
+    if (typeof resolver === 'function' && prevValue) {
+        return resolver(prevValue) || null;
+    }
+    return null;
+}
+
 function reconcileSelection(layerId, options) {
     const validValues = new Set(options.map(o => o.value));
     const prev = selections.get(layerId) || [];
+
     const kept = prev.filter(v => validValues.has(v));
-    if (kept.length) return [kept[0]];
+    if (kept.length) {
+        const opt = options.find(o => o.value === kept[0]);
+        if (opt) selectionLabels.set(layerId, opt.label);
+        return [kept[0]];
+    }
+
+    const labelCandidates = [];
+    const storedLabel = selectionLabels.get(layerId);
+    if (storedLabel) labelCandidates.push(storedLabel);
+    for (const prevValue of prev) {
+        const resolved = resolveStoredLabel(layerId, prevValue);
+        if (resolved && !labelCandidates.includes(resolved)) {
+            labelCandidates.push(resolved);
+        }
+    }
+
+    for (const candidateLabel of labelCandidates) {
+        const normalized = normalizeSubindicatorLabel(candidateLabel);
+        const match = options.find(o => normalizeSubindicatorLabel(o.label) === normalized);
+        if (match) {
+            selectionLabels.set(layerId, match.label);
+            return [match.value];
+        }
+    }
+
     const defaults = PANEL_REGISTRY.get(layerId)?.getDefaultValues() || [];
     const fromDefault = (Array.isArray(defaults) ? defaults : [defaults]).filter(v => validValues.has(v));
-    if (fromDefault.length) return [fromDefault[0]];
+    if (fromDefault.length) {
+        const opt = options.find(o => o.value === fromDefault[0]);
+        if (opt) selectionLabels.set(layerId, opt.label);
+        return [fromDefault[0]];
+    }
+
+    if (prev.length) return prev;
+
     return [];
 }
 
@@ -69,12 +123,19 @@ function handleChipChange(event) {
     const listHost = input.closest('.sv-subindicator-chips');
     if (!listHost) return;
 
+    const panel = PANEL_REGISTRY.get(layerId);
+    const options = panel?.getOptions?.() || [];
+
     let selected = [];
     if (input.checked) {
         listHost.querySelectorAll('.sv-subindicator-chip-input').forEach(cb => {
             if (cb !== input) cb.checked = false;
         });
         selected = [input.value];
+        const opt = options.find(o => o.value === input.value);
+        if (opt) selectionLabels.set(layerId, opt.label);
+    } else {
+        selectionLabels.delete(layerId);
     }
 
     selections.set(layerId, selected);
@@ -105,6 +166,7 @@ export function renderSVSubindicatorPanel(layerId) {
     ensureChipDelegation();
 
     const options = panel.getOptions();
+    const prevSelected = [...(selections.get(layerId) || [])];
     const selected = reconcileSelection(layerId, options);
     selections.set(layerId, selected);
 
@@ -127,6 +189,18 @@ export function renderSVSubindicatorPanel(layerId) {
             `;
         })
         .join('');
+
+    const selectionChanged =
+        selected.length !== prevSelected.length ||
+        selected.some((value, index) => value !== prevSelected[index]);
+    if (
+        selectionChanged &&
+        selected.length &&
+        selected.some(v => options.some(o => o.value === v)) &&
+        isSubindicatorLayerActive(layerId)
+    ) {
+        onSelectionChange(layerId);
+    }
 }
 
 export function renderSVSubindicatorPanels() {
