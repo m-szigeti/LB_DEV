@@ -501,7 +501,7 @@ const SV_RESOLUTION_CONFIG = {
             svAttribute: 'Displacement Ratio'
         },
         svAdmin2Layer: {
-            url: 'data/NEW_ADM2_DIS%20Theme%203%20-%20Socioeconomic%20Vulnerability%20_June_14.geojson',
+            url: 'data/NEW_ADM2_DIS%20Theme%203%20-%20Socioeconomic%20Vulnerability%20_June_14_v4.geojson',
             available: true,
             svAttribute: 'composite_score'
         },
@@ -690,24 +690,6 @@ const ECONOMIC_SUBINDICATOR_OPTIONS_CADASTRE = [
     { value: 'Household Deprivation Score', label: 'Household deprivation score' },
     { value: 'Negative Coping Tendency', label: 'Negative coping tendency' },
     { value: 'Unemployment rate', label: 'Unemployment rate' },
-    { value: 'Population dependency ratio', label: 'Population dependency ratio' },
-    { value: 'Food insecurity level (IPC)', label: 'Food insecurity level (IPC)' },
-    {
-        value: 'Poverty Level (Relative Vulnerability - AMAAN)',
-        label: 'Poverty level (relative vulnerability — AMAAN)'
-    },
-    {
-        value: 'Poverty Level (Internal Vulnerability - AMAAN)',
-        label: 'Poverty level (internal vulnerability — AMAAN)'
-    }
-];
-
-/** Property keys from NEW_ADM2_DIS Theme 3 Socioeconomic Vulnerability (district). */
-const ECONOMIC_SUBINDICATOR_OPTIONS_DISTRICT = [
-    { value: 'Nighttime light radiance', label: 'Nighttime light radiance' },
-    { value: 'Household Deprivation Score', label: 'Household deprivation score' },
-    { value: 'Negative Coping Tendency', label: 'Negative coping tendency' },
-    { value: 'Unemployment rate_max_mean', label: 'Unemployment rate' },
     { value: 'Population dependency ratio', label: 'Population dependency ratio' },
     { value: 'Food insecurity level (IPC)', label: 'Food insecurity level (IPC)' },
     {
@@ -999,13 +981,18 @@ function getEconomicSubindicatorOptions(resolution = getActiveAdminResolution())
     const config = layerConfig.svAdmin2Layer;
     const compositeAttr = config?.svAttribute || ECONOMIC_SCORE_FIELD;
     const sampleProps = window.mapLayers?.vector?.svAdmin2Layer?.layerData?.raw?.features?.[0]?.properties;
+
+    if (resolution === 'district') {
+        if (!sampleProps) return [];
+        return Object.keys(sampleProps)
+            .filter(key => !ECONOMIC_ID_FIELDS.has(key) && key !== compositeAttr)
+            .map(key => ({ value: key, label: key }));
+    }
+
     if (sampleProps) {
         return Object.keys(sampleProps)
             .filter(key => !ECONOMIC_ID_FIELDS.has(key) && key !== compositeAttr)
             .map(key => ({ value: key, label: getEconomicFieldLabel(key) }));
-    }
-    if (resolution === 'district') {
-        return ECONOMIC_SUBINDICATOR_OPTIONS_DISTRICT;
     }
     if (resolution === 'governorate') {
         return ECONOMIC_SUBINDICATOR_OPTIONS_GOVERNORATE;
