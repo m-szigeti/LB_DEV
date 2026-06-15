@@ -13,6 +13,8 @@ import pandas as pd
 
 DATA_DIR = Path(__file__).resolve().parents[1] / "data"
 OUTPUT_XLSX = DATA_DIR / "Map_Composite_Scores_By_Admin_Level.xlsx"
+OUTPUT_DISTRICT_CSV = DATA_DIR / "District_Theme_Composite_Scores.csv"
+OUTPUT_GOVERNORATE_CSV = DATA_DIR / "Governorate_Theme_Composite_Scores.csv"
 
 THEME_COLUMNS = [
     "Displacement Pressure",
@@ -281,7 +283,31 @@ def build_level_sheet(level_name: str) -> pd.DataFrame:
     return merged[ordered].sort_values(by=admin_cols, kind="stable").reset_index(drop=True)
 
 
+def build_district_theme_csv() -> pd.DataFrame:
+    """District themes 1–5 with ADM2_Name for external merges."""
+    sheet = build_level_sheet("District")
+    out = sheet.rename(columns={"ADM2_NAME": "ADM2_Name"})
+    cols = ["ADM2_Name"] + [c for c in THEME_COLUMNS if c in out.columns]
+    return out[cols]
+
+
+def build_governorate_theme_csv() -> pd.DataFrame:
+    """Governorate themes 1–5 with ADM1_Name for external merges."""
+    sheet = build_level_sheet("Governorate")
+    out = sheet.rename(columns={"ADM1_NAME": "ADM1_Name"})
+    cols = ["ADM1_Name"] + [c for c in THEME_COLUMNS if c in out.columns]
+    return out[cols]
+
+
 def main() -> None:
+    governorate_csv = build_governorate_theme_csv()
+    governorate_csv.to_csv(OUTPUT_GOVERNORATE_CSV, index=False)
+    print(f"Governorate CSV: {len(governorate_csv)} rows -> {OUTPUT_GOVERNORATE_CSV}")
+
+    district_csv = build_district_theme_csv()
+    district_csv.to_csv(OUTPUT_DISTRICT_CSV, index=False)
+    print(f"District CSV: {len(district_csv)} rows -> {OUTPUT_DISTRICT_CSV}")
+
     with pd.ExcelWriter(OUTPUT_XLSX, engine="openpyxl") as writer:
         for level_name in ("Governorate", "District", "Cadastre"):
             sheet = build_level_sheet(level_name)

@@ -492,9 +492,9 @@ const SV_BASE_LAYER_CONFIG = {
 const SV_RESOLUTION_CONFIG = {
     district: {
         svOverallTensionLayer: {
-            url: 'data/ADM2_OVERALL_VUL_JUNE_04.geojson',
+            url: 'data/DIS_OVERALL_VUL_JUNE_16.geojson',
             available: true,
-            svAttribute: 'composite_score_mean'
+            svAttribute: 'composite_score'
         },
         svAdmin1Layer: {
             url: 'data/ADM2_Displacement_Pressure_June_11.geojson',
@@ -564,9 +564,9 @@ const SV_RESOLUTION_CONFIG = {
     },
     governorate: {
         svOverallTensionLayer: {
-            url: 'data/ADM1_OVERALL_VUL_JUNE_04.geojson',
+            url: 'data/GOV_OVERALL_VUL_JUNE_16.geojson',
             available: true,
-            svAttribute: 'composite_score_mean'
+            svAttribute: 'composite_score'
         },
         svAdmin1Layer: {
             url: 'data/ADM1_Displacement_Pressure_June_14.geojson',
