@@ -542,7 +542,12 @@ const SV_RESOLUTION_CONFIG = {
             svAttribute: 'composite_score',
             thinBoundaries: true
         },
-        svAdmin3Layer: { url: 'data/TENSION_PEACE_CAD_MAY_04.geojson', available: true, svAttribute: 'composite_score', thinBoundaries: true },
+        svAdmin3Layer: {
+            url: 'data/NEW_ADM3_CAD%20Theme%202%20-%20Tensions%20and%20Conflict%20Risk_June_15.geojson',
+            available: true,
+            svAttribute: 'composite_score',
+            thinBoundaries: true
+        },
         svAdmin4Layer: { url: 'data/service_stress_infra_vul_adm3.geojson', available: true, svAttribute: 'composite_score', thinBoundaries: true },
         svAdmin5Layer: {
             url: 'data/ADM3_T5_Demgraphic_Tension_Stress_June_11.geojson',
@@ -772,9 +777,15 @@ const PEACE_GOVERNORATE_SUBINDICATOR_OPTIONS = PEACE_DISTRICT_SUBINDICATOR_OPTIO
 const PEACE_ID_FIELDS = new Set([
     'adm1_name',
     'adm1_name1',
+    'adm2_name',
+    'adm2_name1',
+    'adm3_name',
+    'adm3_name1',
+    'adm3_pcode',
     'ADM1_NAME',
     'ADM2_NAME',
     'ADM3_NAME',
+    'ADM3_INT',
     'ACS_CODE',
     'ACS Code',
     'CODE',
@@ -813,33 +824,29 @@ const SERVICE_ID_FIELDS = new Set([
     'rank'
 ]);
 
-/** Cadastre Peace: field keys merged from CSV (must match GeoJSON properties + select option values). */
-const PEACE_CADASTRE_SUBINDICATOR_OPTIONS = [
-    {
-        value: 'peace_si_intersectarian_per_1k',
-        label: 'Inter-sectarian and inter-communal conflict incidents'
-    },
-    {
-        value: 'peace_si_battle_events_count',
-        label: 'Number of violent incidents'
-    },
-    {
-        value: 'peace_si_ss_typology_non_state',
-        label: 'Number of crime incidents'
-    },
-    {
-        value: 'peace_si_fatalities_per_1k_12m',
-        label: 'Number of fatalities in tension incidents'
-    },
-    {
-        value: 'peace_si_worry_travel_hh_share',
-        label: 'Fear of traveling within Lebanon safely'
-    },
-    {
-        value: 'peace_si_unsafe_night_pct',
-        label: 'Feeling lack of safety during the night'
+function getPeaceFieldLabel(fieldKey) {
+    const opt = PEACE_DISTRICT_SUBINDICATOR_OPTIONS.find(o => o.value === fieldKey);
+    return opt ? opt.label : fieldKey;
+}
+
+function getPeaceSubindicatorOptions(resolution = getActiveAdminResolution()) {
+    const config = layerConfig.svAdmin3Layer;
+    const compositeAttr = config?.svAttribute || 'composite_score';
+    const sampleProps = window.mapLayers?.vector?.svAdmin3Layer?.layerData?.raw?.features?.[0]?.properties;
+
+    if (sampleProps) {
+        return Object.keys(sampleProps)
+            .filter(key => !PEACE_ID_FIELDS.has(key) && key !== compositeAttr)
+            .map(key => ({ value: key, label: key }));
     }
-];
+    if (resolution === 'cadastre') {
+        return [];
+    }
+    if (resolution === 'governorate') {
+        return PEACE_GOVERNORATE_SUBINDICATOR_OPTIONS;
+    }
+    return PEACE_DISTRICT_SUBINDICATOR_OPTIONS;
+}
 
 function getActiveAdminResolution() {
     return document.querySelector('.sv-admin-resolution-btn.active')?.dataset?.resolution || DEFAULT_SV_ADMIN_RESOLUTION;
@@ -926,31 +933,6 @@ function supportsPeaceSubindicators(config, resolution = getActiveAdminResolutio
     return Boolean(
         config?.thinBoundaries || resolution === 'district' || resolution === 'governorate'
     );
-}
-
-function getPeaceFieldLabel(fieldKey) {
-    const opt = PEACE_DISTRICT_SUBINDICATOR_OPTIONS.find(o => o.value === fieldKey);
-    if (opt) return opt.label;
-    const cadastreOpt = PEACE_CADASTRE_SUBINDICATOR_OPTIONS.find(o => o.value === fieldKey);
-    return cadastreOpt ? cadastreOpt.label : fieldKey;
-}
-
-function getPeaceSubindicatorOptions(resolution = getActiveAdminResolution()) {
-    if (resolution === 'cadastre') {
-        return PEACE_CADASTRE_SUBINDICATOR_OPTIONS;
-    }
-    if (resolution === 'governorate') {
-        const config = layerConfig.svAdmin3Layer;
-        const compositeAttr = config?.svAttribute || 'composite_score';
-        const sampleProps = window.mapLayers?.vector?.svAdmin3Layer?.layerData?.raw?.features?.[0]?.properties;
-        if (sampleProps) {
-            return Object.keys(sampleProps)
-                .filter(key => !PEACE_ID_FIELDS.has(key) && key !== compositeAttr)
-                .map(key => ({ value: key, label: getPeaceFieldLabel(key) }));
-        }
-        return PEACE_GOVERNORATE_SUBINDICATOR_OPTIONS;
-    }
-    return PEACE_DISTRICT_SUBINDICATOR_OPTIONS;
 }
 
 function getEconomicFieldLabel(fieldKey) {

@@ -297,7 +297,7 @@ function generateAdministrativeSection(properties) {
     return content;
 }
 
-/** Cadastre peace CSV fields merged onto GeoJSON as peace_si_* (see utils/merge_peace_subindicators_into_cadastre.py). */
+/** Legacy cadastre peace_si_* fields and canonical Theme 2 sub-indicator property names. */
 const PEACE_SUBINDICATOR_DEFS = [
     {
         key: 'peace_si_intersectarian_per_1k',
@@ -322,6 +322,24 @@ const PEACE_SUBINDICATOR_DEFS = [
     {
         key: 'peace_si_unsafe_night_pct',
         label: '% of population reporting feeling "unsafe" or "very unsafe" in their neighborhoods during the night'
+    },
+    {
+        key: 'Inter-sectarian and inter-communal conflict incidents',
+        label: 'Inter-sectarian and inter-communal conflict incidents'
+    },
+    { key: 'Number of violent incidents', label: 'Number of violent incidents' },
+    { key: 'Number of crime incidents', label: 'Number of crime incidents' },
+    {
+        key: 'Number of fatalities in tension incidents',
+        label: 'Number of fatalities in tension incidents'
+    },
+    {
+        key: 'Fear of traveling within Lebanon safely',
+        label: 'Fear of traveling within Lebanon safely'
+    },
+    {
+        key: 'Feeling lack of safety during the night',
+        label: 'Feeling lack of safety during the night'
     }
 ];
 
