@@ -907,6 +907,45 @@ function isSubindicatorCandidateKey(key, compositeAttr, extraExclude = null) {
     return true;
 }
 
+function featureHasIndicatorProperties(props) {
+    if (!props || typeof props !== 'object') return false;
+    return Object.keys(props).some(key => !isSubindicatorMetadataKey(key));
+}
+
+/** First feature with score/indicator fields (cadastre joins often leave admin-only rows at index 0). */
+function getLayerSampleProperties(layerId) {
+    const features = window.mapLayers?.vector?.[layerId]?.layerData?.raw?.features;
+    if (!Array.isArray(features) || features.length === 0) return null;
+    for (const feature of features) {
+        const props = feature?.properties;
+        if (featureHasIndicatorProperties(props)) return props;
+    }
+    return features[0]?.properties ?? null;
+}
+
+function buildSubindicatorOptionsFromProps(props, compositeAttr, idFields, labelFn = key => key) {
+    if (!props) return [];
+    return Object.keys(props)
+        .filter(key => isSubindicatorCandidateKey(key, compositeAttr, idFields))
+        .map(key => ({ value: key, label: labelFn(key) }));
+}
+
+const SV_SUBINDICATOR_LAYER_IDS = new Set([
+    'svAdmin1Layer',
+    'svAdmin2Layer',
+    'svAdmin3Layer',
+    'svAdmin4Layer',
+    'svAdmin5Layer'
+]);
+
+function refreshSVSubindicatorPanelAfterLoad(layerId) {
+    if (!SV_SUBINDICATOR_LAYER_IDS.has(layerId)) return;
+    renderSVSubindicatorPanel(layerId);
+    if (typeof window.syncSVSubindicatorPanelsVisibility === 'function') {
+        window.syncSVSubindicatorPanelsVisibility();
+    }
+}
+
 function getPeaceFieldLabel(fieldKey) {
     const opt = PEACE_DISTRICT_SUBINDICATOR_OPTIONS.find(o => o.value === fieldKey);
     return opt ? opt.label : fieldKey;
@@ -915,16 +954,12 @@ function getPeaceFieldLabel(fieldKey) {
 function getPeaceSubindicatorOptions(resolution = getActiveAdminResolution()) {
     const config = layerConfig.svAdmin3Layer;
     const compositeAttr = config?.svAttribute || 'composite_score';
-    const sampleProps = window.mapLayers?.vector?.svAdmin3Layer?.layerData?.raw?.features?.[0]?.properties;
-
-    if (sampleProps) {
-        return Object.keys(sampleProps)
-            .filter(key => isSubindicatorCandidateKey(key, compositeAttr, PEACE_ID_FIELDS))
-            .map(key => ({ value: key, label: key }));
-    }
-    if (resolution === 'cadastre') {
-        return [];
-    }
+    const fromLayer = buildSubindicatorOptionsFromProps(
+        getLayerSampleProperties('svAdmin3Layer'),
+        compositeAttr,
+        PEACE_ID_FIELDS
+    );
+    if (fromLayer.length) return fromLayer;
     if (resolution === 'governorate') {
         return PEACE_GOVERNORATE_SUBINDICATOR_OPTIONS;
     }
@@ -1026,24 +1061,21 @@ function getEconomicFieldLabel(fieldKey) {
 function getEconomicSubindicatorOptions(resolution = getActiveAdminResolution()) {
     const config = layerConfig.svAdmin2Layer;
     const compositeAttr = config?.svAttribute || ECONOMIC_SCORE_FIELD;
-    const sampleProps = window.mapLayers?.vector?.svAdmin2Layer?.layerData?.raw?.features?.[0]?.properties;
-
-    if (resolution === 'district') {
-        if (!sampleProps) return [];
-        return Object.keys(sampleProps)
-            .filter(key => isSubindicatorCandidateKey(key, compositeAttr, ECONOMIC_ID_FIELDS))
-            .map(key => ({ value: key, label: key }));
-    }
-
-    if (sampleProps) {
-        return Object.keys(sampleProps)
-            .filter(key => isSubindicatorCandidateKey(key, compositeAttr, ECONOMIC_ID_FIELDS))
-            .map(key => ({ value: key, label: getEconomicFieldLabel(key) }));
-    }
+    const labelFn = resolution === 'district' ? key => key : key => getEconomicFieldLabel(key);
+    const fromLayer = buildSubindicatorOptionsFromProps(
+        getLayerSampleProperties('svAdmin2Layer'),
+        compositeAttr,
+        ECONOMIC_ID_FIELDS,
+        labelFn
+    );
+    if (fromLayer.length) return fromLayer;
     if (resolution === 'governorate') {
         return ECONOMIC_SUBINDICATOR_OPTIONS_GOVERNORATE;
     }
-    return ECONOMIC_SUBINDICATOR_OPTIONS_CADASTRE;
+    if (resolution === 'cadastre') {
+        return ECONOMIC_SUBINDICATOR_OPTIONS_CADASTRE;
+    }
+    return [];
 }
 
 function getServiceFieldLabel(fieldKey) {
@@ -1070,15 +1102,13 @@ function getServiceSubindicatorOptions(resolution = getActiveAdminResolution()) 
     if (!supportsServiceSubindicators(resolution)) return [];
     const config = layerConfig.svAdmin4Layer;
     const compositeAttr = config?.svAttribute || SERVICE_SCORE_FIELD;
-    const sampleProps = window.mapLayers?.vector?.svAdmin4Layer?.layerData?.raw?.features?.[0]?.properties;
-    if (sampleProps) {
-        return Object.keys(sampleProps)
-            .filter(key => isSubindicatorCandidateKey(key, compositeAttr, SERVICE_ID_FIELDS))
-            .map(key => ({
-                value: key,
-                label: getServiceFieldLabel(key)
-            }));
-    }
+    const fromLayer = buildSubindicatorOptionsFromProps(
+        getLayerSampleProperties('svAdmin4Layer'),
+        compositeAttr,
+        SERVICE_ID_FIELDS,
+        key => getServiceFieldLabel(key)
+    );
+    if (fromLayer.length) return fromLayer;
     return resolution === 'governorate'
         ? SERVICE_SUBINDICATOR_OPTIONS_GOVERNORATE
         : SERVICE_SUBINDICATOR_OPTIONS_DISTRICT;
@@ -1721,7 +1751,11 @@ function syncSVSubindicatorPanelsVisibility() {
         const isStressorPanel = wrap.classList.contains('sv-stressor-subindicators-wrap');
         const sectionOpen = isStressorPanel ? stressorsOpen : compositeOpen;
         const peaceApplicable =
-            layerId !== 'svAdmin3Layer' || supportsPeaceSubindicators(layerConfig.svAdmin3Layer);
+            layerId !== 'svAdmin3Layer' ||
+            (supportsPeaceSubindicators(layerConfig.svAdmin3Layer) &&
+                getPeaceSubindicatorOptions().length > 0);
+        const economicApplicable =
+            layerId !== 'svAdmin2Layer' || getEconomicSubindicatorOptions().length > 0;
         const serviceApplicable =
             layerId !== 'svAdmin4Layer' || supportsServiceSubindicators();
         const displacementApplicable =
@@ -1732,6 +1766,7 @@ function syncSVSubindicatorPanelsVisibility() {
             !sectionOpen ||
             !layerOn ||
             !peaceApplicable ||
+            !economicApplicable ||
             !serviceApplicable ||
             !displacementApplicable ||
             !demographicApplicable;
@@ -2355,6 +2390,7 @@ async function loadSVLayer(layerId, map, layers, colorScales, addLegendEntry, re
             updateSVHoverTooltips(layers.vector[layerId]._svAdminOutlineLayer, layerId, config);
         }
         updateSVHoverTooltips(layers.vector[layerId], layerId, config);
+        refreshSVSubindicatorPanelAfterLoad(layerId);
         
     } catch (error) {
         console.error(`Error loading Social-Vulnerability layer ${layerId}:`, error);
