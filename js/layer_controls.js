@@ -116,7 +116,7 @@ const layerConfig = {
     },
 
     svOverallTensionLayer: {
-        fixedColorRamp: 'yellowOrangeRed3',
+        fixedColorRamp: 'whiteToDarkBlue3',
         type: 'sv-vector',
         url: JUNE17_FILES.overall.cadastre,
         legendName: 'Overall Vulnerability Index',
@@ -484,7 +484,7 @@ function applySVLayerExclusivity(selectedLayerId) {
 }
 const SV_BASE_LAYER_CONFIG = {
     svOverallTensionLayer: {
-        fixedColorRamp: 'yellowOrangeRed3',
+        fixedColorRamp: 'whiteToDarkBlue3',
         legendName: 'Overall Vulnerability Index ',
         renderMode: 'choropleth',
         svAttribute: OVERALL_VULNERABILITY_SCORE_FIELD
@@ -1476,7 +1476,7 @@ function buildOverallVulnerabilityLegendEntry(config, colorScheme, rawGeoJson, o
         colorScheme: scheme,
         description: '',
         labels,
-        scaleDirection: 'yellow-orange-red'
+        scaleDirection: 'white-to-dark-blue'
     };
 }
 
@@ -3322,6 +3322,18 @@ function formatSocioIntensityValue(v) {
     return v.toFixed(2);
 }
 
+/** Sub-indicators whose stripe density runs opposite to value (high value = sparse stripes). */
+const INVERTED_STRIPE_PATTERN_ATTRS = new Set(['Nighttime light radiance']);
+
+function shouldInvertStripePatternIntensity(attr) {
+    return INVERTED_STRIPE_PATTERN_ATTRS.has(attr);
+}
+
+function resolveStripePatternClassIndex(classIndex, stripeAttr) {
+    if (!shouldInvertStripePatternIntensity(stripeAttr)) return classIndex;
+    return (SOCIO_STRIPE_CLASS_COUNT - 1) - classIndex;
+}
+
 function getPatternClassIndex(value, breaks) {
     if (!Number.isFinite(value) || !breaks.length) return 0;
     return getValueClassIndex(value, breaks, breaks.length - 1) ?? 0;
@@ -3337,12 +3349,12 @@ function socioStripeSwatchInlineStyle(specIndex, patternColor) {
     return `background:repeating-linear-gradient(${spec.angle}deg, ${stripeColor} 0, ${stripeColor} ${barPx}px, #eef2f7 ${barPx}px, #eef2f7 ${period}px);`;
 }
 
-function buildSocioStripeLegendItems(breaks, patternColor) {
+function buildSocioStripeLegendItems(breaks, patternColor, invert = false) {
     if (!breaks || breaks.length < 4) {
         return [
-            { label: 'Low intensity', color: patternColor, swatchStyle: socioStripeSwatchInlineStyle(0, patternColor) },
+            { label: 'Low intensity', color: patternColor, swatchStyle: socioStripeSwatchInlineStyle(invert ? 2 : 0, patternColor) },
             { label: 'Medium intensity', color: patternColor, swatchStyle: socioStripeSwatchInlineStyle(1, patternColor) },
-            { label: 'High intensity', color: patternColor, swatchStyle: socioStripeSwatchInlineStyle(2, patternColor) }
+            { label: 'High intensity', color: patternColor, swatchStyle: socioStripeSwatchInlineStyle(invert ? 0 : 2, patternColor) }
         ];
     }
     const terms = ['Low', 'Medium', 'High'];
@@ -3350,7 +3362,7 @@ function buildSocioStripeLegendItems(breaks, patternColor) {
     return rangeLabels.map((range, idx) => ({
         label: `${terms[idx] || 'Class'} (${range})`,
         color: patternColor,
-        swatchStyle: socioStripeSwatchInlineStyle(idx, patternColor)
+        swatchStyle: socioStripeSwatchInlineStyle(invert ? (SOCIO_STRIPE_CLASS_COUNT - 1 - idx) : idx, patternColor)
     }));
 }
 
@@ -3496,7 +3508,10 @@ function applySVStripePatternStyle(layerId, layer, config, opacity, map, addLege
         }
         const raw = props?.[stripeAttr];
         const value = typeof raw === 'number' ? raw : Number(raw);
-        const classIndex = getPatternClassIndex(value, cache.breaks);
+        const classIndex = resolveStripePatternClassIndex(
+            getPatternClassIndex(value, cache.breaks),
+            stripeAttr
+        );
         const pattern = cache.patterns[classIndex] || cache.patterns[cache.patterns.length - 1];
         featureLayer.setStyle({
             ...outlineStyle,
@@ -3510,7 +3525,8 @@ function applySVStripePatternStyle(layerId, layer, config, opacity, map, addLege
     if (typeof pushLegend === 'function') {
         const pc = config.patternColor || '#2b83ba';
         const isServicePattern = config.renderMode === 'service-pattern';
-        const legendItems = buildSocioStripeLegendItems(cache.breaks, pc);
+        const invertStripes = !isServicePattern && shouldInvertStripePatternIntensity(stripeAttr);
+        const legendItems = buildSocioStripeLegendItems(cache.breaks, pc, invertStripes);
         if (layerHasAcsCodeNoData(layer.layerData?.raw)) {
             legendItems.push({
                 label: ACS_CODE_NO_DATA_LEGEND_LABEL,

@@ -89,6 +89,10 @@ export const colorRamps = {
         name: 'White to Dark Blue',
         colors: ['#ffffff', '#dbeafe', '#93c5fd', '#3b82f6', '#1e3a8a']
       },
+      whiteToDarkBlue3: {
+        name: 'White to Dark Blue (3 classes)',
+        colors: ['#ffffff', '#3b82f6', '#1e3a8a']
+      },
       whiteToDarkGray: {
         name: 'White to Dark Gray',
         colors: ['#ffffff', '#e5e7eb', '#9ca3af', '#4b5563', '#1f2937']

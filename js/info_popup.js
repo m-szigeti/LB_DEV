@@ -11,12 +11,12 @@ const PILLAR_SCORE_FIELDS = [
     {
         field: 'overall_vulnerability_score',
         label: 'Overall Vulnerability Index',
-        colorRampId: 'yellowOrangeRed3'
+        colorRampId: 'whiteToDarkBlue3'
     },
     {
         field: 'overall_tension_index_score',
         label: 'Overall Vulnerability Index',
-        colorRampId: 'yellowOrangeRed3'
+        colorRampId: 'whiteToDarkBlue3'
     },
     {
         field: 'tension_peace_score',
@@ -825,7 +825,7 @@ function getSubindicatorCategoryLabel(numericValue, fieldKey, layerType, sourceL
     if (mapLayer?.layerData?.raw && fieldKey) {
         const rampId =
             layerType === 'sv-admin5'
-                ? 'yellowOrangeRed3'
+                ? 'whiteToDarkBlue3'
                 : layerType === 'sv-admin3'
                   ? 'whiteToDarkPurple3'
                   : null;

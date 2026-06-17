@@ -272,7 +272,7 @@ function renderColorScaleEntry(entry) {
         if (values && values[index]) {
             enhancedLabel = `${values[index]} ${unit || ''}`.trim();
         }
-        if (isVulnerabilityData && entry.scaleDirection !== 'yellow-orange-red') {
+        if (isVulnerabilityData && entry.scaleDirection !== 'yellow-orange-red' && entry.scaleDirection !== 'white-to-dark-blue') {
             const vulnTerms = ['Very Low', 'Low', 'Medium', 'High', 'Very High'];
             if (index < vulnTerms.length) {
                 enhancedLabel = isPeaceSocialTensionsLayer
@@ -293,6 +293,12 @@ function renderColorScaleEntry(entry) {
             `;
         } else if (entry.scaleDirection === 'yellow-orange-red') {
             directionalInfo = '';
+        } else if (entry.scaleDirection === 'white-to-dark-blue') {
+            directionalInfo = `
+                <div style="margin-top: 8px; padding: 6px; background: #f8f9fa; border-radius: 4px; font-size: 10px; color: #666; line-height: 1.4;">
+                    <strong>Scale:</strong> White = Lower vulnerability &nbsp;→&nbsp; Dark blue = Higher vulnerability
+                </div>
+            `;
         } else if (isVulnerabilityData) {
             directionalInfo = `
                 <div style="margin-top: 8px; padding: 6px; background: #f8f9fa; border-radius: 4px; font-size: 10px; color: #666;">
