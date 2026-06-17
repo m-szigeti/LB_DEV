@@ -12,6 +12,7 @@ from pathlib import Path
 import pandas as pd
 
 DATA_DIR = Path(__file__).resolve().parents[1] / "data"
+JUNE17_DIR = DATA_DIR / "June17"
 OUTPUT_XLSX = DATA_DIR / "Map_Composite_Scores_By_Admin_Level.xlsx"
 OUTPUT_DISTRICT_CSV = DATA_DIR / "District_Theme_Composite_Scores.csv"
 OUTPUT_GOVERNORATE_CSV = DATA_DIR / "Governorate_Theme_Composite_Scores.csv"
@@ -42,74 +43,86 @@ ADMIN_OUTPUT_COLS = {
     "Cadastre": ["ACS_CODE", "ADM3_NAME"],
 }
 
-# (theme label, filename, score attribute used on map)
+# (theme label, filename under data/June17, score attribute used on map)
 LEVEL_THEMES = {
     "Governorate": [
-        ("Displacement Pressure", "ADM1_Displacement_Pressure_June_14.geojson", "Displacement Ratio"),
+        (
+            "Displacement Pressure",
+            "GOV Theme 1 - Displacement Pressure__from_dis_spatial.geojson",
+            "Displacement Ratio",
+        ),
         (
             "Socioeconomic Vulnerability",
-            "ADM1_GOV_Theme_3_Socioeconomic_Vulnerability_June_14.geojson",
+            "GOV Theme 3 - Socioeconomic Vulnerability__from_dis_spatial.geojson",
             "composite_score",
         ),
         (
             "Tension and Conflict Risk",
-            "NEW_ADM1_GOV Theme 2 - Tensions and Conflict Risk_June_14.geojson",
+            "GOV Theme 2 - Tensions and Conflict Risk__from_dis_spatial.geojson",
             "composite_score",
         ),
         (
             "Service & Infrastructure Vulnerability",
-            "NEW_ADM1_DIS Theme 4 - Service and Infrastructure Vulnerability _June_14.geojson",
+            "GOV Theme 4 - Service & Infrastructure Vulnerability__from_dis_spatial.geojson",
             "composite_score",
         ),
         (
             "Demographic Tension / Stress",
-            "ADM1_Demographic_Shock_Factor.geojson",
-            "Demographic_Factor (DF = S*H)_mean",
+            "GOV Theme 5- Demographic Tension Stress__from_dis_spatial.geojson",
+            "Demographic Factor",
         ),
     ],
     "District": [
-        ("Displacement Pressure", "ADM2_Displacement_Pressure_June_11.geojson", "Displacement Ratio"),
+        (
+            "Displacement Pressure",
+            "DIS Theme 1 - Displacement Pressure__joined.geojson",
+            "Displacement Ratio",
+        ),
         (
             "Socioeconomic Vulnerability",
-            "NEW_ADM2_DIS Theme 3 - Socioeconomic Vulnerability _June_14_v4.geojson",
+            "DIS Theme 3 - Socioeconomic Vulnerability__joined.geojson",
             "composite_score",
         ),
         (
             "Tension and Conflict Risk",
-            "NEW_ADM2_DIS Theme 2 - Tensions and Conflict Risk _June_15.geojson",
+            "DIS Theme 2 - Tensions and Conflict Risk__joined.geojson",
             "composite_score",
         ),
         (
             "Service & Infrastructure Vulnerability",
-            "NEW_ADM2_DIS Theme 4 - Service and Infrastructure Vulnerability _June_14.geojson",
+            "DIS Theme 4 - Service & Infrastructure Vulnerability__joined.geojson",
             "composite_score",
         ),
         (
             "Demographic Tension / Stress",
-            "NEW_ADM2_DIS Theme 2 - Demographic Tension Stress _June_15.geojson",
+            "DIS Theme 5 - Demographic Tension Stress__joined.geojson",
             "Demographic Factor",
         ),
     ],
     "Cadastre": [
-        ("Displacement Pressure", "ADM3_Displacement_Pressure_June_11.geojson", "Displacement Ratio"),
+        (
+            "Displacement Pressure",
+            "CAD Theme 1 - Displacement Pressure__joined.geojson",
+            "Displacement Ratio",
+        ),
         (
             "Socioeconomic Vulnerability",
-            "CAD Theme 3 - Socioeconomic Vulnerability June 16.geojson",
+            "CAD Theme 3 - Socioeconomic Vulnerability__joined.geojson",
             "composite_score",
         ),
         (
             "Tension and Conflict Risk",
-            "CAD Theme 2 - Tensions and Conflict Risk June 16.geojson",
+            "CAD Theme 2 - Tensions and Conflict Risk__joined.geojson",
             "composite_score",
         ),
         (
             "Service & Infrastructure Vulnerability",
-            "NEW_ADM3_CAD Theme 4 - Service and Infrastructure Stress_June_15.geojson",
+            None,
             "composite_score",
         ),
         (
             "Demographic Tension / Stress",
-            "ADM3_T5_Demgraphic_Tension_Stress_June_11.geojson",
+            "CAD Theme 5 - Demographic Tension Stress__joined.geojson",
             "Demographic Factor",
         ),
     ],
@@ -158,7 +171,7 @@ def cadastre_match_keys(frame: pd.DataFrame) -> pd.DataFrame:
 def build_cadastre_sheet() -> pd.DataFrame:
     admin_cols = ADMIN_OUTPUT_COLS["Cadastre"]
     master_label, master_file, master_attr = LEVEL_THEMES["Cadastre"][0]
-    master = cadastre_match_keys(load_geojson(DATA_DIR / master_file))
+    master = cadastre_match_keys(load_geojson(JUNE17_DIR / master_file))
     master = master.rename(columns={master_attr: master_label})
     master["ADM3_NAME"] = master.apply(
         lambda r: first_present(r, "ADM3_NAME", "adm3_name", "adm3_name1"), axis=1
@@ -172,7 +185,13 @@ def build_cadastre_sheet() -> pd.DataFrame:
     ].copy()
 
     for theme_label, filename, score_attr in LEVEL_THEMES["Cadastre"][1:]:
-        path = DATA_DIR / filename
+        if not filename:
+            merged[theme_label] = pd.NA
+            continue
+        path = JUNE17_DIR / filename
+        if not path.exists():
+            merged[theme_label] = pd.NA
+            continue
         frame = cadastre_match_keys(load_geojson(path))
         if score_attr not in frame.columns:
             raise KeyError(f"{path.name} missing score field '{score_attr}'")
@@ -238,7 +257,9 @@ def build_level_sheet(level_name: str) -> pd.DataFrame:
     merged: pd.DataFrame | None = None
 
     for theme_label, filename, score_attr in LEVEL_THEMES[level_name]:
-        path = DATA_DIR / filename
+        if not filename:
+            continue
+        path = JUNE17_DIR / filename
         if not path.exists():
             raise FileNotFoundError(f"Missing {level_name} layer: {path}")
 

@@ -20,6 +20,7 @@ from matplotlib.cm import ScalarMappable
 
 ROOT = Path(__file__).resolve().parents[1]
 DATA = ROOT / "data"
+JUNE17 = DATA / "June17"
 OUT = ROOT / "side-by-side comparisons"
 
 LEVELS = ("governorate", "district", "cadastre")
@@ -28,59 +29,59 @@ LEVEL_TITLES = {"governorate": "Governorate", "district": "District", "cadastre"
 # Same layers / score fields as js/layer_controls.js (SV_RESOLUTION_CONFIG)
 THEME_LAYERS = {
     "Displacement Pressure": {
-        "governorate": ("ADM1_Displacement_Pressure_June_14.geojson", "Displacement Ratio"),
-        "district": ("ADM2_Displacement_Pressure_June_11.geojson", "Displacement Ratio"),
-        "cadastre": ("ADM3_Displacement_Pressure_June_11.geojson", "Displacement Ratio"),
+        "governorate": ("GOV Theme 1 - Displacement Pressure__from_dis_spatial.geojson", "Displacement Ratio"),
+        "district": ("DIS Theme 1 - Displacement Pressure__joined.geojson", "Displacement Ratio"),
+        "cadastre": ("CAD Theme 1 - Displacement Pressure__joined.geojson", "Displacement Ratio"),
     },
     "Socioeconomic Vulnerability": {
         "governorate": (
-            "ADM1_GOV_Theme_3_Socioeconomic_Vulnerability_June_14.geojson",
+            "GOV Theme 3 - Socioeconomic Vulnerability__from_dis_spatial.geojson",
             "composite_score",
         ),
         "district": (
-            "NEW_ADM2_DIS Theme 3 - Socioeconomic Vulnerability _June_14_v4.geojson",
+            "DIS Theme 3 - Socioeconomic Vulnerability__joined.geojson",
             "composite_score",
         ),
         "cadastre": (
-            "CAD Theme 3 - Socioeconomic Vulnerability June 16.geojson",
+            "CAD Theme 3 - Socioeconomic Vulnerability__joined.geojson",
             "composite_score",
         ),
     },
     "Tension and Conflict Risk": {
         "governorate": (
-            "NEW_ADM1_GOV Theme 2 - Tensions and Conflict Risk_June_14.geojson",
+            "GOV Theme 2 - Tensions and Conflict Risk__from_dis_spatial.geojson",
             "composite_score",
         ),
         "district": (
-            "NEW_ADM2_DIS Theme 2 - Tensions and Conflict Risk _June_15.geojson",
+            "DIS Theme 2 - Tensions and Conflict Risk__joined.geojson",
             "composite_score",
         ),
         "cadastre": (
-            "CAD Theme 2 - Tensions and Conflict Risk June 16.geojson",
+            "CAD Theme 2 - Tensions and Conflict Risk__joined.geojson",
             "composite_score",
         ),
     },
     "Service and Infrastructure Vulnerability": {
         "governorate": (
-            "NEW_ADM1_DIS Theme 4 - Service and Infrastructure Vulnerability _June_14.geojson",
+            "GOV Theme 4 - Service & Infrastructure Vulnerability__from_dis_spatial.geojson",
             "composite_score",
         ),
         "district": (
-            "NEW_ADM2_DIS Theme 4 - Service and Infrastructure Vulnerability _June_14.geojson",
+            "DIS Theme 4 - Service & Infrastructure Vulnerability__joined.geojson",
             "composite_score",
         ),
-        "cadastre": (
-            "NEW_ADM3_CAD Theme 4 - Service and Infrastructure Stress_June_15.geojson",
-            "composite_score",
-        ),
+        "cadastre": (None, "composite_score"),
     },
     "Demographic Tension and Stress": {
-        "governorate": ("ADM1_Demographic_Shock_Factor.geojson", "Demographic_Factor (DF = S*H)_mean"),
-        "district": (
-            "NEW_ADM2_DIS Theme 2 - Demographic Tension Stress _June_15.geojson",
+        "governorate": (
+            "GOV Theme 5- Demographic Tension Stress__from_dis_spatial.geojson",
             "Demographic Factor",
         ),
-        "cadastre": ("ADM3_T5_Demgraphic_Tension_Stress_June_11.geojson", "Demographic Factor"),
+        "district": (
+            "DIS Theme 5 - Demographic Tension Stress__joined.geojson",
+            "Demographic Factor",
+        ),
+        "cadastre": ("CAD Theme 5 - Demographic Tension Stress__joined.geojson", "Demographic Factor"),
     },
 }
 
@@ -127,8 +128,10 @@ def is_metadata_col(name: str) -> bool:
     return bool(METADATA_RE.search(name))
 
 
-def load_layer(filename: str) -> gpd.GeoDataFrame | None:
-    path = DATA / filename
+def load_layer(filename: str | None) -> gpd.GeoDataFrame | None:
+    if not filename:
+        return None
+    path = JUNE17 / filename
     if not path.exists():
         print(f"  missing: {path.name}")
         return None

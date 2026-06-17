@@ -9,6 +9,11 @@ const VULNERABILITY_CLASS_LABELS = ['Low', 'Medium', 'High'];
 /** Pillar scores shown in Additional Data (aligned with composite index names). */
 const PILLAR_SCORE_FIELDS = [
     {
+        field: 'overall_vulnerability_score',
+        label: 'Overall Vulnerability Index',
+        colorRampId: 'yellowOrangeRed3'
+    },
+    {
         field: 'overall_tension_index_score',
         label: 'Overall Vulnerability Index',
         colorRampId: 'yellowOrangeRed3'
@@ -564,6 +569,13 @@ function getPrimaryVulnerabilityField(properties, layerType = '') {
 
     if (layerType === 'sv-overall') {
         if (
+            properties.overall_vulnerability_score !== undefined &&
+            properties.overall_vulnerability_score !== null &&
+            properties.overall_vulnerability_score !== ''
+        ) {
+            return 'overall_vulnerability_score';
+        }
+        if (
             properties.composite_score !== undefined &&
             properties.composite_score !== null &&
             properties.composite_score !== ''
@@ -588,6 +600,7 @@ function getPrimaryVulnerabilityField(properties, layerType = '') {
 
     const priorityFields = [
         'Social-Vulnerability',
+        'overall_vulnerability_score',
         'overall_tension_index_score',
         'Displacement Pressure Score',
         'displace_composite_score',
@@ -692,6 +705,7 @@ function getPrimaryFieldDisplayLabel(fieldName, layerType) {
             'Ratio of IDPs, Syrians, and Palestinians per host residents',
         'displace_composite_score': 'Displacement Pressure Score',
         'displace_composite_score_mean': 'Displacement Pressure Score (mean)',
+        overall_vulnerability_score: 'Overall Vulnerability Index',
         overall_tension_index_score: 'Overall Vulnerability Index',
         tension_peace_score: 'Tension and Conflict Risk',
         displacement_pressure_score: 'Displacement Pressure',

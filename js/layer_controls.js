@@ -28,6 +28,44 @@ import {
     supportsDemographicSubindicators,
 } from './sv_subindicators.js';
 
+const JUNE17_DATA = 'data/June17';
+
+const JUNE17_FILES = {
+    overall: {
+        governorate: `${JUNE17_DATA}/GOV_Overall_Vulnerability.geojson`,
+        district: `${JUNE17_DATA}/DIS_Overall_Vulnerability.geojson`,
+        cadastre: `${JUNE17_DATA}/CAD_Overall_Vulnerability.geojson`
+    },
+    theme1: {
+        governorate: `${JUNE17_DATA}/GOV%20Theme%201%20-%20Displacement%20Pressure__from_dis_spatial.geojson`,
+        district: `${JUNE17_DATA}/DIS%20Theme%201%20-%20Displacement%20Pressure__joined.geojson`,
+        cadastre: `${JUNE17_DATA}/CAD%20Theme%201%20-%20Displacement%20Pressure__joined.geojson`
+    },
+    theme2: {
+        governorate: `${JUNE17_DATA}/GOV%20Theme%202%20-%20Tensions%20and%20Conflict%20Risk__from_dis_spatial.geojson`,
+        district: `${JUNE17_DATA}/DIS%20Theme%202%20-%20Tensions%20and%20Conflict%20Risk__joined.geojson`,
+        cadastre: `${JUNE17_DATA}/CAD%20Theme%202%20-%20Tensions%20and%20Conflict%20Risk__joined.geojson`
+    },
+    theme3: {
+        governorate: `${JUNE17_DATA}/GOV%20Theme%203%20-%20Socioeconomic%20Vulnerability__from_dis_spatial.geojson`,
+        district: `${JUNE17_DATA}/DIS%20Theme%203%20-%20Socioeconomic%20Vulnerability__joined.geojson`,
+        cadastre: `${JUNE17_DATA}/CAD%20Theme%203%20-%20Socioeconomic%20Vulnerability__joined.geojson`
+    },
+    theme4: {
+        governorate: `${JUNE17_DATA}/GOV%20Theme%204%20-%20Service%20%26%20Infrastructure%20Vulnerability__from_dis_spatial.geojson`,
+        district: `${JUNE17_DATA}/DIS%20Theme%204%20-%20Service%20%26%20Infrastructure%20Vulnerability__joined.geojson`
+    },
+    theme5: {
+        governorate: `${JUNE17_DATA}/GOV%20Theme%205-%20Demographic%20Tension%20Stress__from_dis_spatial.geojson`,
+        district: `${JUNE17_DATA}/DIS%20Theme%205%20-%20Demographic%20Tension%20Stress__joined.geojson`,
+        cadastre: `${JUNE17_DATA}/CAD%20Theme%205%20-%20Demographic%20Tension%20Stress__joined.geojson`
+    }
+};
+
+const OVERALL_VULNERABILITY_SCORE_FIELD = 'overall_vulnerability_score';
+const DISPLACEMENT_RATIO_FIELD = 'Displacement Ratio';
+const DEMOGRAPHIC_DF_FIELD_CADASTRE = 'Demographic Factor';
+
 // Layer configuration - maps checkbox IDs to loading functions and parameters
 const layerConfig = {
     // Vector layers
@@ -80,7 +118,7 @@ const layerConfig = {
     svOverallTensionLayer: {
         fixedColorRamp: 'yellowOrangeRed3',
         type: 'sv-vector',
-        url: 'data/CAD_OVERALL_VUL_JUNE_16.geojson',
+        url: JUNE17_FILES.overall.cadastre,
         legendName: 'Overall Vulnerability Index',
         style: {
             color: '#2b83ba',
@@ -92,13 +130,13 @@ const layerConfig = {
         opacityDisplay: 'svOpacityValue',
         colorRampSelector: 'svColorRamp',
         colorRampPreview: 'svColorPreview',
-        svAttribute: 'composite_score',
+        svAttribute: OVERALL_VULNERABILITY_SCORE_FIELD,
         layerType: 'sv-overall'
     },
     svAdmin1Layer: {
         fixedColorRamp: 'whiteToDarkGreen',
         type: 'sv-vector',
-        url: 'data/ADM3_Displacement_Pressure_June_11.geojson',
+        url: JUNE17_FILES.theme1.cadastre,
         renderMode: 'proportional-circles',
         minRadius: 7,
         maxRadius: 22,
@@ -119,7 +157,7 @@ const layerConfig = {
     svAdmin2Layer: {
         fixedColorRamp: 'whiteToDarkBlue',
         type: 'sv-vector',
-        url: 'data/sv_socio_adm2.geojson',
+        url: JUNE17_FILES.theme3.cadastre,
         renderMode: 'stripe-pattern',
         patternColor: '#2b83ba',
         style: {
@@ -138,7 +176,7 @@ const layerConfig = {
     svAdmin3Layer: {
         fixedColorRamp: 'whiteToDarkPurple3',
         type: 'sv-vector',
-        url: 'data/sv_peace_adm2.geojson',
+        url: JUNE17_FILES.theme2.cadastre,
         legendName: 'Tension and Conflict Risk',
         style: {
             color: "#2b83ba",
@@ -150,7 +188,7 @@ const layerConfig = {
         opacityDisplay: 'svOpacityValue',
         colorRampSelector: 'svColorRamp',
         colorRampPreview: 'svColorPreview',
-        svAttribute: 'peace_composite_score',
+        svAttribute: 'composite_score',
         layerType: 'sv-admin3'
     },
     svAdmin4Layer: {
@@ -177,7 +215,7 @@ const layerConfig = {
     svAdmin5Layer: {
         fixedColorRamp: 'yellowOrangeRed3',
         type: 'sv-vector',
-        url: 'data/ADM3_T5_Demgraphic_Tension_Stress_June_11.geojson',
+        url: JUNE17_FILES.theme5.cadastre,
         legendName: 'Demographic Tension / Stress',
         style: {
             color: '#2b83ba',
@@ -189,7 +227,7 @@ const layerConfig = {
         opacityDisplay: 'svOpacityValue',
         colorRampSelector: 'svColorRamp',
         colorRampPreview: 'svColorPreview',
-        svAttribute: 'Demographic Factor',
+        svAttribute: DEMOGRAPHIC_DF_FIELD_CADASTRE,
         layerType: 'sv-admin5'
     },
     streetNetworkLayer: {
@@ -449,7 +487,7 @@ const SV_BASE_LAYER_CONFIG = {
         fixedColorRamp: 'yellowOrangeRed3',
         legendName: 'Overall Vulnerability Index ',
         renderMode: 'choropleth',
-        svAttribute: 'overall_tension_index_score'
+        svAttribute: OVERALL_VULNERABILITY_SCORE_FIELD
     },
     svAdmin1Layer: {
         fixedColorRamp: 'whiteToDarkGreen',
@@ -458,7 +496,7 @@ const SV_BASE_LAYER_CONFIG = {
         minRadius: 7,
         maxRadius: 22,
         markerColor: '#f59e0b',
-        svAttribute: 'Displacement Pressure Score'
+        svAttribute: DISPLACEMENT_RATIO_FIELD
     },
     svAdmin2Layer: {
         fixedColorRamp: 'whiteToDarkBlue',
@@ -471,7 +509,7 @@ const SV_BASE_LAYER_CONFIG = {
         fixedColorRamp: 'whiteToDarkPurple3',
         legendName: 'Tension and Conflict Risk',
         renderMode: 'choropleth',
-        svAttribute: 'peace_composite_score'
+        svAttribute: 'composite_score'
     },
     svAdmin4Layer: {
         fixedColorRamp: 'whiteToDarkPurple',
@@ -485,120 +523,119 @@ const SV_BASE_LAYER_CONFIG = {
         fixedColorRamp: 'yellowOrangeRed3',
         legendName: 'Demographic Tension / Stress',
         renderMode: 'choropleth',
-        svAttribute: 'Demographic_Factor (DF = S*H)'
+        svAttribute: DEMOGRAPHIC_DF_FIELD_CADASTRE
     }
 };
 
 const SV_RESOLUTION_CONFIG = {
     district: {
         svOverallTensionLayer: {
-            url: 'data/DIS_OVERALL_VUL_JUNE_16.geojson',
+            url: JUNE17_FILES.overall.district,
             available: true,
-            svAttribute: 'composite_score'
+            svAttribute: OVERALL_VULNERABILITY_SCORE_FIELD
         },
         svAdmin1Layer: {
-            url: 'data/ADM2_Displacement_Pressure_June_11.geojson',
+            url: JUNE17_FILES.theme1.district,
             available: true,
-            svAttribute: 'Displacement Ratio'
+            svAttribute: DISPLACEMENT_RATIO_FIELD
         },
         svAdmin2Layer: {
-            url: 'data/NEW_ADM2_DIS%20Theme%203%20-%20Socioeconomic%20Vulnerability%20_June_14_v4.geojson',
+            url: JUNE17_FILES.theme3.district,
             available: true,
             svAttribute: 'composite_score'
         },
         svAdmin3Layer: {
-            url: 'data/NEW_ADM2_DIS%20Theme%202%20-%20Tensions%20and%20Conflict%20Risk%20_June_15.geojson',
+            url: JUNE17_FILES.theme2.district,
             available: true,
             svAttribute: 'composite_score'
         },
         svAdmin4Layer: {
-            url: 'data/NEW_ADM2_DIS%20Theme%204%20-%20Service%20and%20Infrastructure%20Vulnerability%20_June_14.geojson',
+            url: JUNE17_FILES.theme4.district,
             available: true,
             svAttribute: 'composite_score',
             thinBoundaries: false
         },
         svAdmin5Layer: {
-            url: 'data/NEW_ADM2_DIS%20Theme%202%20-%20Demographic%20Tension%20Stress%20_June_15.geojson',
+            url: JUNE17_FILES.theme5.district,
             available: true,
-            svAttribute: 'Demographic Factor',
+            svAttribute: DEMOGRAPHIC_DF_FIELD_CADASTRE,
             thinBoundaries: false
         }
     },
     cadastre: {
         svOverallTensionLayer: {
-            url: 'data/CAD_OVERALL_VUL_JUNE_16.geojson',
+            url: JUNE17_FILES.overall.cadastre,
             available: true,
-            svAttribute: 'composite_score',
+            svAttribute: OVERALL_VULNERABILITY_SCORE_FIELD,
             thinBoundaries: true
         },
         svAdmin1Layer: {
-            url: 'data/ADM3_Displacement_Pressure_June_11.geojson',
+            url: JUNE17_FILES.theme1.cadastre,
             available: true,
-            svAttribute: 'Displacement Ratio',
+            svAttribute: DISPLACEMENT_RATIO_FIELD,
             thinBoundaries: true
         },
         svAdmin2Layer: {
-            url: 'data/CAD%20Theme%203%20-%20Socioeconomic%20Vulnerability%20June%2016.geojson',
+            url: JUNE17_FILES.theme3.cadastre,
             available: true,
             svAttribute: 'composite_score',
             thinBoundaries: true
         },
         svAdmin3Layer: {
-            url: 'data/CAD%20Theme%202%20-%20Tensions%20and%20Conflict%20Risk%20June%2016.geojson',
+            url: JUNE17_FILES.theme2.cadastre,
             available: true,
             svAttribute: 'composite_score',
             thinBoundaries: true
         },
         svAdmin4Layer: {
-            url: 'data/NEW_ADM3_CAD%20Theme%204%20-%20Service%20and%20Infrastructure%20Stress_June_15.geojson',
-            available: true,
+            url: null,
+            available: false,
             svAttribute: 'composite_score',
             thinBoundaries: true
         },
         svAdmin5Layer: {
-            url: 'data/ADM3_T5_Demgraphic_Tension_Stress_June_11.geojson',
+            url: JUNE17_FILES.theme5.cadastre,
             available: true,
-            svAttribute: 'Demographic Factor',
+            svAttribute: DEMOGRAPHIC_DF_FIELD_CADASTRE,
             thinBoundaries: true
         }
     },
     governorate: {
         svOverallTensionLayer: {
-            url: 'data/GOV_OVERALL_VUL_JUNE_16.geojson',
+            url: JUNE17_FILES.overall.governorate,
             available: true,
-            svAttribute: 'composite_score'
+            svAttribute: OVERALL_VULNERABILITY_SCORE_FIELD
         },
         svAdmin1Layer: {
-            url: 'data/ADM1_Displacement_Pressure_June_14.geojson',
+            url: JUNE17_FILES.theme1.governorate,
             available: true,
-            svAttribute: 'Displacement Ratio'
+            svAttribute: DISPLACEMENT_RATIO_FIELD
         },
         svAdmin2Layer: {
-            url: 'data/ADM1_GOV_Theme_3_Socioeconomic_Vulnerability_June_14.geojson',
+            url: JUNE17_FILES.theme3.governorate,
             available: true,
             svAttribute: 'composite_score'
         },
         svAdmin3Layer: {
-            url: 'data/NEW_ADM1_GOV%20Theme%202%20-%20Tensions%20and%20Conflict%20Risk_June_14.geojson',
+            url: JUNE17_FILES.theme2.governorate,
             available: true,
             svAttribute: 'composite_score'
         },
         svAdmin4Layer: {
-            url: 'data/NEW_ADM1_DIS%20Theme%204%20-%20Service%20and%20Infrastructure%20Vulnerability%20_June_14.geojson',
+            url: JUNE17_FILES.theme4.governorate,
             available: true,
             svAttribute: 'composite_score'
         },
         svAdmin5Layer: {
-            url: 'data/ADM1_Demographic_Shock_Factor.geojson',
+            url: JUNE17_FILES.theme5.governorate,
             available: true,
-            svAttribute: 'Demographic_Factor (DF = S*H)_mean',
+            svAttribute: DEMOGRAPHIC_DF_FIELD_CADASTRE,
             thinBoundaries: false
         }
     }
 };
 
 const DISPLACEMENT_SCORE_FIELD = 'Displacement Pressure Score';
-const DISPLACEMENT_RATIO_FIELD = 'Displacement Ratio';
 
 const DISPLACEMENT_ID_FIELDS = new Set([
     'ADM1_NAME',
@@ -634,7 +671,6 @@ const DISPLACEMENT_SUBINDICATOR_OPTIONS_CADASTRE = [
 
 const DISPLACEMENT_SUBINDICATOR_OPTIONS = DISPLACEMENT_SUBINDICATOR_OPTIONS_CADASTRE;
 
-const DEMOGRAPHIC_DF_FIELD_CADASTRE = 'Demographic Factor';
 const DEMOGRAPHIC_DF_FIELD_AGG = 'Demographic_Factor (DF = S*H)_mean';
 
 const DEMOGRAPHIC_ID_FIELDS = new Set([
@@ -853,6 +889,24 @@ const SERVICE_ID_FIELDS = new Set([
     'rank'
 ]);
 
+function isSubindicatorMetadataKey(key) {
+    if (!key || typeof key !== 'string') return true;
+    const lower = key.toLowerCase();
+    if (/^adm\d+_/.test(lower)) return true;
+    if (lower.includes('pcode') || lower.includes('_ref_')) return true;
+    if (['acs_code', 'acs code', 'code', 'code_new', 'rank', 'adm3_int', 'dist name'].includes(lower)) {
+        return true;
+    }
+    return false;
+}
+
+function isSubindicatorCandidateKey(key, compositeAttr, extraExclude = null) {
+    if (isSubindicatorMetadataKey(key)) return false;
+    if (key === compositeAttr) return false;
+    if (extraExclude?.has(key)) return false;
+    return true;
+}
+
 function getPeaceFieldLabel(fieldKey) {
     const opt = PEACE_DISTRICT_SUBINDICATOR_OPTIONS.find(o => o.value === fieldKey);
     return opt ? opt.label : fieldKey;
@@ -865,7 +919,7 @@ function getPeaceSubindicatorOptions(resolution = getActiveAdminResolution()) {
 
     if (sampleProps) {
         return Object.keys(sampleProps)
-            .filter(key => !PEACE_ID_FIELDS.has(key) && key !== compositeAttr)
+            .filter(key => isSubindicatorCandidateKey(key, compositeAttr, PEACE_ID_FIELDS))
             .map(key => ({ value: key, label: key }));
     }
     if (resolution === 'cadastre') {
@@ -936,26 +990,7 @@ function getDemographicFieldLabel(fieldKey) {
 }
 
 function getDemographicSubindicatorOptions(resolution = getActiveAdminResolution()) {
-    if (resolution === 'cadastre') {
-        const config = layerConfig.svAdmin5Layer;
-        const compositeAttr = config?.svAttribute || DEMOGRAPHIC_DF_FIELD_CADASTRE;
-        const sampleProps = window.mapLayers?.vector?.svAdmin5Layer?.layerData?.raw?.features?.[0]?.properties;
-        if (sampleProps) {
-            return Object.keys(sampleProps)
-                .filter(
-                    key =>
-                        !DEMOGRAPHIC_ID_FIELDS.has(key) &&
-                        key !== compositeAttr &&
-                        key !== 'composite_score'
-                )
-                .map(key => ({ value: key, label: getDemographicFieldLabel(key) }));
-        }
-        return DEMOGRAPHIC_SUBINDICATOR_OPTIONS_CADASTRE;
-    }
-    if (resolution === 'district') {
-        return DEMOGRAPHIC_SUBINDICATOR_OPTIONS_DISTRICT;
-    }
-    return DEMOGRAPHIC_SUBINDICATOR_OPTIONS_AGGREGATE;
+    return [];
 }
 
 function supportsPeaceSubindicators(config, resolution = getActiveAdminResolution()) {
@@ -996,13 +1031,13 @@ function getEconomicSubindicatorOptions(resolution = getActiveAdminResolution())
     if (resolution === 'district') {
         if (!sampleProps) return [];
         return Object.keys(sampleProps)
-            .filter(key => !ECONOMIC_ID_FIELDS.has(key) && key !== compositeAttr)
+            .filter(key => isSubindicatorCandidateKey(key, compositeAttr, ECONOMIC_ID_FIELDS))
             .map(key => ({ value: key, label: key }));
     }
 
     if (sampleProps) {
         return Object.keys(sampleProps)
-            .filter(key => !ECONOMIC_ID_FIELDS.has(key) && key !== compositeAttr)
+            .filter(key => isSubindicatorCandidateKey(key, compositeAttr, ECONOMIC_ID_FIELDS))
             .map(key => ({ value: key, label: getEconomicFieldLabel(key) }));
     }
     if (resolution === 'governorate') {
@@ -1028,7 +1063,7 @@ function getServiceFieldLabel(fieldKey) {
 }
 
 function supportsServiceSubindicators(resolution = getActiveAdminResolution()) {
-    return resolution === 'district' || resolution === 'governorate' || resolution === 'cadastre';
+    return resolution === 'district' || resolution === 'governorate';
 }
 
 function getServiceSubindicatorOptions(resolution = getActiveAdminResolution()) {
@@ -1038,14 +1073,11 @@ function getServiceSubindicatorOptions(resolution = getActiveAdminResolution()) 
     const sampleProps = window.mapLayers?.vector?.svAdmin4Layer?.layerData?.raw?.features?.[0]?.properties;
     if (sampleProps) {
         return Object.keys(sampleProps)
-            .filter(key => !SERVICE_ID_FIELDS.has(key) && key !== compositeAttr)
+            .filter(key => isSubindicatorCandidateKey(key, compositeAttr, SERVICE_ID_FIELDS))
             .map(key => ({
                 value: key,
-                label: resolution === 'cadastre' ? key : getServiceFieldLabel(key)
+                label: getServiceFieldLabel(key)
             }));
-    }
-    if (resolution === 'cadastre') {
-        return SERVICE_SUBINDICATOR_OPTIONS_CADASTRE;
     }
     return resolution === 'governorate'
         ? SERVICE_SUBINDICATOR_OPTIONS_GOVERNORATE
@@ -1093,26 +1125,7 @@ function getDisplacementFieldLabel(fieldKey) {
 }
 
 function getDisplacementSubindicatorOptions(resolution = getActiveAdminResolution()) {
-    const config = layerConfig.svAdmin1Layer;
-    const compositeAttr = config?.svAttribute || DISPLACEMENT_SCORE_FIELD;
-    const staticOptions =
-        resolution === 'district'
-            ? DISPLACEMENT_SUBINDICATOR_OPTIONS_DISTRICT
-            : DISPLACEMENT_SUBINDICATOR_OPTIONS_CADASTRE;
-
-    const sampleProps = window.mapLayers?.vector?.svAdmin1Layer?.layerData?.raw?.features?.[0]?.properties;
-    const options = sampleProps
-        ? Object.keys(sampleProps)
-              .filter(
-                  key =>
-                      !DISPLACEMENT_ID_FIELDS.has(key) &&
-                      key !== compositeAttr &&
-                      key !== 'composite_score'
-              )
-              .map(key => ({ value: key, label: getDisplacementFieldLabel(key) }))
-        : staticOptions.filter(opt => opt.value !== compositeAttr);
-
-    return options;
+    return [];
 }
 
 function populateDisplacementSubindicatorSelect() {
@@ -1120,7 +1133,7 @@ function populateDisplacementSubindicatorSelect() {
 }
 
 function getEffectiveDisplacementCircleAttribute(config) {
-    return getPrimarySubindicator('svAdmin1Layer') || config?.svAttribute || DISPLACEMENT_SCORE_FIELD;
+    return config?.svAttribute || DISPLACEMENT_RATIO_FIELD;
 }
 
 function resolveDisplacementPropertyKey(props, attr) {

@@ -1,0 +1,89 @@
+Unused map layer GeoJSON files archived from data/.
+Safe to delete later if confirmed not needed.
+
+Kept in data/ (active map layers):
+  - ADM1_Demographic_Shock_Factor.geojson
+  - ADM1_Displacement_Pressure_June_14.geojson
+  - ADM1_GOV_Theme_3_Socioeconomic_Vulnerability_June_14.geojson
+  - ADM1_POP.geojson
+  - ADM2_Displacement_Pressure_June_11.geojson
+  - ADM2_POP.geojson
+  - ADM3_Displacement_Pressure_June_11.geojson
+  - ADM3_POP.geojson
+  - ADM3_T5_Demgraphic_Tension_Stress_June_11.geojson
+  - CAD Theme 2 - Tensions and Conflict Risk June 16.geojson
+  - CAD Theme 3 - Socioeconomic Vulnerability June 16.geojson
+  - CAD_OVERALL_VUL_JUNE_16.geojson
+  - CS_DATA_09_03_26_full.geojson
+  - CS_DATA_10_03_26_full.geojson
+  - DHS_stats.geojson
+  - DIS_OVERALL_VUL_JUNE_16.geojson
+  - GOV_OVERALL_VUL_JUNE_16.geojson
+  - NEW_ADM1_DIS Theme 4 - Service and Infrastructure Vulnerability _June_14.geojson
+  - NEW_ADM1_GOV Theme 2 - Tensions and Conflict Risk_June_14.geojson
+  - NEW_ADM2_DIS Theme 2 - Demographic Tension Stress _June_15.geojson
+  - NEW_ADM2_DIS Theme 2 - Tensions and Conflict Risk _June_15.geojson
+  - NEW_ADM2_DIS Theme 3 - Socioeconomic Vulnerability _June_14_v4.geojson
+  - NEW_ADM2_DIS Theme 4 - Service and Infrastructure Vulnerability _June_14.geojson
+  - NEW_ADM3_CAD Theme 4 - Service and Infrastructure Stress_June_15.geojson
+  - TTF_HOTSPOTS_ADM3.geojson
+  - adm1_summary_stats_1.geojson
+  - adm2_summary_stats_3.geojson
+  - adm3_summary_stats_1.geojson
+  - cadastre_join_ntl_night_safety_vul7_v2.geojson
+  - combined_cs_status.geojson
+  - cutline_adm2_district.geojson
+  - lbn_Roads Status_2026-03-18.geojson
+  - sv_peace_adm2.geojson
+  - sv_socio_adm2.geojson
+
+Moved files:
+  - ADM1_Displacement Pressure.geojson
+  - ADM1_ECONOMIC_VUL.geojson
+  - ADM1_OVERALL_VUL_JUNE_04.geojson
+  - ADM1_SERVICE_STRESS.geojson
+  - ADM2_Displacement Pressure.geojson
+  - ADM2_ECONOMIC_VUL.geojson
+  - ADM2_OVERALL_VUL_JUNE_04.geojson
+  - ADM2_SERVICE_STRESS.geojson
+  - ADM3_CAD_Theme_3_Socioeconomic_Vulnerability_June_14.geojson
+  - ADM3_Demographic_Shock_Factor.geojson
+  - ADM3_Displacement Pressure.geojson
+  - ADM3_ECONOMIC_VUL.geojson
+  - adm3_livelihood_adm1_2_3_code_names.geojson
+  - adm3_livelihood_adm1_2_3_code_names_with_rates.geojson
+  - ADM3_OVERALL_VUL_JUNE_04.geojson
+  - ADM3_SERVICE_STRESS.geojson
+  - CAD_OVERALL_VUL_JUNE_15.geojson
+  - cadastre_join_ntl.geojson
+  - cadastre_join_ntl_night_safety_vul7_v3_simplified.geojson
+  - cadastre_join_ntl_night_safety_vul7_v3_smaller.geojson
+  - CS_DATA_09_03_26.geojson
+  - cutline.geojson
+  - evictions.geojson
+  - NEW_ADM2_DEMOGRAPHIC_TENSION_AND_STRESS.geojson
+  - NEW_ADM2_DEMOGRAPHIC_TENSION_AND_STRESS_SCORE.geojson
+  - NEW_ADM2_SERVICE_AND_INFRASTRUCTURE_VULNERABILITY.geojson
+  - NEW_ADM2_SERVICE_AND_INFRASTRUCTURE_VULNERABILITY_SCORE.geojson
+  - NEW_ADM2_SOCIO_ECONOMIC_VULNERABILITY.geojson
+  - NEW_ADM2_SOCIO_ECONOMIC_VULNERABILITY_SCORE.geojson
+  - NEW_ADM2_TENSION_AND_CONFLICT_RISK.geojson
+  - NEW_ADM2_TENSION_AND_CONFLICT_RISK_SCORE.geojson
+  - NEW_ADM3_CAD Theme 2 - Tensions and Conflict Risk_June_15.geojson
+  - Overall_tension_risk_dummy_adm1.geojson
+  - Overall_tension_risk_dummy_adm2.geojson
+  - Overall_tension_risk_dummy_adm3.geojson
+  - random_points_cad.geojson
+  - service_stress_infra_vul_adm3.geojson
+  - sv_displace_adm1.geojson
+  - sv_displace_adm2.geojson
+  - sv_displace_adm3.geojson
+  - sv_displacement_adm2.geojson
+  - sv_peace_adm1.geojson
+  - sv_sectarian_DUMMY_adm1.geojson
+  - sv_sectarian_DUMMY_adm2.geojson
+  - sv_sectarian_DUMMY_cadastre.geojson
+  - sv_socio_adm1.geojson
+  - sv_socio_adm3.geojson
+  - sv_socio_economic_adm2.geojson
+  - TENSION_PEACE_CAD_MAY_04.geojson
