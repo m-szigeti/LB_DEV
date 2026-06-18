@@ -458,7 +458,7 @@ const SV_LAYER_IDS = ['svOverallTensionLayer', 'svAdmin1Layer', 'svAdmin2Layer',
 const SV_OVERALL_LAYER_ID = 'svOverallTensionLayer';
 const SV_COMPOSITE_LAYER_IDS = SV_LAYER_IDS.filter(id => id !== SV_OVERALL_LAYER_ID);
 /** Pillar layers that may be shown together with Overall Vulnerability. */
-const SV_OVERALL_COMPATIBLE_LAYER_IDS = ['svAdmin1Layer', 'svAdmin2Layer'];
+const SV_OVERALL_COMPATIBLE_LAYER_IDS = ['svAdmin1Layer', 'svAdmin2Layer', 'svAdmin4Layer'];
 /** Pillar layers that cannot be shown while Overall Vulnerability is on. */
 const SV_OVERALL_INCOMPATIBLE_LAYER_IDS = SV_COMPOSITE_LAYER_IDS.filter(
     id => !SV_OVERALL_COMPATIBLE_LAYER_IDS.includes(id)
