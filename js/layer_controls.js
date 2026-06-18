@@ -457,11 +457,18 @@ const DEFAULT_SV_ADMIN_RESOLUTION = 'district';
 const SV_LAYER_IDS = ['svOverallTensionLayer', 'svAdmin1Layer', 'svAdmin2Layer', 'svAdmin3Layer', 'svAdmin4Layer', 'svAdmin5Layer'];
 const SV_OVERALL_LAYER_ID = 'svOverallTensionLayer';
 const SV_COMPOSITE_LAYER_IDS = SV_LAYER_IDS.filter(id => id !== SV_OVERALL_LAYER_ID);
+/** Pillar layers that may be shown together with Overall Vulnerability. */
+const SV_OVERALL_COMPATIBLE_LAYER_IDS = ['svAdmin1Layer', 'svAdmin2Layer'];
+/** Pillar layers that cannot be shown while Overall Vulnerability is on. */
+const SV_OVERALL_INCOMPATIBLE_LAYER_IDS = SV_COMPOSITE_LAYER_IDS.filter(
+    id => !SV_OVERALL_COMPATIBLE_LAYER_IDS.includes(id)
+);
 
 function reconcileSVLayerSelection(layerIds) {
     const unique = [...new Set(layerIds)];
     if (unique.includes(SV_OVERALL_LAYER_ID)) {
-        return [SV_OVERALL_LAYER_ID];
+        const compatible = unique.filter(id => SV_OVERALL_COMPATIBLE_LAYER_IDS.includes(id));
+        return [SV_OVERALL_LAYER_ID, ...compatible];
     }
     return unique.filter(id => SV_COMPOSITE_LAYER_IDS.includes(id));
 }
@@ -477,8 +484,10 @@ function uncheckSVLayerToggles(layerIds) {
 
 function applySVLayerExclusivity(selectedLayerId) {
     if (selectedLayerId === SV_OVERALL_LAYER_ID) {
-        uncheckSVLayerToggles(SV_COMPOSITE_LAYER_IDS);
-    } else if (SV_COMPOSITE_LAYER_IDS.includes(selectedLayerId)) {
+        uncheckSVLayerToggles(SV_OVERALL_INCOMPATIBLE_LAYER_IDS);
+        return;
+    }
+    if (SV_OVERALL_INCOMPATIBLE_LAYER_IDS.includes(selectedLayerId)) {
         uncheckSVLayerToggles([SV_OVERALL_LAYER_ID]);
     }
 }
