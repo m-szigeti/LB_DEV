@@ -13,6 +13,21 @@ import pandas as pd
 
 DATA_DIR = Path(__file__).resolve().parents[1] / "data"
 JUNE17_DIR = DATA_DIR / "June17"
+
+
+def resolve_map_geojson_path(filename: str | None) -> Path | None:
+    """Prefer data/ root (updated layers), then data/June17/."""
+    if not filename:
+        return None
+    primary = DATA_DIR / filename
+    if primary.exists():
+        return primary
+    fallback = JUNE17_DIR / filename
+    if fallback.exists():
+        return fallback
+    return primary
+
+
 OUTPUT_XLSX = DATA_DIR / "Map_Composite_Scores_By_Admin_Level.xlsx"
 OUTPUT_DISTRICT_CSV = DATA_DIR / "District_Theme_Composite_Scores.csv"
 OUTPUT_GOVERNORATE_CSV = DATA_DIR / "Governorate_Theme_Composite_Scores.csv"
@@ -107,7 +122,7 @@ LEVEL_THEMES = {
         ),
         (
             "Socioeconomic Vulnerability",
-            "CAD Theme 3 - Socioeconomic Vulnerability__joined.geojson",
+            "CAD Theme 3- Socioeconomic Vulnerability__joined.geojson",
             "composite_score",
         ),
         (
@@ -171,7 +186,7 @@ def cadastre_match_keys(frame: pd.DataFrame) -> pd.DataFrame:
 def build_cadastre_sheet() -> pd.DataFrame:
     admin_cols = ADMIN_OUTPUT_COLS["Cadastre"]
     master_label, master_file, master_attr = LEVEL_THEMES["Cadastre"][0]
-    master = cadastre_match_keys(load_geojson(JUNE17_DIR / master_file))
+    master = cadastre_match_keys(load_geojson(resolve_map_geojson_path(master_file)))
     master = master.rename(columns={master_attr: master_label})
     master["ADM3_NAME"] = master.apply(
         lambda r: first_present(r, "ADM3_NAME", "adm3_name", "adm3_name1"), axis=1
@@ -188,8 +203,8 @@ def build_cadastre_sheet() -> pd.DataFrame:
         if not filename:
             merged[theme_label] = pd.NA
             continue
-        path = JUNE17_DIR / filename
-        if not path.exists():
+        path = resolve_map_geojson_path(filename)
+        if not path or not path.exists():
             merged[theme_label] = pd.NA
             continue
         frame = cadastre_match_keys(load_geojson(path))
@@ -259,8 +274,8 @@ def build_level_sheet(level_name: str) -> pd.DataFrame:
     for theme_label, filename, score_attr in LEVEL_THEMES[level_name]:
         if not filename:
             continue
-        path = JUNE17_DIR / filename
-        if not path.exists():
+        path = resolve_map_geojson_path(filename)
+        if not path or not path.exists():
             raise FileNotFoundError(f"Missing {level_name} layer: {path}")
 
         frame = normalize(load_geojson(path))

@@ -29,12 +29,13 @@ import {
 } from './sv_subindicators.js';
 
 const JUNE17_DATA = 'data/June17';
+const DATA = 'data';
 
 const JUNE17_FILES = {
     overall: {
-        governorate: `${JUNE17_DATA}/GOV_Overall_Vulnerability.geojson`,
-        district: `${JUNE17_DATA}/DIS_Overall_Vulnerability.geojson`,
-        cadastre: `${JUNE17_DATA}/CAD_Overall_Vulnerability.geojson`
+        governorate: `${DATA}/GOV_Overall_Vulnerability__from_dis_spatial.geojson`,
+        district: `${DATA}/DIS_Overall_Vulnerability.geojson`,
+        cadastre: `${DATA}/CAD_Overall_Vulnerability.geojson`
     },
     theme1: {
         governorate: `${JUNE17_DATA}/GOV%20Theme%201%20-%20Displacement%20Pressure__from_dis_spatial.geojson`,
@@ -47,9 +48,9 @@ const JUNE17_FILES = {
         cadastre: `${JUNE17_DATA}/CAD%20Theme%202%20-%20Tensions%20and%20Conflict%20Risk__joined.geojson`
     },
     theme3: {
-        governorate: `${JUNE17_DATA}/GOV%20Theme%203%20-%20Socioeconomic%20Vulnerability__from_dis_spatial.geojson`,
-        district: `${JUNE17_DATA}/DIS%20Theme%203%20-%20Socioeconomic%20Vulnerability__joined.geojson`,
-        cadastre: `${JUNE17_DATA}/CAD%20Theme%203%20-%20Socioeconomic%20Vulnerability__joined.geojson`
+        governorate: `${DATA}/GOV%20Theme%203%20-%20Socioeconomic%20Vulnerability__from_dis_spatial.geojson`,
+        district: `${DATA}/DIS%20Theme%203%20-%20Socioeconomic%20Vulnerability__joined.geojson`,
+        cadastre: `${DATA}/CAD%20Theme%203-%20Socioeconomic%20Vulnerability__joined.geojson`
     },
     theme4: {
         governorate: `${JUNE17_DATA}/GOV%20Theme%204%20-%20Service%20%26%20Infrastructure%20Vulnerability__from_dis_spatial.geojson`,
@@ -740,40 +741,18 @@ const POP_RESOLUTION_CONFIG = {
 
 const ECONOMIC_SCORE_FIELD = 'composite_score';
 
-/** Property keys from CAD Theme 3 - Socioeconomic Vulnerability June 16.geojson (cadastre). */
+/** Property keys from CAD Theme 3- Socioeconomic Vulnerability__joined.geojson (cadastre). */
 const ECONOMIC_SUBINDICATOR_OPTIONS_CADASTRE = [
-    { value: 'Nighttime light radiance', label: 'Nighttime light radiance' },
+    { value: 'Absolute Vulnerability', label: 'Absolute vulnerability' },
     { value: 'Household Deprivation Score', label: 'Household deprivation score' },
-    { value: 'Negative Coping Tendency', label: 'Negative coping tendency' },
-    { value: 'Unemployment rate', label: 'Unemployment rate' },
-    { value: 'Population dependency ratio', label: 'Population dependency ratio' },
-    { value: 'Food insecurity level (IPC)', label: 'Food insecurity level (IPC)' },
-    {
-        value: 'Poverty Level (Relative Vulnerability - AMAAN)',
-        label: 'Poverty level (relative vulnerability — AMAAN)'
-    },
-    {
-        value: 'Poverty Level (Internal Vulnerability - AMAAN)',
-        label: 'Poverty level (internal vulnerability — AMAAN)'
-    }
+    { value: 'Nighttime light radiance', label: 'Nighttime light radiance' }
 ];
 
-/** Property keys from ADM1_GOV_Theme_3_Socioeconomic_Vulnerability_June_14.geojson. */
+/** Property keys from GOV/DIS Theme 3 socioeconomic layers (updated joined/spatial files). */
 const ECONOMIC_SUBINDICATOR_OPTIONS_GOVERNORATE = [
-    { value: 'Nighttime light radiance', label: 'Nighttime light radiance' },
+    { value: 'Absolute Vulnerability', label: 'Absolute vulnerability' },
     { value: 'Household Deprivation Score', label: 'Household deprivation score' },
-    { value: 'Negative Coping Tendency', label: 'Negative coping tendency' },
-    { value: 'Unemployment rate', label: 'Unemployment rate' },
-    { value: 'Population dependency ratio', label: 'Population dependency ratio' },
-    { value: 'Food insecurity level (IPC)', label: 'Food insecurity level (IPC)' },
-    {
-        value: 'Poverty Level (Relative Vulnerability - AMAAN)',
-        label: 'Poverty level (relative vulnerability — AMAAN)'
-    },
-    {
-        value: 'Poverty Level (Internal Vulnerability - AMAAN)',
-        label: 'Poverty level (internal vulnerability — AMAAN)'
-    }
+    { value: 'Nighttime light radiance', label: 'Nighttime light radiance' }
 ];
 
 const ECONOMIC_ID_FIELDS = new Set([
@@ -1058,6 +1037,7 @@ function getEconomicFieldLabel(fieldKey) {
         'Food insecurity level (IPC)': 'Food insecurity level (IPC)',
         HDS: 'HDS',
         'Household Deprivation Score': 'Household deprivation score',
+        'Absolute Vulnerability': 'Absolute vulnerability',
         'Poverty Level (Relative Vulnerability - AMAAN)':
             'Poverty level (relative vulnerability — AMAAN)',
         'Poverty Level (Internal Vulnerability - AMAAN)':
