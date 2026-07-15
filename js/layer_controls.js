@@ -33,6 +33,13 @@ import {
     reapplyAnalysisSelectionStyles,
     clearAnalysisSelection
 } from './analysis_selection.js';
+import { CUSTOM_COMPOSITE_FIELD } from './composite_score.js';
+import { usesCustomComposite } from './composite_sandbox_state.js';
+import {
+    initCompositeWeightSandbox,
+    syncCompositeSandboxPanel,
+    blockCompositeSandboxNavigation
+} from './composite_weight_ui.js';
 
 const JUNE17_DATA = 'data/June17';
 const DATA = 'data';
@@ -1416,10 +1423,16 @@ function populateEconomicSubindicatorSelect(resolution = getActiveAdminResolutio
 }
 
 function getEffectiveEconomicAttribute(config) {
+    if (usesCustomComposite('svAdmin2Layer')) {
+        return CUSTOM_COMPOSITE_FIELD;
+    }
     return getPrimarySubindicator('svAdmin2Layer') || config?.svAttribute || ECONOMIC_SCORE_FIELD;
 }
 
 function getEconomicSubindicatorLegendTitle(attributeKey, config) {
+    if (attributeKey === CUSTOM_COMPOSITE_FIELD) {
+        return `${config?.legendName || 'Socioeconomic Vulnerability'} (experimental weighted)`;
+    }
     const opt = getEconomicSubindicatorOptions().find(o => o.value === attributeKey);
     return opt ? opt.label : config?.legendName || 'Socioeconomic Vulnerability';
 }
@@ -1429,10 +1442,16 @@ function populateServiceSubindicatorSelect(resolution = getActiveAdminResolution
 }
 
 function getEffectiveServiceAttribute(config) {
+    if (usesCustomComposite('svAdmin4Layer')) {
+        return CUSTOM_COMPOSITE_FIELD;
+    }
     return getPrimarySubindicator('svAdmin4Layer') || config?.svAttribute || SERVICE_SCORE_FIELD;
 }
 
 function getServiceSubindicatorLegendTitle(attributeKey, config) {
+    if (attributeKey === CUSTOM_COMPOSITE_FIELD) {
+        return `${config?.legendName || 'Service & Infrastructure Vulnerability'} (experimental weighted)`;
+    }
     const opt = getServiceSubindicatorOptions().find(o => o.value === attributeKey);
     return opt ? opt.label : config?.legendName || 'Service & Infrastructure Vulnerability';
 }
@@ -1529,6 +1548,9 @@ function getPopulationChoroplethLegendTitle(attributeKey, config) {
 }
 
 function getEffectiveChoroplethAttribute(layerId, config) {
+    if (usesCustomComposite(layerId)) {
+        return CUSTOM_COMPOSITE_FIELD;
+    }
     if (layerId === 'svAdmin3Layer' && supportsPeaceSubindicators(config)) {
         return getPrimarySubindicator(layerId) || config?.svAttribute;
     }
@@ -1723,6 +1745,9 @@ function pushSVChoroplethLegendEntry(layerId, chAttr, config, layerName, colorSc
 }
 
 function getChoroplethLegendTitle(layerId, attributeKey, config) {
+    if (attributeKey === CUSTOM_COMPOSITE_FIELD) {
+        return `${config?.legendName || getLayerDisplayName(layerId, config)} (experimental weighted)`;
+    }
     if (layerId === 'svAdmin3Layer') {
         return getPeaceCadastreChoroplethLegendTitle(layerId, attributeKey, config);
     }
@@ -1983,6 +2008,51 @@ function refreshSVEconomicStripePattern(map, layers, addLegendEntry) {
     }
 }
 
+async function refreshSandboxLayer(layerId, map, layers, addLegendEntry) {
+    const config = layerConfig[layerId];
+    const layer = layers.vector[layerId];
+    if (!config || !layer || !activeSVLayers.has(layerId)) return;
+
+    if (config.renderMode === 'service-symbol') {
+        refreshSVServiceSymbolLayer(map, layers, addLegendEntry);
+    } else if (config.renderMode === 'stripe-pattern' || config.renderMode === 'service-pattern') {
+        refreshSVEconomicStripePattern(map, layers, addLegendEntry);
+    } else if (layerId === 'svAdmin3Layer') {
+        refreshSVPeaceCadastreChoropleth(map, layers, addLegendEntry);
+    } else if (THEME_SUBINDICATOR_LAYER_IDS.includes(layerId)) {
+        refreshSVThemeSubindicatorChoropleth(layerId, map, layers, addLegendEntry);
+    } else {
+        const chAttr = getEffectiveChoroplethAttribute(layerId, config);
+        const fixedRamp = getColorRamp(config.fixedColorRamp);
+        const opacitySlider = document.getElementById('svOpacity');
+        const opacity = opacitySlider ? parseFloat(opacitySlider.value) : 0.6;
+        if (fixedRamp) {
+            const updateLegendForLayer = (layerName, colorScheme, description, labels) => {
+                pushSVChoroplethLegendEntry(
+                    layerId,
+                    chAttr,
+                    config,
+                    layerName,
+                    colorScheme,
+                    description,
+                    labels,
+                    addLegendEntry
+                );
+            };
+            updateVectorLayerStyle(layer, chAttr, fixedRamp, opacity, updateLegendForLayer, { skipTooltips: true });
+            applySVPolygonOutlineStyle(layer, config);
+            reapplySelectedPolygonHighlight(layerId);
+        }
+    }
+
+    updateSVHoverTooltips(layer, layerId, config);
+    if (window.currentInfoPanel) {
+        window.currentInfoPanel.updateLayer(layerId, {
+            selectedAttribute: getEffectiveChoroplethAttribute(layerId, config)
+        });
+    }
+}
+
 
 const ESCALATION_TIME_MODE_CONTROL = 'escalationTimeMode';
 const ESCALATION_TIME_MODE = {
@@ -2160,6 +2230,10 @@ function setupSVRadioControls(map, layers, colorScales, addLegendEntry, removeLe
 
     svToggles.forEach(toggle => {
         toggle.addEventListener('change', async function() {
+            if (blockCompositeSandboxNavigation()) {
+                this.checked = !this.checked;
+                return;
+            }
             const layerId = this.id;
             const config = layerConfig[layerId];
 
@@ -2215,12 +2289,14 @@ function setupSVRadioControls(map, layers, colorScales, addLegendEntry, removeLe
             if (typeof window.syncSVSubindicatorPanelsVisibility === 'function') {
                 window.syncSVSubindicatorPanelsVisibility();
             }
+            void syncCompositeSandboxPanel(currentSVLayer, getActiveAdminResolution());
         });
     });
 
     configureSVSubindicators({
         isLayerActive: layerId => activeSVLayers.has(layerId),
         onChange: layerId => {
+            if (usesCustomComposite(layerId)) return;
             if (layerId === 'svAdmin3Layer') {
                 refreshSVPeaceCadastreChoropleth(map, layers, addLegendEntry);
             } else if (layerId === 'svAdmin5Layer') {
@@ -2265,6 +2341,17 @@ function setupSVRadioControls(map, layers, colorScales, addLegendEntry, removeLe
             }
         });
     });
+
+    initCompositeWeightSandbox({
+        map,
+        layers,
+        getActiveResolution: getActiveAdminResolution,
+        getCurrentCompositeLayerId: () => currentSVLayer,
+        isLayerActive: layerId => activeSVLayers.has(layerId),
+        getLayerGeoJson: layerId => layers.vector[layerId]?.layerData?.raw,
+        refreshSandboxLayer: layerId => refreshSandboxLayer(layerId, map, layers, addLegendEntry)
+    });
+    void syncCompositeSandboxPanel(currentSVLayer, getActiveAdminResolution());
 }
 
 function getDefaultServicePriorityOnly(resolution = getActiveAdminResolution()) {
@@ -2353,6 +2440,9 @@ function setupSVResolutionSelector(map, layers, colorScales, addLegendEntry, rem
 }
 
 async function applySVResolution(resolution, map, layers, colorScales, addLegendEntry, removeLegendEntry, updateLegend, hideLegend, resolutionButtons = null) {
+    if (blockCompositeSandboxNavigation()) {
+        return;
+    }
     const requestVersion = ++svResolutionVersion;
     clearAnalysisSelection();
     window.currentInfoPanel?.updateAnalysisAreaSelection?.();
@@ -2469,6 +2559,7 @@ async function applySVResolution(resolution, map, layers, colorScales, addLegend
         addLegendEntry,
         removeLegendEntry
     );
+    void syncCompositeSandboxPanel(currentSVLayer, selectedResolution);
 }
 
 async function applyPopulationResolution(resolution, map, layers, colorScales, addLegendEntry, removeLegendEntry) {
@@ -2815,6 +2906,7 @@ async function loadSVLayer(layerId, map, layers, colorScales, addLegendEntry, re
     
     window.currentInfoPanel.addLayer(layerId, layerInfo);
     }
+    void syncCompositeSandboxPanel(layerId, getActiveAdminResolution());
 }
 
 function getSVCircleRadius(value, minValue, maxValue, minRadius, maxRadius) {

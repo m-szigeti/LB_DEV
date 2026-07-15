@@ -8,6 +8,7 @@
     <!-- CSS styles -->
     <link rel="stylesheet" href="css/styles.css">
     <link rel="stylesheet" href="css/info_panel.css">
+    <link rel="stylesheet" href="css/composite_weights.css">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
   integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
   crossorigin=""/>
@@ -219,7 +220,36 @@
                 <div class="sv-subindicator-chips" role="group" aria-label="Gender Based Vulnerabilities sub-indicators"></div>
             </div>
             </div>
-        </div>
+            </div>
+
+            <div id="compositeSandboxPanel" class="composite-sandbox-panel" hidden>
+                <div class="composite-sandbox-header">
+                    <span class="composite-sandbox-title">Experimental weight sandbox</span>
+                    <span class="composite-sandbox-badge">District</span>
+                </div>
+                <p class="composite-sandbox-hint">
+                    Sliders use official sub-indicator weights (0–1). Adjust weights, then create a temporary preview map.
+                    This does not replace official published scores.
+                </p>
+                <p id="compositeSandboxThemeTitle" class="composite-sandbox-theme"></p>
+                <div id="compositeSandboxError" class="composite-sandbox-error" hidden></div>
+                <div id="compositeSandboxSliders" class="composite-sandbox-sliders"></div>
+                <div id="compositeSandboxComparePanel" class="composite-sandbox-compare-wrap" hidden>
+                    <span class="composite-sandbox-compare-label">Compare</span>
+                    <div class="composite-sandbox-compare-toggle" role="group" aria-label="Compare before and after composite scores">
+                        <button type="button" class="composite-sandbox-compare-btn" data-view="before" aria-pressed="false">Before</button>
+                        <button type="button" class="composite-sandbox-compare-btn is-active" data-view="after" aria-pressed="true">After</button>
+                    </div>
+                </div>
+                <div class="composite-sandbox-actions">
+                    <button type="button" id="compositeSandboxCreateBtn" class="composite-sandbox-btn composite-sandbox-btn-primary">
+                        Create weighted map
+                    </button>
+                    <button type="button" id="compositeSandboxDeleteBtn" class="composite-sandbox-btn composite-sandbox-btn-danger" hidden>
+                        Delete weighted map
+                    </button>
+                </div>
+            </div>
         
         <!-- Single opacity control for the selected layer -->
         <div class="layer-controls">
@@ -572,6 +602,28 @@
 
             <!-- Map container left -->
             <div id="map"></div>
+
+            <div id="compositeSandboxBanner" class="composite-sandbox-banner" hidden>
+                <span id="compositeSandboxBannerText" class="composite-sandbox-banner-text">
+                    Sandbox — viewing After (experimental weighted composite).
+                </span>
+                <div id="compositeSandboxCompareBanner" class="composite-sandbox-compare-wrap composite-sandbox-compare-wrap-banner" hidden>
+                    <div class="composite-sandbox-compare-toggle" role="group" aria-label="Compare before and after composite scores">
+                        <button type="button" class="composite-sandbox-compare-btn" data-view="before" aria-pressed="false">Before</button>
+                        <button type="button" class="composite-sandbox-compare-btn is-active" data-view="after" aria-pressed="true">After</button>
+                    </div>
+                </div>
+                <button type="button" id="compositeSandboxBannerDeleteBtn" class="composite-sandbox-btn composite-sandbox-btn-danger">
+                    Delete weighted map
+                </button>
+            </div>
+
+            <div id="compositeSandboxComputingOverlay" class="composite-sandbox-computing-overlay" hidden>
+                <div class="composite-sandbox-computing-card">
+                    <div class="loading-spinner"></div>
+                    <span>Calculating weighted composite…</span>
+                </div>
+            </div>
 
             <!-- Legend -->
             <div id="legend" class="legend"></div>

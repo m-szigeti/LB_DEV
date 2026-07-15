@@ -445,6 +445,9 @@ function setupDropdownToggles() {
                 if (typeof window.syncSVSubindicatorPanelsVisibility === 'function') {
                     window.syncSVSubindicatorPanelsVisibility();
                 }
+                if (typeof window.syncCompositeSandboxPanel === 'function') {
+                    window.syncCompositeSandboxPanel();
+                }
             }
             if (this.classList.contains('stressors-section-btn')) {
                 syncEscalationControlsWrapVisibility();

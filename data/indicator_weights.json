@@ -1,0 +1,695 @@
+{
+  "district": {
+    "2": {
+      "layerId": "svAdmin3Layer",
+      "themeName": "Tensions and Conflict Risk",
+      "compositeField": "composite_score",
+      "indicators": [
+        {
+          "field": "Fear of traveling within Lebanon safely",
+          "label": "Fear of traveling within Lebanon safely",
+          "defaultWeight": 0.067121,
+          "inverted": false
+        },
+        {
+          "field": "Feeling lack of safety during the night",
+          "label": "Feeling lack of safety during the night",
+          "defaultWeight": 0.164305,
+          "inverted": false
+        },
+        {
+          "field": "Inter-sectarian and inter-communal conflict incidents",
+          "label": "Inter-sectarian and inter-communal conflict incidents",
+          "defaultWeight": 0.177783,
+          "inverted": false
+        },
+        {
+          "field": "Number of crime incidents",
+          "label": "Number of crime incidents",
+          "defaultWeight": 0.193884,
+          "inverted": false
+        },
+        {
+          "field": "Number of fatalities in tension incidents",
+          "label": "Number of fatalities in tension incidents",
+          "defaultWeight": 0.230706,
+          "inverted": false
+        },
+        {
+          "field": "Number of violent incidents",
+          "label": "Number of violent incidents",
+          "defaultWeight": 0.166199,
+          "inverted": false
+        }
+      ]
+    },
+    "3": {
+      "layerId": "svAdmin2Layer",
+      "themeName": "Socioeconomic Vulnerability",
+      "compositeField": "composite_score",
+      "indicators": [
+        {
+          "field": "Absolute Vulnerability",
+          "label": "Absolute Vulnerability",
+          "defaultWeight": 0.352,
+          "inverted": false
+        },
+        {
+          "field": "Household Deprivation Score",
+          "label": "Household Deprivation Score",
+          "defaultWeight": 0.413333,
+          "inverted": false
+        },
+        {
+          "field": "Nighttime light radiance",
+          "label": "Nighttime light radiance",
+          "defaultWeight": 0.234667,
+          "inverted": true
+        }
+      ]
+    },
+    "4": {
+      "layerId": "svAdmin4Layer",
+      "themeName": "Service & Infrastructure Vulnerability",
+      "compositeField": "composite_score",
+      "indicators": [
+        {
+          "field": "Perceptions on quality of services: Electricity",
+          "label": "Perceptions on quality of services: Electricity",
+          "defaultWeight": 0.064064,
+          "inverted": false
+        },
+        {
+          "field": "Perceptions on quality of services: Waste Removal",
+          "label": "Perceptions on quality of services: Waste Removal",
+          "defaultWeight": 0.073778,
+          "inverted": false
+        },
+        {
+          "field": "Perceptions on quality of services: Water",
+          "label": "Perceptions on quality of services: Water",
+          "defaultWeight": 0.065003,
+          "inverted": false
+        },
+        {
+          "field": "Service-related incidents",
+          "label": "Service-related incidents",
+          "defaultWeight": 0.068732,
+          "inverted": false
+        },
+        {
+          "field": "Services as a tension driver",
+          "label": "Services as a tension driver",
+          "defaultWeight": 0.063415,
+          "inverted": false
+        },
+        {
+          "field": "Solid waste pressure (displacement)",
+          "label": "Solid waste pressure (displacement)",
+          "defaultWeight": 0.05421,
+          "inverted": false
+        },
+        {
+          "field": "Water availability and accessibility",
+          "label": "Water availability and accessibility",
+          "defaultWeight": 0.057907,
+          "inverted": false
+        },
+        {
+          "field": "Worry about access to healthcare services",
+          "label": "Worry about access to healthcare services",
+          "defaultWeight": 0.064218,
+          "inverted": false
+        },
+        {
+          "field": "Worry about access to safe drinking water",
+          "label": "Worry about access to safe drinking water",
+          "defaultWeight": 0.068133,
+          "inverted": false
+        },
+        {
+          "field": "incidents around civil defence",
+          "label": "incidents around civil defence",
+          "defaultWeight": 0.0,
+          "inverted": false
+        },
+        {
+          "field": "incidents around education",
+          "label": "incidents around education",
+          "defaultWeight": 0.054729,
+          "inverted": false
+        },
+        {
+          "field": "incidents around electricity",
+          "label": "incidents around electricity",
+          "defaultWeight": 0.067605,
+          "inverted": false
+        },
+        {
+          "field": "incidents around generator",
+          "label": "incidents around generator",
+          "defaultWeight": 0.059539,
+          "inverted": false
+        },
+        {
+          "field": "incidents around health",
+          "label": "incidents around health",
+          "defaultWeight": 0.063841,
+          "inverted": false
+        },
+        {
+          "field": "quality of education",
+          "label": "quality of education",
+          "defaultWeight": 0.040956,
+          "inverted": false
+        },
+        {
+          "field": "quality of healthcare services",
+          "label": "quality of healthcare services",
+          "defaultWeight": 0.060094,
+          "inverted": false
+        },
+        {
+          "field": "quality of waste removal",
+          "label": "quality of waste removal",
+          "defaultWeight": 0.073778,
+          "inverted": false
+        }
+      ]
+    },
+    "6": {
+      "layerId": "svClimateLayer",
+      "themeName": "Climate Change and Environmental Risk",
+      "compositeField": "composite_score",
+      "indicators": [
+        {
+          "field": "Annual Dry Spell Length",
+          "label": "Annual Dry Spell Length",
+          "defaultWeight": 0.338408,
+          "inverted": false
+        },
+        {
+          "field": "Forest fire risk",
+          "label": "Forest fire risk",
+          "defaultWeight": 0.340374,
+          "inverted": false
+        },
+        {
+          "field": "Mean annual hot days",
+          "label": "Mean annual hot days",
+          "defaultWeight": 0.321218,
+          "inverted": false
+        }
+      ]
+    },
+    "7": {
+      "layerId": "svPoliticalLayer",
+      "themeName": "Political Vulnerability",
+      "compositeField": "composite_score",
+      "indicators": [
+        {
+          "field": "Faith in elections",
+          "label": "Faith in elections",
+          "defaultWeight": 0.072088,
+          "inverted": false
+        },
+        {
+          "field": "Faith in politics",
+          "label": "Faith in politics",
+          "defaultWeight": 0.079963,
+          "inverted": false
+        },
+        {
+          "field": "ISF effect on quality of life: worsened life somewhat + alot",
+          "label": "ISF effect on quality of life: worsened life somewhat + alot",
+          "defaultWeight": 0.125634,
+          "inverted": false
+        },
+        {
+          "field": "LAF effect on quality of life: worsened life somewhat + alot",
+          "label": "LAF effect on quality of life: worsened life somewhat + alot",
+          "defaultWeight": 0.115759,
+          "inverted": false
+        },
+        {
+          "field": "Municipal authorities effect on quality of life: worsened life somewhat + alot",
+          "label": "Municipal authorities effect on quality of life: worsened life somewhat + alot",
+          "defaultWeight": 0.076642,
+          "inverted": false
+        },
+        {
+          "field": "Municipal council entrenchment",
+          "label": "Municipal council entrenchment",
+          "defaultWeight": 0.057118,
+          "inverted": false
+        },
+        {
+          "field": "Municipal elections turnout",
+          "label": "Municipal elections turnout",
+          "defaultWeight": 0.067924,
+          "inverted": false
+        },
+        {
+          "field": "State Citizen Incidents ",
+          "label": "State Citizen Incidents ",
+          "defaultWeight": 0.047006,
+          "inverted": false
+        },
+        {
+          "field": "Trust in LAF",
+          "label": "Trust in LAF",
+          "defaultWeight": 0.048372,
+          "inverted": false
+        },
+        {
+          "field": "Trust in Parliament",
+          "label": "Trust in Parliament",
+          "defaultWeight": 0.102277,
+          "inverted": false
+        },
+        {
+          "field": "Trust in security forces",
+          "label": "Trust in security forces",
+          "defaultWeight": 0.102189,
+          "inverted": false
+        },
+        {
+          "field": "Trust in the court system",
+          "label": "Trust in the court system",
+          "defaultWeight": 0.105028,
+          "inverted": false
+        }
+      ]
+    },
+    "8": {
+      "layerId": "svGenderLayer",
+      "themeName": "Gender Based Vulnerabilities",
+      "compositeField": "composite_score",
+      "indicators": [
+        {
+          "field": "Fear of movement or travel (female)",
+          "label": "Fear of movement or travel (female)",
+          "defaultWeight": 0.178768,
+          "inverted": false
+        },
+        {
+          "field": "Female unemployment rate",
+          "label": "Female unemployment rate",
+          "defaultWeight": 0.098971,
+          "inverted": false
+        },
+        {
+          "field": "Reported incidents of gender-based violence",
+          "label": "Reported incidents of gender-based violence",
+          "defaultWeight": 0.172698,
+          "inverted": false
+        },
+        {
+          "field": "Reports of harassment or violence",
+          "label": "Reports of harassment or violence",
+          "defaultWeight": 0.172077,
+          "inverted": false
+        },
+        {
+          "field": "Safety at night (female)",
+          "label": "Safety at night (female)",
+          "defaultWeight": 0.189649,
+          "inverted": false
+        },
+        {
+          "field": "Service access difficulty (female)",
+          "label": "Service access difficulty (female)",
+          "defaultWeight": 0.09218,
+          "inverted": false
+        },
+        {
+          "field": "Trust in the court system",
+          "label": "Trust in the court system",
+          "defaultWeight": 0.095657,
+          "inverted": false
+        }
+      ]
+    }
+  },
+  "governorate": {
+    "2": {
+      "layerId": "svAdmin3Layer",
+      "themeName": "Tensions and Conflict Risk",
+      "compositeField": "composite_score",
+      "indicators": [
+        {
+          "field": "Fear of traveling within Lebanon safely",
+          "label": "Fear of traveling within Lebanon safely",
+          "defaultWeight": 0.138322,
+          "inverted": false
+        },
+        {
+          "field": "Feeling lack of safety during the night",
+          "label": "Feeling lack of safety during the night",
+          "defaultWeight": 0.239492,
+          "inverted": false
+        },
+        {
+          "field": "Inter-sectarian and inter-communal conflict incidents",
+          "label": "Inter-sectarian and inter-communal conflict incidents",
+          "defaultWeight": 0.101133,
+          "inverted": false
+        },
+        {
+          "field": "Number of crime incidents",
+          "label": "Number of crime incidents",
+          "defaultWeight": 0.145662,
+          "inverted": false
+        },
+        {
+          "field": "Number of fatalities in tension incidents",
+          "label": "Number of fatalities in tension incidents",
+          "defaultWeight": 0.137353,
+          "inverted": false
+        },
+        {
+          "field": "Number of violent incidents",
+          "label": "Number of violent incidents",
+          "defaultWeight": 0.238038,
+          "inverted": false
+        }
+      ]
+    },
+    "3": {
+      "layerId": "svAdmin2Layer",
+      "themeName": "Socioeconomic Vulnerability",
+      "compositeField": "composite_score",
+      "indicators": [
+        {
+          "field": "Absolute Vulnerability",
+          "label": "Absolute Vulnerability",
+          "defaultWeight": 0.446423,
+          "inverted": false
+        },
+        {
+          "field": "Household Deprivation Score",
+          "label": "Household Deprivation Score",
+          "defaultWeight": 0.053577,
+          "inverted": false
+        },
+        {
+          "field": "Nighttime light radiance",
+          "label": "Nighttime light radiance",
+          "defaultWeight": 0.5,
+          "inverted": true
+        }
+      ]
+    },
+    "4": {
+      "layerId": "svAdmin4Layer",
+      "themeName": "Service & Infrastructure Vulnerability",
+      "compositeField": "composite_score",
+      "indicators": [
+        {
+          "field": "Perceptions on quality of services: Electricity",
+          "label": "Perceptions on quality of services: Electricity",
+          "defaultWeight": 0.123077,
+          "inverted": false
+        },
+        {
+          "field": "Perceptions on quality of services: Waste Removal",
+          "label": "Perceptions on quality of services: Waste Removal",
+          "defaultWeight": 0.088462,
+          "inverted": false
+        },
+        {
+          "field": "Perceptions on quality of services: Water",
+          "label": "Perceptions on quality of services: Water",
+          "defaultWeight": 0.134615,
+          "inverted": false
+        },
+        {
+          "field": "Service-related incidents",
+          "label": "Service-related incidents",
+          "defaultWeight": 0.080769,
+          "inverted": false
+        },
+        {
+          "field": "Services as a tension driver",
+          "label": "Services as a tension driver",
+          "defaultWeight": 0.126923,
+          "inverted": false
+        },
+        {
+          "field": "Solid waste pressure (displacement)",
+          "label": "Solid waste pressure (displacement)",
+          "defaultWeight": 0.130769,
+          "inverted": false
+        },
+        {
+          "field": "Water availability and accessibility",
+          "label": "Water availability and accessibility",
+          "defaultWeight": 0.103846,
+          "inverted": false
+        },
+        {
+          "field": "Worry about access to healthcare services",
+          "label": "Worry about access to healthcare services",
+          "defaultWeight": 0.084615,
+          "inverted": false
+        },
+        {
+          "field": "Worry about access to safe drinking water",
+          "label": "Worry about access to safe drinking water",
+          "defaultWeight": 0.126923,
+          "inverted": false
+        }
+      ]
+    },
+    "6": {
+      "layerId": "svClimateLayer",
+      "themeName": "Climate and Environmental Risk",
+      "compositeField": "composite_score",
+      "indicators": [
+        {
+          "field": "Annual Dry Spell Length",
+          "label": "Annual Dry Spell Length",
+          "defaultWeight": 0.3,
+          "inverted": false
+        },
+        {
+          "field": "Forest fire risk",
+          "label": "Forest fire risk",
+          "defaultWeight": 0.3,
+          "inverted": false
+        },
+        {
+          "field": "Mean Annual Hot Days",
+          "label": "Mean Annual Hot Days",
+          "defaultWeight": 0.4,
+          "inverted": false
+        }
+      ]
+    },
+    "7": {
+      "layerId": "svPoliticalLayer",
+      "themeName": "Political Vulnerability",
+      "compositeField": "composite_score",
+      "indicators": [
+        {
+          "field": "Faith in elections ",
+          "label": "Faith in elections ",
+          "defaultWeight": 0.074562,
+          "inverted": false
+        },
+        {
+          "field": "Faith in politics",
+          "label": "Faith in politics",
+          "defaultWeight": 0.126381,
+          "inverted": false
+        },
+        {
+          "field": "Municipal council entrenchment",
+          "label": "Municipal council entrenchment",
+          "defaultWeight": 0.066079,
+          "inverted": false
+        },
+        {
+          "field": "Municipal elections turnout",
+          "label": "Municipal elections turnout",
+          "defaultWeight": 0.130306,
+          "inverted": false
+        },
+        {
+          "field": "State Citizen Incidents ",
+          "label": "State Citizen Incidents ",
+          "defaultWeight": 0.086262,
+          "inverted": false
+        },
+        {
+          "field": "Trust in LAF",
+          "label": "Trust in LAF",
+          "defaultWeight": 0.106364,
+          "inverted": false
+        },
+        {
+          "field": "Trust in Parliament",
+          "label": "Trust in Parliament",
+          "defaultWeight": 0.126199,
+          "inverted": false
+        },
+        {
+          "field": "Trust in security forces",
+          "label": "Trust in security forces",
+          "defaultWeight": 0.145672,
+          "inverted": false
+        },
+        {
+          "field": "Trust in the court system",
+          "label": "Trust in the court system",
+          "defaultWeight": 0.138175,
+          "inverted": false
+        }
+      ]
+    },
+    "8": {
+      "layerId": "svGenderLayer",
+      "themeName": "Gender Based Vulnerabilities",
+      "compositeField": "composite_score",
+      "indicators": [
+        {
+          "field": "Fear of movement or travel (female)",
+          "label": "Fear of movement or travel (female)",
+          "defaultWeight": 0.181744,
+          "inverted": false
+        },
+        {
+          "field": "Female unemployment rate",
+          "label": "Female unemployment rate",
+          "defaultWeight": 0.105853,
+          "inverted": false
+        },
+        {
+          "field": "Reported incidents of gender-based violence",
+          "label": "Reported incidents of gender-based violence",
+          "defaultWeight": 0.167171,
+          "inverted": false
+        },
+        {
+          "field": "Reports of harassment or violence",
+          "label": "Reports of harassment or violence",
+          "defaultWeight": 0.155105,
+          "inverted": false
+        },
+        {
+          "field": "Safety at night (female)",
+          "label": "Safety at night (female)",
+          "defaultWeight": 0.107168,
+          "inverted": false
+        },
+        {
+          "field": "Service access difficulty (female)",
+          "label": "Service access difficulty (female)",
+          "defaultWeight": 0.094033,
+          "inverted": false
+        },
+        {
+          "field": "Trust in the court system",
+          "label": "Trust in the court system",
+          "defaultWeight": 0.188925,
+          "inverted": false
+        }
+      ]
+    }
+  },
+  "cadastre": {
+    "2": {
+      "layerId": "svAdmin3Layer",
+      "themeName": "Tensions and Conflict Risk",
+      "compositeField": "composite_score",
+      "indicators": [
+        {
+          "field": "Fear of traveling within Lebanon safely",
+          "label": "Fear of traveling within Lebanon safely",
+          "defaultWeight": 0.057153,
+          "inverted": false
+        },
+        {
+          "field": "Feeling lack of safety during the night",
+          "label": "Feeling lack of safety during the night",
+          "defaultWeight": 0.175905,
+          "inverted": false
+        },
+        {
+          "field": "Inter-sectarian and inter-communal conflict incidents",
+          "label": "Inter-sectarian and inter-communal conflict incidents",
+          "defaultWeight": 0.191884,
+          "inverted": false
+        },
+        {
+          "field": "Number of crime incidents",
+          "label": "Number of crime incidents",
+          "defaultWeight": 0.180694,
+          "inverted": false
+        },
+        {
+          "field": "Number of fatalities in tension incidents",
+          "label": "Number of fatalities in tension incidents",
+          "defaultWeight": 0.244572,
+          "inverted": false
+        },
+        {
+          "field": "Number of violent incidents",
+          "label": "Number of violent incidents",
+          "defaultWeight": 0.149791,
+          "inverted": false
+        }
+      ]
+    },
+    "3": {
+      "layerId": "svAdmin2Layer",
+      "themeName": "Socioeconomic Vulnerability v2",
+      "compositeField": "composite_score",
+      "indicators": [
+        {
+          "field": "Absolute Vulnerability",
+          "label": "Absolute Vulnerability",
+          "defaultWeight": 0.389431,
+          "inverted": false
+        },
+        {
+          "field": "Household Deprivation Score",
+          "label": "Household Deprivation Score",
+          "defaultWeight": 0.433437,
+          "inverted": false
+        },
+        {
+          "field": "Nighttime light radiance",
+          "label": "Nighttime light radiance",
+          "defaultWeight": 0.177132,
+          "inverted": true
+        }
+      ]
+    },
+    "6": {
+      "layerId": "svClimateLayer",
+      "themeName": "Climate Change and Environmental Risk",
+      "compositeField": "composite_score",
+      "indicators": [
+        {
+          "field": "Annual Dry Spell Length",
+          "label": "Annual Dry Spell Length",
+          "defaultWeight": 0.277561,
+          "inverted": false
+        },
+        {
+          "field": "Forest fire risk",
+          "label": "Forest fire risk",
+          "defaultWeight": 0.22534,
+          "inverted": false
+        },
+        {
+          "field": "Mean annual hot days",
+          "label": "Mean annual hot days",
+          "defaultWeight": 0.497099,
+          "inverted": false
+        }
+      ]
+    }
+  }
+}
