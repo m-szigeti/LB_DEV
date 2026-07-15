@@ -2,6 +2,17 @@
 
 import { WELCOME_TAB_HTML } from './welcome_tab_content.js';
 import { OVERALL_VULNERABILITY_INDEX_DESCRIPTION_HTML } from './overall_vulnerability_index_content.js';
+import {
+    clearAnalysisSelection,
+    getAnalysisSelectionCount,
+    getAnalysisSelectionItems,
+    getFeatureSelectionKey,
+    getActiveAdminResolutionLabel,
+    isAnalysisSelectionActive,
+    setAnalysisSelectionActive,
+    subscribeAnalysisSelection
+} from './analysis_selection.js';
+import { hideInfoPopup } from './info_popup.js';
 
 const NEGATIVE_COPING_SURVEY_PREFIX =
     'In the last year, have you had to engage in any of the following?';
@@ -184,6 +195,32 @@ export class InfoPanel {
                     <div class="info-panel-section analysis-section">
                         <div class="section-header">
                             <h4>Analysis & Reports</h4>
+                        </div>
+                        <div class="analysis-area-selection" id="analysis-area-selection">
+                            <div class="analysis-area-selection-header">
+                                <h5>Area selection</h5>
+                                <p class="analysis-area-hint" id="analysis-area-resolution-hint">
+                                    Select multiple map units for targeted analysis at the current administrative resolution.
+                                </p>
+                            </div>
+                            <button
+                                type="button"
+                                id="analysis-selection-toggle"
+                                class="run-analysis-btn analysis-selection-toggle"
+                                aria-pressed="false"
+                            >
+                                Select polygons on map
+                            </button>
+                            <div id="analysis-selection-status" class="analysis-selection-status" hidden>
+                                <span id="analysis-selection-count">0 selected</span>
+                                <button type="button" id="analysis-selection-clear" class="analysis-selection-clear-btn">
+                                    Clear all
+                                </button>
+                            </div>
+                            <ul id="analysis-selection-chips" class="analysis-selection-chips" aria-label="Selected map units"></ul>
+                        </div>
+                        <div class="analysis-area-charts" id="analysis-area-charts">
+                            <p class="no-results-message">Enable selection mode and click map units to see targeted charts here.</p>
                         </div>
                         <div class="analysis-selected-charts" id="analysis-selected-charts">
                             <p class="no-results-message">No selected polygon charts yet</p>
@@ -375,7 +412,7 @@ setupEventListeners() {
 
     // closeBtn.addEventListener('click', () => this.hide());
 
-    const analysisBtn = this.container.querySelector('.run-analysis-btn');
+    const analysisBtn = this.container.querySelector('.run-analysis-btn[data-analysis="summary"]');
     if (analysisBtn) {
         analysisBtn.addEventListener('click', () => this.generateSummaryReport());
     }
@@ -396,11 +433,181 @@ setupEventListeners() {
         tab.addEventListener('click', () => this.setActiveTab(tab.dataset.tab));
     });
 
+    this.setupAreaSelectionControls();
+    subscribeAnalysisSelection(() => this.updateAnalysisAreaSelection());
+
     if (!this.options.docked) {
         this.makeDraggable();
         this.makeResizable();
     }
 }
+
+    setupAreaSelectionControls() {
+        const toggleBtn = this.container.querySelector('#analysis-selection-toggle');
+        const clearBtn = this.container.querySelector('#analysis-selection-clear');
+
+        toggleBtn?.addEventListener('click', () => {
+            const next = !isAnalysisSelectionActive();
+            setAnalysisSelectionActive(next);
+            if (next) {
+                hideInfoPopup();
+            }
+            toggleBtn.setAttribute('aria-pressed', next ? 'true' : 'false');
+            toggleBtn.textContent = next ? 'Stop selecting on map' : 'Select polygons on map';
+            if (next) {
+                this.setActiveTab('analysis');
+            }
+            this.updateAnalysisAreaSelection();
+        });
+
+        clearBtn?.addEventListener('click', () => {
+            clearAnalysisSelection();
+            this.updateAnalysisAreaSelection();
+        });
+
+        this.updateAnalysisAreaSelection();
+    }
+
+    updateAnalysisAreaSelection() {
+        const resolutionHint = this.container.querySelector('#analysis-area-resolution-hint');
+        const status = this.container.querySelector('#analysis-selection-status');
+        const countEl = this.container.querySelector('#analysis-selection-count');
+        const chips = this.container.querySelector('#analysis-selection-chips');
+        const toggleBtn = this.container.querySelector('#analysis-selection-toggle');
+        const areaCharts = document.getElementById('analysis-area-charts');
+
+        const resolution = getActiveAdminResolutionLabel();
+        const count = getAnalysisSelectionCount();
+        const active = isAnalysisSelectionActive();
+
+        if (resolutionHint) {
+            resolutionHint.textContent =
+                `Selecting at ${resolution} level. Click polygons on the map to add or remove them from the analysis area.`;
+        }
+
+        if (toggleBtn) {
+            toggleBtn.setAttribute('aria-pressed', active ? 'true' : 'false');
+            toggleBtn.textContent = active ? 'Stop selecting on map' : 'Select polygons on map';
+            toggleBtn.classList.toggle('is-active', active);
+        }
+
+        if (status) {
+            status.hidden = !active && count === 0;
+        }
+
+        if (countEl) {
+            const unit = resolution.toLowerCase();
+            countEl.textContent = `${count} ${unit}${count === 1 ? '' : 's'} selected`;
+        }
+
+        if (chips) {
+            const items = getAnalysisSelectionItems();
+            if (!items.length) {
+                chips.innerHTML = '';
+            } else {
+                chips.innerHTML = items
+                    .map(item => `<li class="analysis-selection-chip">${this.escapeHtml(item.name)}</li>`)
+                    .join('');
+            }
+        }
+
+        if (areaCharts) {
+            areaCharts.innerHTML = this.renderAnalysisAreaCharts();
+        }
+
+        if (this.isVisible) {
+            this.updateAnalysisSelectedCharts();
+        }
+    }
+
+    renderAnalysisAreaCharts() {
+        const items = getAnalysisSelectionItems();
+        if (!items.length) {
+            if (isAnalysisSelectionActive()) {
+                return '<p class="no-results-message">Click map polygons to build your selection.</p>';
+            }
+            return '<p class="no-results-message">Enable selection mode and click map units to see targeted charts here.</p>';
+        }
+
+        const blocks = [];
+        const resolution = getActiveAdminResolutionLabel();
+
+        blocks.push(`
+            <div class="analysis-layer-block analysis-area-summary">
+                <h5 class="analysis-layer-title">Selected area (${this.escapeHtml(resolution)})</h5>
+                <p class="analysis-layer-attribute">${items.length} unit${items.length === 1 ? '' : 's'} in selection</p>
+                <ul class="analysis-area-unit-list">
+                    ${items.map(item => `<li>${this.escapeHtml(item.name)}</li>`).join('')}
+                </ul>
+            </div>
+        `);
+
+        Array.from(this.activeLayers.values()).forEach(layer => {
+            const selectionRankings = this.getLayerRankingsForSelection(layer, items);
+            if (selectionRankings) {
+                blocks.push(this.renderSelectionRankingsBlock(layer, selectionRankings));
+            }
+        });
+
+        if (blocks.length === 1) {
+            blocks.push(
+                '<p class="no-results-message">Turn on a composite or stressor layer to see scores for the selected area.</p>'
+            );
+        }
+
+        return blocks.join('');
+    }
+
+    renderSelectionRankingsBlock(layer, rankings) {
+        const safeName = this.escapeHtml(layer.name);
+        return `
+            <div class="analysis-layer-block analysis-area-rankings" data-layer-id="${this.escapeHtml(layer.id)}">
+                <h5 class="analysis-layer-title">${safeName} — selected area</h5>
+                <p class="analysis-layer-attribute">${this.escapeHtml(rankings.attributeLabel)}</p>
+                <div class="ranking-chart-block">
+                    <div class="quick-stats-header">Units in selection (low → high)</div>
+                    ${this.renderRankingBarChartHtml(rankings.entries, 'vulnerable')}
+                </div>
+                ${
+                    rankings.mean !== null
+                        ? `<p class="analysis-area-mean">Mean: ${this.escapeHtml(this.formatSelectedFeatureValue(rankings.mean))}</p>`
+                        : ''
+                }
+            </div>
+        `;
+    }
+
+    getLayerRankingsForSelection(layer, selectionItems) {
+        const attribute = this.resolveRankingAttribute(layer);
+        if (!attribute || !selectionItems?.length) {
+            return null;
+        }
+
+        const rankableLayer = this.getRankableLeafletLayer(layer);
+        const keys = new Set(selectionItems.map(item => item.key));
+        const names = new Set(selectionItems.map(item => item.name));
+        const entries = this.extractRankedUnits(rankableLayer, attribute)
+            .filter(entry => {
+                if (this.isExcludedFromRankings(entry.name)) return false;
+                if (entry.key && keys.has(entry.key)) return true;
+                return names.has(entry.name);
+            })
+            .sort((a, b) => a.score - b.score);
+
+        if (!entries.length) {
+            return null;
+        }
+
+        const scores = entries.map(entry => entry.score);
+        const mean = scores.reduce((sum, score) => sum + score, 0) / scores.length;
+
+        return {
+            attribute,
+            attributeLabel: this.formatRankingAttributeLabel(attribute),
+            entries,
+            mean
+        };
+    }
 
     setActiveTab(tabName) {
         const tabs = this.container.querySelectorAll('.info-panel-tab');
@@ -735,14 +942,17 @@ setupEventListeners() {
             return;
         }
 
+        const selectionCount = getAnalysisSelectionCount();
         const blocks = [];
 
-        Array.from(this.activeLayers.values()).forEach(layer => {
-            const rankings = this.getLayerRankings(layer);
-            if (rankings) {
-                blocks.push(this.renderAnalysisLayerRankingsBlock(layer, rankings));
-            }
-        });
+        if (selectionCount === 0) {
+            Array.from(this.activeLayers.values()).forEach(layer => {
+                const rankings = this.getLayerRankings(layer);
+                if (rankings) {
+                    blocks.push(this.renderAnalysisLayerRankingsBlock(layer, rankings));
+                }
+            });
+        }
 
         Array.from(this.activeLayers.values()).forEach(layer => {
             if (!Array.isArray(layer?.selectedFeature?.pillarBreakdown) || !layer.selectedFeature.pillarBreakdown.length) {
@@ -762,8 +972,20 @@ setupEventListeners() {
         });
 
         if (blocks.length === 0) {
-            container.innerHTML = '<p class="no-results-message">Enable a map layer to see unit ranking charts here. Click a map unit for pillar breakdown (Overall Vulnerability Index).</p>';
+            if (selectionCount > 0) {
+                container.innerHTML =
+                    '<p class="no-results-message">Full-layer unit rankings are hidden while you have an area selection — see the charts above. Turn off selection mode and click a single polygon for pillar breakdown (Overall Vulnerability Index).</p>';
+            } else {
+                container.innerHTML =
+                    '<p class="no-results-message">Enable a map layer to see unit ranking charts here. Click a map unit for pillar breakdown (Overall Vulnerability Index).</p>';
+            }
             return;
+        }
+
+        if (selectionCount > 0) {
+            blocks.unshift(
+                '<p class="analysis-full-layer-note">Pillar breakdown below uses single-polygon selection (turn off area selection mode).</p>'
+            );
         }
 
         container.innerHTML = blocks.join('');
@@ -1235,7 +1457,8 @@ setupEventListeners() {
             if (!name) {
                 return;
             }
-            entries.push({ name, score });
+            const key = getFeatureSelectionKey(properties);
+            entries.push({ name, score, key });
         });
 
         return entries;

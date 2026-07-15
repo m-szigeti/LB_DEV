@@ -299,6 +299,24 @@ function renderColorScaleEntry(entry) {
                     <strong>Scale:</strong> White = Lower vulnerability &nbsp;→&nbsp; Dark blue = Higher vulnerability
                 </div>
             `;
+        } else if (entry.scaleDirection === 'white-to-red') {
+            directionalInfo = `
+                <div style="margin-top: 8px; padding: 6px; background: #f8f9fa; border-radius: 4px; font-size: 10px; color: #666; line-height: 1.4;">
+                    <strong>Scale:</strong> White = Lower risk &nbsp;→&nbsp; Red = Higher risk
+                </div>
+            `;
+        } else if (entry.scaleDirection === 'white-to-orange') {
+            directionalInfo = `
+                <div style="margin-top: 8px; padding: 6px; background: #f8f9fa; border-radius: 4px; font-size: 10px; color: #666; line-height: 1.4;">
+                    <strong>Scale:</strong> White = Lower vulnerability &nbsp;→&nbsp; Orange = Higher vulnerability
+                </div>
+            `;
+        } else if (entry.scaleDirection === 'white-to-pink') {
+            directionalInfo = `
+                <div style="margin-top: 8px; padding: 6px; background: #f8f9fa; border-radius: 4px; font-size: 10px; color: #666; line-height: 1.4;">
+                    <strong>Scale:</strong> White = Lower vulnerability &nbsp;→&nbsp; Pink = Higher vulnerability
+                </div>
+            `;
         } else if (isVulnerabilityData) {
             directionalInfo = `
                 <div style="margin-top: 8px; padding: 6px; background: #f8f9fa; border-radius: 4px; font-size: 10px; color: #666;">

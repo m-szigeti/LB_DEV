@@ -670,6 +670,116 @@
     cursor: not-allowed;
 }
 
+/* Area selection (Analysis tab) */
+.analysis-area-selection {
+    margin-bottom: 16px;
+    padding: 12px;
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 6px;
+}
+
+.analysis-area-selection-header h5 {
+    margin: 0 0 4px;
+    font-size: 14px;
+    font-weight: 700;
+    color: #212529;
+}
+
+.analysis-area-hint {
+    margin: 0 0 10px;
+    font-size: 12px;
+    color: #6c757d;
+    line-height: 1.4;
+}
+
+.analysis-selection-toggle {
+    width: 100%;
+    margin-bottom: 8px;
+}
+
+.analysis-selection-toggle.is-active {
+    background: #7c3aed;
+}
+
+.analysis-selection-toggle.is-active:hover {
+    background: #6d28d9;
+}
+
+.analysis-selection-status {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 8px;
+    font-size: 12px;
+    color: #495057;
+}
+
+.analysis-selection-clear-btn {
+    background: none;
+    border: none;
+    color: #7c3aed;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 2px 4px;
+    text-decoration: underline;
+}
+
+.analysis-selection-clear-btn:hover {
+    color: #6d28d9;
+}
+
+.analysis-selection-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.analysis-selection-chip {
+    font-size: 11px;
+    padding: 3px 8px;
+    background: #ede9fe;
+    color: #5b21b6;
+    border-radius: 999px;
+    border: 1px solid #c4b5fd;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.analysis-area-charts {
+    margin-bottom: 16px;
+}
+
+.analysis-area-unit-list {
+    margin: 8px 0 0;
+    padding-left: 18px;
+    font-size: 12px;
+    color: #495057;
+    max-height: 120px;
+    overflow-y: auto;
+}
+
+.analysis-area-mean {
+    margin: 8px 0 0;
+    font-size: 12px;
+    font-weight: 600;
+    color: #495057;
+}
+
+.analysis-full-layer-note {
+    font-size: 12px;
+    color: #6c757d;
+    margin-bottom: 12px;
+    font-style: italic;
+}
+
 .ask-ai-section {
     display: flex;
     flex-direction: column;

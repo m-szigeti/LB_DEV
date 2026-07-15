@@ -242,6 +242,28 @@
     background: #f8f9fa;
 }
 
+.map-selection-banner {
+    position: absolute;
+    top: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1000;
+    padding: 8px 16px;
+    background: rgba(124, 58, 237, 0.92);
+    color: #fff;
+    font-size: 13px;
+    font-weight: 500;
+    border-radius: 6px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    pointer-events: none;
+    max-width: calc(100% - 24px);
+    text-align: center;
+}
+
+body.analysis-selection-mode #map {
+    cursor: crosshair;
+}
+
 #analysis-sidebar {
     flex: 0 0 380px;
     width: 380px;

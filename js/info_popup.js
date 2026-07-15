@@ -1,5 +1,6 @@
 // info_popup.js - Information popup functionality
 
+import { isAnalysisSelectionActive } from './analysis_selection.js';
 import { getPrimarySubindicator, getSelectedSubindicators } from './sv_subindicators.js';
 import { getClassLabelForLayerValue, getQuantilePresentation } from './vector_layers.js';
 import { getColorRamp } from './color_ramp_selector.js';
@@ -39,7 +40,10 @@ const SV_LAYER_TYPE_TO_ID = {
     'sv-admin5': 'svAdmin5Layer',
     'sv-admin1': 'svAdmin1Layer',
     'sv-admin2': 'svAdmin2Layer',
-    'sv-admin3': 'svAdmin3Layer'
+    'sv-admin3': 'svAdmin3Layer',
+    'sv-climate': 'svClimateLayer',
+    'sv-political': 'svPoliticalLayer',
+    'sv-gender': 'svGenderLayer'
 };
 
 /**
@@ -124,6 +128,10 @@ export function initializeInfoPopup() {
  * @param {string} layerType - Type of layer (e.g., 'sv-admin1', 'sv-admin2', etc.)
  */
 export function showInfoPopup(feature, layerType = 'default', clickEvent = null, sourceLayer = null) {
+    if (isAnalysisSelectionActive()) {
+        return;
+    }
+
     const popup = document.getElementById('info-popup');
     const title = document.getElementById('info-popup-title');
     const body = document.getElementById('info-popup-body');
@@ -230,20 +238,22 @@ function getPointerPosition(clickEvent) {
  * @returns {string} - Area name
  */
 function getAreaName(properties, layerType) {
-    // Priority order for name fields
     const nameFields = [
-        'NAME_1', 'NAME_2', 'NAME_3',
-        'Cercle/District', 'District', 'Commune',
-        'name', 'Name', 'AREA_NAME',
-        'ADM1_NAME', 'ADM2_NAME', 'ADM3_NAME'
+        'ADM3_NAME', 'adm3_name', 'adm3_name1',
+        'ADM2_NAME', 'adm2_name', 'adm2_name1',
+        'ADM1_NAME', 'adm1_name', 'adm1_name1',
+        'NAME_3', 'NAME_2', 'NAME_1',
+        'Districts', 'District', 'Cercle/District', 'Commune',
+        'name', 'Name', 'NAME', 'AREA_NAME'
     ];
-    
+
     for (const field of nameFields) {
-        if (properties[field] && properties[field].trim()) {
-            return properties[field].trim();
+        const value = properties[field];
+        if (value !== undefined && value !== null && String(value).trim() !== '') {
+            return String(value).trim();
         }
     }
-    
+
     return 'Unknown Area';
 }
 
@@ -257,7 +267,14 @@ function generatePopupContent(properties, layerType, sourceLayer = null) {
     let content = '';
 
     // Composite score section (if applicable)
-    if (layerType.includes('sv-admin') || layerType === 'sv-overall' || getPrimaryVulnerabilityField(properties, layerType)) {
+    if (
+        layerType.includes('sv-admin') ||
+        layerType === 'sv-overall' ||
+        layerType === 'sv-climate' ||
+        layerType === 'sv-political' ||
+        layerType === 'sv-gender' ||
+        getPrimaryVulnerabilityField(properties, layerType)
+    ) {
         content += generateSocialVulnerabilitySection(properties, layerType, sourceLayer);
     }
     
@@ -278,8 +295,8 @@ function generatePopupContent(properties, layerType, sourceLayer = null) {
 function generateAdministrativeSection(properties) {
     const adminFields = {
         'Country': ['COUNTRY', 'GID_0', 'NAME_0'],
-        'Region/State': ['NAME_1', 'ADM1_NAME', 'REGION'],
-        'District/Province': ['NAME_2', 'ADM2_NAME', 'Cercle/District'],
+        'Region/State': ['NAME_1', 'ADM1_NAME', 'adm1_name', 'adm1_name1', 'REGION'],
+        'District/Province': ['NAME_2', 'ADM2_NAME', 'adm2_name', 'adm2_name1', 'Districts', 'Cercle/District', 'District'],
         'Administrative ID': ['GID_1', 'GID_2', 'GID_3', 'ADMIN_ID']
     };
     
@@ -567,6 +584,21 @@ function getPrimaryVulnerabilityField(properties, layerType = '') {
         }
     }
 
+    const themeLayerId = SV_LAYER_TYPE_TO_ID[layerType];
+    if (themeLayerId && ['sv-climate', 'sv-political', 'sv-gender'].includes(layerType)) {
+        const key = getPrimarySubindicator(themeLayerId);
+        if (key && properties[key] !== undefined && properties[key] !== null && properties[key] !== '') {
+            return key;
+        }
+        if (
+            properties.composite_score !== undefined &&
+            properties.composite_score !== null &&
+            properties.composite_score !== ''
+        ) {
+            return 'composite_score';
+        }
+    }
+
     if (layerType === 'sv-overall') {
         if (
             properties.overall_vulnerability_score !== undefined &&
@@ -644,6 +676,9 @@ function getLayerScoreSectionTitle(layerType) {
     if (layerType === 'sv-admin2') return 'Socioeconomic Vulnerability';
     if (layerType === 'sv-admin3') return 'Tension and Conflict Risk';
     if (layerType === 'sv-admin5') return 'Demographic Tension / Stress';
+    if (layerType === 'sv-climate') return 'Climate and Environmental Risk';
+    if (layerType === 'sv-political') return 'Political Vulnerability';
+    if (layerType === 'sv-gender') return 'Gender Based Vulnerabilities';
     if (layerType === 'population') return 'Population';
     return 'Layer Score';
 }
@@ -675,6 +710,15 @@ function getPrimaryFieldDisplayLabel(fieldName, layerType) {
     }
     if (layerType === 'sv-admin5' && fieldName === 'composite_score') {
         return 'Demographic Tension / Stress';
+    }
+    if (layerType === 'sv-climate' && fieldName === 'composite_score') {
+        return 'Climate and Environmental Risk';
+    }
+    if (layerType === 'sv-political' && fieldName === 'composite_score') {
+        return 'Political Vulnerability';
+    }
+    if (layerType === 'sv-gender' && fieldName === 'composite_score') {
+        return 'Gender Based Vulnerabilities';
     }
     if (layerType === 'population' && fieldName === 'All Populations') {
         return 'All Populations';
@@ -803,7 +847,10 @@ const LAYER_TYPE_TO_MAP_LAYER_ID = {
     'sv-admin1': 'svAdmin1Layer',
     'sv-admin2': 'svAdmin2Layer',
     'sv-admin3': 'svAdmin3Layer',
-    'sv-admin5': 'svAdmin5Layer'
+    'sv-admin5': 'svAdmin5Layer',
+    'sv-climate': 'svClimateLayer',
+    'sv-political': 'svPoliticalLayer',
+    'sv-gender': 'svGenderLayer'
 };
 
 function getPillarScoreClassLabel(value, field, colorRampId, referenceGeoJson) {
