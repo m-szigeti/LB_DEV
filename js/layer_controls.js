@@ -1050,7 +1050,7 @@ const SERVICE_ID_FIELDS = new Set([
 
 function isSubindicatorMetadataKey(key) {
     if (!key || typeof key !== 'string') return true;
-    if (key.startsWith('__')) return true;
+    if (key.startsWith('__') || key.startsWith('_pillar_') || key === CUSTOM_COMPOSITE_FIELD) return true;
     const lower = key.toLowerCase();
     if (/^adm\d+_/.test(lower)) return true;
     if (lower.includes('pcode') || lower.includes('_ref_')) return true;
@@ -2027,7 +2027,19 @@ async function refreshSandboxLayer(layerId, map, layers, addLegendEntry) {
         const opacitySlider = document.getElementById('svOpacity');
         const opacity = opacitySlider ? parseFloat(opacitySlider.value) : 0.6;
         if (fixedRamp) {
+            const rawGeoJson = layer.layerData?.raw;
             const updateLegendForLayer = (layerName, colorScheme, description, labels) => {
+                if (layerId === 'svOverallTensionLayer' && chAttr !== CUSTOM_COMPOSITE_FIELD) {
+                    pushOverallVulnerabilityLegend(
+                        layerId,
+                        config,
+                        colorScheme,
+                        addLegendEntry,
+                        rawGeoJson,
+                        opacity
+                    );
+                    return;
+                }
                 pushSVChoroplethLegendEntry(
                     layerId,
                     chAttr,
@@ -2039,6 +2051,10 @@ async function refreshSandboxLayer(layerId, map, layers, addLegendEntry) {
                     addLegendEntry
                 );
             };
+            // Force style refresh when switching Before/After attributes
+            if (layer.layerData) {
+                layer.layerData._styleSignature = null;
+            }
             updateVectorLayerStyle(layer, chAttr, fixedRamp, opacity, updateLegendForLayer, { skipTooltips: true });
             applySVPolygonOutlineStyle(layer, config);
             reapplySelectedPolygonHighlight(layerId);
@@ -2051,6 +2067,29 @@ async function refreshSandboxLayer(layerId, map, layers, addLegendEntry) {
             selectedAttribute: getEffectiveChoroplethAttribute(layerId, config)
         });
     }
+}
+
+const sourceGeoJsonCache = new Map();
+
+async function getSourceLayerGeoJson(sourceLayerId, resolution, layers) {
+    const loaded = layers.vector[sourceLayerId]?.layerData?.raw;
+    if (loaded?.features?.length) return loaded;
+
+    const url = layerConfig[sourceLayerId]?.url || SV_RESOLUTION_CONFIG[resolution]?.[sourceLayerId]?.url;
+    if (!url) return null;
+
+    const cacheKey = `${resolution}:${sourceLayerId}:${url}`;
+    if (sourceGeoJsonCache.has(cacheKey)) {
+        return sourceGeoJsonCache.get(cacheKey);
+    }
+
+    const response = await fetch(url);
+    if (!response.ok) {
+        throw new Error(`Failed to fetch ${sourceLayerId} (${response.status})`);
+    }
+    const data = await response.json();
+    sourceGeoJsonCache.set(cacheKey, data);
+    return data;
 }
 
 
@@ -2349,6 +2388,8 @@ function setupSVRadioControls(map, layers, colorScales, addLegendEntry, removeLe
         getCurrentCompositeLayerId: () => currentSVLayer,
         isLayerActive: layerId => activeSVLayers.has(layerId),
         getLayerGeoJson: layerId => layers.vector[layerId]?.layerData?.raw,
+        getSourceLayerGeoJson: (sourceLayerId, resolution) =>
+            getSourceLayerGeoJson(sourceLayerId, resolution, layers),
         refreshSandboxLayer: layerId => refreshSandboxLayer(layerId, map, layers, addLegendEntry)
     });
     void syncCompositeSandboxPanel(currentSVLayer, getActiveAdminResolution());
@@ -2443,6 +2484,7 @@ async function applySVResolution(resolution, map, layers, colorScales, addLegend
     if (blockCompositeSandboxNavigation()) {
         return;
     }
+    sourceGeoJsonCache.clear();
     const requestVersion = ++svResolutionVersion;
     clearAnalysisSelection();
     window.currentInfoPanel?.updateAnalysisAreaSelection?.();

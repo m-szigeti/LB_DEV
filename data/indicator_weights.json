@@ -4,6 +4,7 @@
       "layerId": "svAdmin3Layer",
       "themeName": "Tensions and Conflict Risk",
       "compositeField": "composite_score",
+      "mode": "theme-subindicators",
       "indicators": [
         {
           "field": "Fear of traveling within Lebanon safely",
@@ -47,6 +48,7 @@
       "layerId": "svAdmin2Layer",
       "themeName": "Socioeconomic Vulnerability",
       "compositeField": "composite_score",
+      "mode": "theme-subindicators",
       "indicators": [
         {
           "field": "Absolute Vulnerability",
@@ -72,6 +74,7 @@
       "layerId": "svAdmin4Layer",
       "themeName": "Service & Infrastructure Vulnerability",
       "compositeField": "composite_score",
+      "mode": "theme-subindicators",
       "indicators": [
         {
           "field": "Perceptions on quality of services: Electricity",
@@ -181,6 +184,7 @@
       "layerId": "svClimateLayer",
       "themeName": "Climate Change and Environmental Risk",
       "compositeField": "composite_score",
+      "mode": "theme-subindicators",
       "indicators": [
         {
           "field": "Annual Dry Spell Length",
@@ -206,6 +210,7 @@
       "layerId": "svPoliticalLayer",
       "themeName": "Political Vulnerability",
       "compositeField": "composite_score",
+      "mode": "theme-subindicators",
       "indicators": [
         {
           "field": "Faith in elections",
@@ -251,7 +256,7 @@
         },
         {
           "field": "State Citizen Incidents ",
-          "label": "State Citizen Incidents ",
+          "label": "State Citizen Incidents",
           "defaultWeight": 0.047006,
           "inverted": false
         },
@@ -285,6 +290,7 @@
       "layerId": "svGenderLayer",
       "themeName": "Gender Based Vulnerabilities",
       "compositeField": "composite_score",
+      "mode": "theme-subindicators",
       "indicators": [
         {
           "field": "Fear of movement or travel (female)",
@@ -329,6 +335,91 @@
           "inverted": false
         }
       ]
+    },
+    "overall": {
+      "layerId": "svOverallTensionLayer",
+      "themeName": "Overall Vulnerability Index",
+      "compositeField": "overall_vulnerability_score",
+      "mode": "overall-pillars",
+      "joinKeys": [
+        "adm2_name",
+        "ADM2_NAME",
+        "ADM2_Name"
+      ],
+      "indicators": [
+        {
+          "field": "_pillar_T1",
+          "label": "Displacement Pressure",
+          "defaultWeight": 0.149469,
+          "inverted": false,
+          "sourceLayerId": "svAdmin1Layer",
+          "sourceField": "Displacement Ratio",
+          "themeNumber": 1
+        },
+        {
+          "field": "_pillar_T2",
+          "label": "Tensions and Conflict Risk",
+          "defaultWeight": 0.107017,
+          "inverted": false,
+          "sourceLayerId": "svAdmin3Layer",
+          "sourceField": "composite_score",
+          "themeNumber": 2
+        },
+        {
+          "field": "_pillar_T3",
+          "label": "Socioeconomic Vulnerability",
+          "defaultWeight": 0.112913,
+          "inverted": false,
+          "sourceLayerId": "svAdmin2Layer",
+          "sourceField": "composite_score",
+          "themeNumber": 3
+        },
+        {
+          "field": "_pillar_T4",
+          "label": "Service & Infrastructure Vulnerability",
+          "defaultWeight": 0.178361,
+          "inverted": false,
+          "sourceLayerId": "svAdmin4Layer",
+          "sourceField": "composite_score",
+          "themeNumber": 4
+        },
+        {
+          "field": "_pillar_T5",
+          "label": "Demographic Tension / Stress",
+          "defaultWeight": 0.182488,
+          "inverted": false,
+          "sourceLayerId": "svAdmin5Layer",
+          "sourceField": "Demographic Factor",
+          "themeNumber": 5
+        },
+        {
+          "field": "_pillar_T6",
+          "label": "Climate and Environmental Risk",
+          "defaultWeight": 0.060436,
+          "inverted": false,
+          "sourceLayerId": "svClimateLayer",
+          "sourceField": "composite_score",
+          "themeNumber": 6
+        },
+        {
+          "field": "_pillar_T7",
+          "label": "Political Vulnerability",
+          "defaultWeight": 0.1023,
+          "inverted": false,
+          "sourceLayerId": "svPoliticalLayer",
+          "sourceField": "composite_score",
+          "themeNumber": 7
+        },
+        {
+          "field": "_pillar_T8",
+          "label": "Gender Based Vulnerabilities",
+          "defaultWeight": 0.107017,
+          "inverted": false,
+          "sourceLayerId": "svGenderLayer",
+          "sourceField": "composite_score",
+          "themeNumber": 8
+        }
+      ]
     }
   },
   "governorate": {
@@ -336,6 +427,7 @@
       "layerId": "svAdmin3Layer",
       "themeName": "Tensions and Conflict Risk",
       "compositeField": "composite_score",
+      "mode": "theme-subindicators",
       "indicators": [
         {
           "field": "Fear of traveling within Lebanon safely",
@@ -379,6 +471,7 @@
       "layerId": "svAdmin2Layer",
       "themeName": "Socioeconomic Vulnerability",
       "compositeField": "composite_score",
+      "mode": "theme-subindicators",
       "indicators": [
         {
           "field": "Absolute Vulnerability",
@@ -404,6 +497,7 @@
       "layerId": "svAdmin4Layer",
       "themeName": "Service & Infrastructure Vulnerability",
       "compositeField": "composite_score",
+      "mode": "theme-subindicators",
       "indicators": [
         {
           "field": "Perceptions on quality of services: Electricity",
@@ -465,6 +559,7 @@
       "layerId": "svClimateLayer",
       "themeName": "Climate and Environmental Risk",
       "compositeField": "composite_score",
+      "mode": "theme-subindicators",
       "indicators": [
         {
           "field": "Annual Dry Spell Length",
@@ -490,10 +585,11 @@
       "layerId": "svPoliticalLayer",
       "themeName": "Political Vulnerability",
       "compositeField": "composite_score",
+      "mode": "theme-subindicators",
       "indicators": [
         {
           "field": "Faith in elections ",
-          "label": "Faith in elections ",
+          "label": "Faith in elections",
           "defaultWeight": 0.074562,
           "inverted": false
         },
@@ -517,7 +613,7 @@
         },
         {
           "field": "State Citizen Incidents ",
-          "label": "State Citizen Incidents ",
+          "label": "State Citizen Incidents",
           "defaultWeight": 0.086262,
           "inverted": false
         },
@@ -551,6 +647,7 @@
       "layerId": "svGenderLayer",
       "themeName": "Gender Based Vulnerabilities",
       "compositeField": "composite_score",
+      "mode": "theme-subindicators",
       "indicators": [
         {
           "field": "Fear of movement or travel (female)",
@@ -595,6 +692,91 @@
           "inverted": false
         }
       ]
+    },
+    "overall": {
+      "layerId": "svOverallTensionLayer",
+      "themeName": "Overall Vulnerability Index",
+      "compositeField": "overall_vulnerability_score",
+      "mode": "overall-pillars",
+      "joinKeys": [
+        "adm1_name",
+        "ADM1_NAME",
+        "ADM1_Name"
+      ],
+      "indicators": [
+        {
+          "field": "_pillar_T1",
+          "label": "Displacement Pressure",
+          "defaultWeight": 0.119835,
+          "inverted": false,
+          "sourceLayerId": "svAdmin1Layer",
+          "sourceField": "Displacement Ratio",
+          "themeNumber": 1
+        },
+        {
+          "field": "_pillar_T2",
+          "label": "Tensions and Conflict Risk",
+          "defaultWeight": 0.086777,
+          "inverted": false,
+          "sourceLayerId": "svAdmin3Layer",
+          "sourceField": "composite_score",
+          "themeNumber": 2
+        },
+        {
+          "field": "_pillar_T3",
+          "label": "Socioeconomic Vulnerability",
+          "defaultWeight": 0.194215,
+          "inverted": false,
+          "sourceLayerId": "svAdmin2Layer",
+          "sourceField": "composite_score",
+          "themeNumber": 3
+        },
+        {
+          "field": "_pillar_T4",
+          "label": "Service & Infrastructure Vulnerability",
+          "defaultWeight": 0.095041,
+          "inverted": false,
+          "sourceLayerId": "svAdmin4Layer",
+          "sourceField": "composite_score",
+          "themeNumber": 4
+        },
+        {
+          "field": "_pillar_T5",
+          "label": "Demographic Tension / Stress",
+          "defaultWeight": 0.169421,
+          "inverted": false,
+          "sourceLayerId": "svAdmin5Layer",
+          "sourceField": "Demographic Factor",
+          "themeNumber": 5
+        },
+        {
+          "field": "_pillar_T6",
+          "label": "Climate and Environmental Risk",
+          "defaultWeight": 0.103306,
+          "inverted": false,
+          "sourceLayerId": "svClimateLayer",
+          "sourceField": "composite_score",
+          "themeNumber": 6
+        },
+        {
+          "field": "_pillar_T7",
+          "label": "Political Vulnerability",
+          "defaultWeight": 0.078512,
+          "inverted": false,
+          "sourceLayerId": "svPoliticalLayer",
+          "sourceField": "composite_score",
+          "themeNumber": 7
+        },
+        {
+          "field": "_pillar_T8",
+          "label": "Gender Based Vulnerabilities",
+          "defaultWeight": 0.152893,
+          "inverted": false,
+          "sourceLayerId": "svGenderLayer",
+          "sourceField": "composite_score",
+          "themeNumber": 8
+        }
+      ]
     }
   },
   "cadastre": {
@@ -602,6 +784,7 @@
       "layerId": "svAdmin3Layer",
       "themeName": "Tensions and Conflict Risk",
       "compositeField": "composite_score",
+      "mode": "theme-subindicators",
       "indicators": [
         {
           "field": "Fear of traveling within Lebanon safely",
@@ -645,6 +828,7 @@
       "layerId": "svAdmin2Layer",
       "themeName": "Socioeconomic Vulnerability v2",
       "compositeField": "composite_score",
+      "mode": "theme-subindicators",
       "indicators": [
         {
           "field": "Absolute Vulnerability",
@@ -670,6 +854,7 @@
       "layerId": "svClimateLayer",
       "themeName": "Climate Change and Environmental Risk",
       "compositeField": "composite_score",
+      "mode": "theme-subindicators",
       "indicators": [
         {
           "field": "Annual Dry Spell Length",
@@ -688,6 +873,66 @@
           "label": "Mean annual hot days",
           "defaultWeight": 0.497099,
           "inverted": false
+        }
+      ]
+    },
+    "overall": {
+      "layerId": "svOverallTensionLayer",
+      "themeName": "Overall Vulnerability Index",
+      "compositeField": "overall_vulnerability_score",
+      "mode": "overall-pillars",
+      "joinKeys": [
+        "adm3_pcode",
+        "ACS_CODE",
+        "acs_code",
+        "ADM3_NAME",
+        "adm3_name"
+      ],
+      "indicators": [
+        {
+          "field": "_pillar_T1",
+          "label": "Displacement Pressure",
+          "defaultWeight": 0.256542,
+          "inverted": false,
+          "sourceLayerId": "svAdmin1Layer",
+          "sourceField": "Displacement Ratio",
+          "themeNumber": 1
+        },
+        {
+          "field": "_pillar_T2",
+          "label": "Tensions and Conflict Risk",
+          "defaultWeight": 0.345327,
+          "inverted": false,
+          "sourceLayerId": "svAdmin3Layer",
+          "sourceField": "composite_score",
+          "themeNumber": 2
+        },
+        {
+          "field": "_pillar_T3",
+          "label": "Socioeconomic Vulnerability",
+          "defaultWeight": 0.07412,
+          "inverted": false,
+          "sourceLayerId": "svAdmin2Layer",
+          "sourceField": "composite_score",
+          "themeNumber": 3
+        },
+        {
+          "field": "_pillar_T5",
+          "label": "Demographic Tension / Stress",
+          "defaultWeight": 0.151664,
+          "inverted": false,
+          "sourceLayerId": "svAdmin5Layer",
+          "sourceField": "Demographic Factor",
+          "themeNumber": 5
+        },
+        {
+          "field": "_pillar_T6",
+          "label": "Climate and Environmental Risk",
+          "defaultWeight": 0.172346,
+          "inverted": false,
+          "sourceLayerId": "svClimateLayer",
+          "sourceField": "composite_score",
+          "themeNumber": 6
         }
       ]
     }

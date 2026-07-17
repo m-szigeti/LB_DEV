@@ -137,8 +137,67 @@ export function applyCustomCompositeToGeoJson(rawGeoJson, prep, weights) {
 export function clearCustomCompositeFromGeoJson(rawGeoJson) {
     if (!rawGeoJson?.features?.length) return;
     rawGeoJson.features.forEach(feature => {
-        if (feature?.properties && CUSTOM_COMPOSITE_FIELD in feature.properties) {
+        if (!feature?.properties) return;
+        if (CUSTOM_COMPOSITE_FIELD in feature.properties) {
             delete feature.properties[CUSTOM_COMPOSITE_FIELD];
         }
+        Object.keys(feature.properties).forEach(key => {
+            if (key.startsWith('_pillar_')) {
+                delete feature.properties[key];
+            }
+        });
     });
 }
+
+function normalizeJoinKey(value) {
+    if (value === null || value === undefined) return '';
+    return String(value).trim().toLowerCase();
+}
+
+export function pickJoinValue(props, joinKeys = []) {
+    if (!props) return '';
+    for (const key of joinKeys) {
+        if (props[key] !== undefined && props[key] !== null && String(props[key]).trim() !== '') {
+            return normalizeJoinKey(props[key]);
+        }
+    }
+    return '';
+}
+
+/**
+ * Attach pillar scores from source theme GeoJSON maps onto overall features.
+ * sourceMaps: { [sourceLayerId]: { byKey: Map, field: string } }
+ */
+export function attachOverallPillarsToFeatures(overallGeoJson, themeConfig, sourceMaps) {
+    if (!overallGeoJson?.features?.length || !themeConfig?.indicators?.length) return;
+    const joinKeys = themeConfig.joinKeys || [];
+
+    overallGeoJson.features.forEach(feature => {
+        if (!feature.properties) feature.properties = {};
+        const joinValue = pickJoinValue(feature.properties, joinKeys);
+        themeConfig.indicators.forEach(ind => {
+            const source = sourceMaps[ind.sourceLayerId];
+            let value = NaN;
+            if (source && joinValue) {
+                const props = source.byKey.get(joinValue);
+                if (props) {
+                    value = toNumericBinaryAware(props[ind.sourceField || source.field]);
+                }
+            }
+            feature.properties[ind.field] = Number.isFinite(value) ? value : null;
+        });
+    });
+}
+
+export function buildJoinMapFromGeoJson(geoJson, joinKeys) {
+    const byKey = new Map();
+    (geoJson?.features || []).forEach(feature => {
+        const props = feature?.properties;
+        if (!props) return;
+        const key = pickJoinValue(props, joinKeys);
+        if (!key || byKey.has(key)) return;
+        byKey.set(key, props);
+    });
+    return byKey;
+}
+

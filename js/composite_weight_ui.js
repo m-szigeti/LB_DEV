@@ -1,21 +1,23 @@
 /**
- * Experimental composite weight sandbox UI (district rollout).
+ * Experimental composite weight sandbox UI — per-layer compact panels.
  */
 
 import {
     buildPrepCache,
     applyCustomCompositeToGeoJson,
     clearCustomCompositeFromGeoJson,
-    slidersToWeights
+    slidersToWeights,
+    attachOverallPillarsToFeatures,
+    buildJoinMapFromGeoJson
 } from './composite_score.js';
 import {
     loadIndicatorWeightsConfig,
     getThemeConfig,
     isCompositeWeightEligible,
+    isOverallPillarMode,
     COMPOSITE_WEIGHT_ENABLED_RESOLUTIONS
 } from './composite_weight_config.js';
 import {
-    SANDBOX_MODES,
     setSandboxComputing,
     setSandboxActive,
     setSandboxSnapshot,
@@ -60,27 +62,27 @@ async function ensureWeightsConfig() {
 }
 
 function bindPanelControls() {
-    const createBtn = document.getElementById('compositeSandboxCreateBtn');
-    const deleteBtn = document.getElementById('compositeSandboxDeleteBtn');
-    const sliderHost = document.getElementById('compositeSandboxSliders');
+    document.addEventListener('click', event => {
+        const target = event.target;
+        if (!(target instanceof Element)) return;
 
-    createBtn?.addEventListener('click', () => {
-        void createWeightedMap();
+        if (target.closest('#compositeSandboxCreateBtn, .composite-sandbox-create-btn')) {
+            const panel = target.closest('[data-sandbox-layer]');
+            const layerId = panel?.dataset?.sandboxLayer || activeLayerId;
+            void createWeightedMap(layerId);
+            return;
+        }
+        if (target.closest('#compositeSandboxDeleteBtn, #compositeSandboxBannerDeleteBtn, .composite-sandbox-delete-btn')) {
+            void deleteWeightedMap();
+            return;
+        }
+        const compareBtn = target.closest('.composite-sandbox-compare-btn');
+        if (compareBtn?.dataset?.view) {
+            void switchCompareView(compareBtn.dataset.view);
+        }
     });
-    deleteBtn?.addEventListener('click', () => {
-        void deleteWeightedMap();
-    });
-    document.getElementById('compositeSandboxBannerDeleteBtn')?.addEventListener('click', () => {
-        void deleteWeightedMap();
-    });
-    document.querySelectorAll('.composite-sandbox-compare-toggle').forEach(group => {
-        group.addEventListener('click', event => {
-            const btn = event.target.closest('.composite-sandbox-compare-btn');
-            if (!btn?.dataset?.view) return;
-            void switchCompareView(btn.dataset.view);
-        });
-    });
-    sliderHost?.addEventListener('input', event => {
+
+    document.addEventListener('input', event => {
         const input = event.target;
         if (!(input instanceof HTMLInputElement) || !input.classList.contains('composite-sandbox-slider')) {
             return;
@@ -90,55 +92,64 @@ function bindPanelControls() {
     });
 }
 
+function getPanelForLayer(layerId) {
+    return document.querySelector(`[data-sandbox-layer="${layerId}"]`);
+}
+
 export async function syncCompositeSandboxPanel(layerId = null, resolution = null) {
     await ensureWeightsConfig().catch(() => null);
 
-    const panel = document.getElementById('compositeSandboxPanel');
     const banner = document.getElementById('compositeSandboxBanner');
     const computingOverlay = document.getElementById('compositeSandboxComputingOverlay');
-    if (!panel) return;
-
     const res = resolution || context?.getActiveResolution?.() || 'district';
     const currentLayer = layerId || context?.getCurrentCompositeLayerId?.() || null;
     activeLayerId = currentLayer;
 
-    const eligible =
-        COMPOSITE_WEIGHT_ENABLED_RESOLUTIONS.has(res) &&
-        currentLayer &&
-        isCompositeWeightEligible(currentLayer, res, weightsConfig) &&
-        context?.isLayerActive?.(currentLayer);
-
     const inSandbox = isSandboxActive();
     const computing = isSandboxComputing();
     const sectionOpen = isCompositeSectionOpen();
+    const sandboxLayerId = inSandbox ? getSandboxLayerId() : null;
 
-    panel.hidden = (!eligible && !inSandbox) || (!sectionOpen && !inSandbox);
+    document.querySelectorAll('[data-sandbox-layer]').forEach(panel => {
+        const panelLayerId = panel.dataset.sandboxLayer;
+        const eligible =
+            COMPOSITE_WEIGHT_ENABLED_RESOLUTIONS.has(res) &&
+            isCompositeWeightEligible(panelLayerId, res, weightsConfig) &&
+            context?.isLayerActive?.(panelLayerId);
+
+        const showForSandbox = inSandbox && sandboxLayerId === panelLayerId;
+        const visible = sectionOpen && (eligible || showForSandbox);
+        panel.hidden = !visible;
+
+        if (!visible) return;
+
+        const themeConfig = getThemeConfig(panelLayerId, res, weightsConfig);
+        if (!themeConfig) {
+            panel.hidden = true;
+            return;
+        }
+
+        const lockInputs = (inSandbox && sandboxLayerId === panelLayerId) || computing;
+        renderSliderRows(panel, themeConfig, lockInputs);
+        updatePanelButtons(panel, panelLayerId);
+        if (showForSandbox && panel instanceof HTMLDetailsElement) {
+            panel.open = true;
+        }
+    });
+
     if (banner) banner.hidden = !inSandbox;
     if (computingOverlay) computingOverlay.hidden = !computing;
 
     syncSandboxBodyClasses();
-    updateModeButtons();
     updateCompareControls();
-
-    if (!eligible && !inSandbox) return;
-
-    const targetLayer = inSandbox ? getSandboxLayerId() : currentLayer;
-    const themeConfig = getThemeConfig(targetLayer, res, weightsConfig);
-    if (!themeConfig) {
-        panel.hidden = true;
-        return;
-    }
-
-    renderSliderRows(themeConfig, inSandbox || computing);
-    const title = document.getElementById('compositeSandboxThemeTitle');
-    if (title) title.textContent = themeConfig.themeName || 'Composite theme';
 }
 
-function updateModeButtons() {
-    const createBtn = document.getElementById('compositeSandboxCreateBtn');
-    const deleteBtn = document.getElementById('compositeSandboxDeleteBtn');
-    const sandbox = isSandboxActive();
+function updatePanelButtons(panel, panelLayerId) {
+    const sandbox = isSandboxActive() && getSandboxLayerId() === panelLayerId;
     const computing = isSandboxComputing();
+    const createBtn = panel.querySelector('.composite-sandbox-create-btn');
+    const deleteBtn = panel.querySelector('.composite-sandbox-delete-btn');
+    const compareWrap = panel.querySelector('.composite-sandbox-compare-wrap');
 
     if (createBtn) {
         createBtn.hidden = sandbox;
@@ -148,8 +159,10 @@ function updateModeButtons() {
         deleteBtn.hidden = !sandbox;
         deleteBtn.disabled = computing;
     }
-
-    document.querySelectorAll('.composite-sandbox-slider').forEach(input => {
+    if (compareWrap) {
+        compareWrap.hidden = !sandbox;
+    }
+    panel.querySelectorAll('.composite-sandbox-slider').forEach(input => {
         input.disabled = sandbox || computing;
     });
 }
@@ -160,7 +173,9 @@ function updateCompareControls() {
     const view = getSandboxCompareView();
 
     document.querySelectorAll('.composite-sandbox-compare-wrap').forEach(wrap => {
-        wrap.hidden = !sandbox;
+        if (wrap.id === 'compositeSandboxCompareBanner') {
+            wrap.hidden = !sandbox;
+        }
     });
 
     document.querySelectorAll('.composite-sandbox-compare-btn').forEach(btn => {
@@ -174,29 +189,13 @@ function updateCompareControls() {
     if (bannerText) {
         bannerText.textContent =
             view === SANDBOX_COMPARE_VIEWS.BEFORE
-                ? 'Sandbox — viewing Before (official composite score).'
-                : 'Sandbox — viewing After (experimental weighted composite).';
+                ? 'Sandbox — viewing Before (official score).'
+                : 'Sandbox — viewing After (experimental weighted score).';
     }
 }
 
-async function switchCompareView(view) {
-    if (!context || !isSandboxActive() || isSandboxComputing()) return;
-    const nextView =
-        view === SANDBOX_COMPARE_VIEWS.BEFORE
-            ? SANDBOX_COMPARE_VIEWS.BEFORE
-            : SANDBOX_COMPARE_VIEWS.AFTER;
-    if (getSandboxCompareView() === nextView) return;
-
-    setSandboxCompareView(nextView);
-    const layerId = getSandboxLayerId();
-    if (layerId) {
-        await context.refreshSandboxLayer?.(layerId);
-    }
-    updateCompareControls();
-}
-
-function renderSliderRows(themeConfig, inputsDisabled) {
-    const host = document.getElementById('compositeSandboxSliders');
+function renderSliderRows(panel, themeConfig, inputsDisabled) {
+    const host = panel.querySelector('.composite-sandbox-sliders');
     if (!host) return;
 
     const existing = new Map();
@@ -215,14 +214,14 @@ function renderSliderRows(themeConfig, inputsDisabled) {
             const safeField = escapeHtml(ind.field);
             return `
                 <div class="composite-sandbox-slider-row">
-                    <label class="composite-sandbox-slider-label" for="compositeSandboxSlider-${index}">
+                    <label class="composite-sandbox-slider-label" for="cs-slider-${panel.dataset.sandboxLayer}-${index}">
                         ${safeLabel}
                     </label>
                     <div class="composite-sandbox-slider-controls">
                         <input
                             type="range"
                             class="composite-sandbox-slider"
-                            id="compositeSandboxSlider-${index}"
+                            id="cs-slider-${panel.dataset.sandboxLayer}-${index}"
                             data-field="${safeField}"
                             min="0"
                             max="1"
@@ -238,61 +237,86 @@ function renderSliderRows(themeConfig, inputsDisabled) {
         .join('');
 }
 
-function collectSliderValues(themeConfig) {
-    const host = document.getElementById('compositeSandboxSliders');
+function collectSliderValues(panel, themeConfig) {
+    const host = panel?.querySelector('.composite-sandbox-sliders');
     if (!host) return themeConfig.indicators.map(ind => ind.defaultWeight);
     return themeConfig.indicators.map((ind, index) => {
-        const input = host.querySelector(`#compositeSandboxSlider-${index}`);
+        const input = host.querySelector(`#cs-slider-${panel.dataset.sandboxLayer}-${index}`);
         return input ? Number(input.value) : ind.defaultWeight;
     });
 }
 
-async function createWeightedMap() {
+async function createWeightedMap(layerId) {
     if (!context || isSandboxLockedLocal()) return;
 
-    const layerId = activeLayerId || context.getCurrentCompositeLayerId?.();
+    const targetLayerId = layerId || activeLayerId || context.getCurrentCompositeLayerId?.();
     const resolution = context.getActiveResolution?.() || 'district';
-    if (!layerId || !context.isLayerActive?.(layerId)) return;
+    if (!targetLayerId || !context.isLayerActive?.(targetLayerId)) return;
 
     await ensureWeightsConfig();
-    const themeConfig = getThemeConfig(layerId, resolution, weightsConfig);
+    const themeConfig = getThemeConfig(targetLayerId, resolution, weightsConfig);
     if (!themeConfig) return;
 
-    const rawGeoJson = context.getLayerGeoJson?.(layerId);
+    const panel = getPanelForLayer(targetLayerId);
+    const rawGeoJson = context.getLayerGeoJson?.(targetLayerId);
     if (!rawGeoJson?.features?.length) {
-        showSandboxError('Layer data is not loaded yet. Wait for the layer to finish loading.');
+        showSandboxError(panel, 'Layer data is not loaded yet.');
         return;
     }
 
-    const sliderValues = collectSliderValues(themeConfig);
-    setSandboxSnapshot({
-        subindicatorCleared: true
-    });
-    clearSubindicatorSelection(layerId);
-    renderSVSubindicatorPanel(layerId);
-    if (typeof window.syncSVSubindicatorPanelsVisibility === 'function') {
-        window.syncSVSubindicatorPanelsVisibility();
+    const sliderValues = collectSliderValues(panel, themeConfig);
+    setSandboxSnapshot({ subindicatorCleared: true });
+    if (targetLayerId !== 'svOverallTensionLayer') {
+        clearSubindicatorSelection(targetLayerId);
+        renderSVSubindicatorPanel(targetLayerId);
+        if (typeof window.syncSVSubindicatorPanelsVisibility === 'function') {
+            window.syncSVSubindicatorPanelsVisibility();
+        }
     }
 
-    setSandboxComputing(layerId, resolution, themeConfig, sliderValues);
-    syncCompositeSandboxPanel(layerId, resolution);
+    setSandboxComputing(targetLayerId, resolution, themeConfig, sliderValues);
+    syncCompositeSandboxPanel(targetLayerId, resolution);
 
     try {
         await deferToNextFrame();
+
+        if (isOverallPillarMode(themeConfig)) {
+            await attachPillarsFromSources(rawGeoJson, themeConfig, resolution);
+        }
+
         const prepCache = buildPrepCache(rawGeoJson.features, themeConfig.indicators);
         const weights = slidersToWeights(sliderValues);
         applyCustomCompositeToGeoJson(rawGeoJson, prepCache, weights);
         setSandboxActive(prepCache);
-        await context.refreshSandboxLayer?.(layerId);
-        syncCompositeSandboxPanel(layerId, resolution);
+        await context.refreshSandboxLayer?.(targetLayerId);
+        syncCompositeSandboxPanel(targetLayerId, resolution);
         updateCompareControls();
     } catch (error) {
         console.error('Composite sandbox compute failed:', error);
         clearCustomCompositeFromGeoJson(rawGeoJson);
         resetSandboxState();
-        syncCompositeSandboxPanel(layerId, resolution);
-        showSandboxError(error?.message || 'Could not calculate weighted composite.');
+        syncCompositeSandboxPanel(targetLayerId, resolution);
+        showSandboxError(panel, error?.message || 'Could not calculate weighted composite.');
     }
+}
+
+async function attachPillarsFromSources(overallGeoJson, themeConfig, resolution) {
+    const joinKeys = themeConfig.joinKeys || [];
+    const sourceMaps = {};
+    const uniqueSources = [...new Set(themeConfig.indicators.map(ind => ind.sourceLayerId))];
+
+    for (const sourceLayerId of uniqueSources) {
+        const sourceGeoJson = await context.getSourceLayerGeoJson?.(sourceLayerId, resolution);
+        if (!sourceGeoJson?.features?.length) {
+            throw new Error(`Could not load pillar source for ${sourceLayerId}`);
+        }
+        sourceMaps[sourceLayerId] = {
+            byKey: buildJoinMapFromGeoJson(sourceGeoJson, joinKeys),
+            field: themeConfig.indicators.find(ind => ind.sourceLayerId === sourceLayerId)?.sourceField
+        };
+    }
+
+    attachOverallPillarsToFeatures(overallGeoJson, themeConfig, sourceMaps);
 }
 
 async function deleteWeightedMap() {
@@ -305,6 +329,23 @@ async function deleteWeightedMap() {
         await context.refreshSandboxLayer?.(layerId);
     }
     syncCompositeSandboxPanel(context.getCurrentCompositeLayerId?.(), context.getActiveResolution?.());
+}
+
+async function switchCompareView(view) {
+    if (!context || !isSandboxActive() || isSandboxComputing()) return;
+    const nextView =
+        view === SANDBOX_COMPARE_VIEWS.BEFORE
+            ? SANDBOX_COMPARE_VIEWS.BEFORE
+            : SANDBOX_COMPARE_VIEWS.AFTER;
+    if (getSandboxCompareView() === nextView) return;
+
+    setSandboxCompareView(nextView);
+    const layerId = getSandboxLayerId();
+    if (layerId) {
+        await context.refreshSandboxLayer?.(layerId);
+    }
+    updateCompareControls();
+    syncCompositeSandboxPanel(layerId, context.getActiveResolution?.());
 }
 
 function isSandboxLockedLocal() {
@@ -329,8 +370,10 @@ function escapeHtml(text) {
         .replace(/"/g, '&quot;');
 }
 
-function showSandboxError(message) {
-    const errorEl = document.getElementById('compositeSandboxError');
+function showSandboxError(panel, message) {
+    const errorEl =
+        panel?.querySelector('.composite-sandbox-error') ||
+        document.getElementById('compositeSandboxError');
     if (!errorEl) return;
     errorEl.textContent = message;
     errorEl.hidden = false;

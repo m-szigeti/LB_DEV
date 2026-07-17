@@ -1,10 +1,11 @@
 /**
- * Load official indicator weights (built from Indicator_Weights_Summary.xlsx).
+ * Load official indicator weights (built from Indicator_Weights_Summary_tmp.xlsx).
  */
 
 const WEIGHTS_URL = 'data/indicator_weights.json';
 
 const LAYER_TO_THEME = {
+    svOverallTensionLayer: 'overall',
     svAdmin3Layer: '2',
     svAdmin2Layer: '3',
     svAdmin4Layer: '4',
@@ -57,4 +58,8 @@ export function getThemeConfig(layerId, resolution, config = configCache) {
 export function isCompositeWeightEligible(layerId, resolution = 'district', config = configCache) {
     if (!COMPOSITE_WEIGHT_ENABLED_RESOLUTIONS.has(resolution)) return false;
     return Boolean(getThemeConfig(layerId, resolution, config));
+}
+
+export function isOverallPillarMode(themeConfig) {
+    return themeConfig?.mode === 'overall-pillars';
 }

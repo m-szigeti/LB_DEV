@@ -8,7 +8,7 @@ const BODY_COMPUTING = 'composite-weight-computing';
 const BODY_SANDBOX = 'composite-weight-sandbox-mode';
 
 const SIDEBAR_SELECTOR = '#sidebar';
-const SANDBOX_PANEL_SELECTOR = '#compositeSandboxPanel';
+const SANDBOX_PANEL_SELECTOR = '.composite-sandbox-panel';
 const MAP_WORKSPACE_SELECTOR = '.map-panel';
 
 export function isCompositeSandboxLocked() {
