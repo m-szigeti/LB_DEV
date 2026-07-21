@@ -16,12 +16,18 @@ const state = {
     prepCache: null,
     sliderValues: [],
     snapshot: null,
-    compareView: 'after'
+    compareView: 'after',
+    displayMode: 'single-color'
 };
 
 export const SANDBOX_COMPARE_VIEWS = {
     BEFORE: 'before',
     AFTER: 'after'
+};
+
+export const SANDBOX_DISPLAY_MODES = {
+    STANDARD: 'standard',
+    SINGLE_COLOR: 'single-color'
 };
 
 export function getSandboxState() {
@@ -63,6 +69,21 @@ export function setSandboxCompareView(view) {
         : SANDBOX_COMPARE_VIEWS.AFTER;
 }
 
+export function getSandboxDisplayMode() {
+    return state.displayMode;
+}
+
+export function isSandboxSingleColorMode() {
+    return state.displayMode === SANDBOX_DISPLAY_MODES.SINGLE_COLOR;
+}
+
+export function setSandboxDisplayMode(mode) {
+    if (state.mode !== SANDBOX_MODES.SANDBOX) return;
+    state.displayMode = mode === SANDBOX_DISPLAY_MODES.SINGLE_COLOR
+        ? SANDBOX_DISPLAY_MODES.SINGLE_COLOR
+        : SANDBOX_DISPLAY_MODES.STANDARD;
+}
+
 export function getSandboxLayerId() {
     return state.layerId;
 }
@@ -79,6 +100,7 @@ export function setSandboxActive(prepCache) {
     state.mode = SANDBOX_MODES.SANDBOX;
     state.prepCache = prepCache;
     state.compareView = SANDBOX_COMPARE_VIEWS.AFTER;
+    state.displayMode = SANDBOX_DISPLAY_MODES.SINGLE_COLOR;
 }
 
 export function setSandboxSnapshot(snapshot) {
@@ -98,4 +120,13 @@ export function resetSandboxState() {
     state.sliderValues = [];
     state.snapshot = null;
     state.compareView = SANDBOX_COMPARE_VIEWS.AFTER;
+    state.displayMode = SANDBOX_DISPLAY_MODES.SINGLE_COLOR;
+}
+
+export function isSandboxSingleColorForLayer(layerId) {
+    return (
+        state.mode === SANDBOX_MODES.SANDBOX &&
+        state.layerId === layerId &&
+        state.displayMode === SANDBOX_DISPLAY_MODES.SINGLE_COLOR
+    );
 }

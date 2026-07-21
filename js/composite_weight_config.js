@@ -14,8 +14,8 @@ const LAYER_TO_THEME = {
     svGenderLayer: '8'
 };
 
-/** District-only for initial rollout; extend when enabling other resolutions. */
-export const COMPOSITE_WEIGHT_ENABLED_RESOLUTIONS = new Set(['district']);
+/** Enabled resolutions for composite weight sandbox. */
+export const COMPOSITE_WEIGHT_ENABLED_RESOLUTIONS = new Set(['district', 'governorate']);
 
 let configPromise = null;
 let configCache = null;

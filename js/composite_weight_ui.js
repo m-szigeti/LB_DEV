@@ -27,7 +27,10 @@ import {
     getSandboxLayerId,
     getSandboxCompareView,
     setSandboxCompareView,
-    SANDBOX_COMPARE_VIEWS
+    SANDBOX_COMPARE_VIEWS,
+    SANDBOX_DISPLAY_MODES,
+    getSandboxDisplayMode,
+    setSandboxDisplayMode
 } from './composite_sandbox_state.js';
 import { syncSandboxBodyClasses, installSandboxGuard } from './composite_sandbox_guard.js';
 import { clearSubindicatorSelection, renderSVSubindicatorPanel } from './sv_subindicators.js';
@@ -72,13 +75,18 @@ function bindPanelControls() {
             void createWeightedMap(layerId);
             return;
         }
-        if (target.closest('#compositeSandboxDeleteBtn, #compositeSandboxBannerDeleteBtn, .composite-sandbox-delete-btn')) {
+        if (target.closest('#compositeSandboxBannerDeleteBtn')) {
             void deleteWeightedMap();
             return;
         }
         const compareBtn = target.closest('.composite-sandbox-compare-btn');
         if (compareBtn?.dataset?.view) {
             void switchCompareView(compareBtn.dataset.view);
+            return;
+        }
+        const displayBtn = target.closest('.composite-sandbox-display-btn');
+        if (displayBtn?.dataset?.mode) {
+            void switchDisplayMode(displayBtn.dataset.mode);
         }
     });
 
@@ -148,19 +156,10 @@ function updatePanelButtons(panel, panelLayerId) {
     const sandbox = isSandboxActive() && getSandboxLayerId() === panelLayerId;
     const computing = isSandboxComputing();
     const createBtn = panel.querySelector('.composite-sandbox-create-btn');
-    const deleteBtn = panel.querySelector('.composite-sandbox-delete-btn');
-    const compareWrap = panel.querySelector('.composite-sandbox-compare-wrap');
 
     if (createBtn) {
         createBtn.hidden = sandbox;
         createBtn.disabled = computing;
-    }
-    if (deleteBtn) {
-        deleteBtn.hidden = !sandbox;
-        deleteBtn.disabled = computing;
-    }
-    if (compareWrap) {
-        compareWrap.hidden = !sandbox;
     }
     panel.querySelectorAll('.composite-sandbox-slider').forEach(input => {
         input.disabled = sandbox || computing;
@@ -171,26 +170,38 @@ function updateCompareControls() {
     const sandbox = isSandboxActive();
     const computing = isSandboxComputing();
     const view = getSandboxCompareView();
+    const displayMode = getSandboxDisplayMode();
 
     document.querySelectorAll('.composite-sandbox-compare-wrap').forEach(wrap => {
-        if (wrap.id === 'compositeSandboxCompareBanner') {
+        if (wrap.id === 'compositeSandboxCompareBanner' || wrap.id === 'compositeSandboxDisplayBanner') {
             wrap.hidden = !sandbox;
         }
     });
 
-    document.querySelectorAll('.composite-sandbox-compare-btn').forEach(btn => {
+    document.querySelectorAll('.composite-sandbox-compare-btn[data-view]').forEach(btn => {
         const isActive = btn.dataset.view === view;
         btn.classList.toggle('is-active', isActive);
         btn.disabled = computing;
         btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
     });
 
+    document.querySelectorAll('.composite-sandbox-display-btn').forEach(btn => {
+        const isActive = btn.dataset.mode === displayMode;
+        btn.classList.toggle('is-active', isActive);
+        btn.disabled = computing || !sandbox;
+        btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+    });
+
     const bannerText = document.getElementById('compositeSandboxBannerText');
     if (bannerText) {
+        const displayText =
+            displayMode === SANDBOX_DISPLAY_MODES.SINGLE_COLOR
+                ? 'single color'
+                : 'patterns and icons';
         bannerText.textContent =
             view === SANDBOX_COMPARE_VIEWS.BEFORE
-                ? 'Sandbox — viewing Before (official score).'
-                : 'Sandbox — viewing After (experimental weighted score).';
+                ? `Sandbox — viewing Before (official score, ${displayText}).`
+                : `Sandbox — viewing After (experimental weighted score, ${displayText}).`;
     }
 }
 
@@ -340,6 +351,23 @@ async function switchCompareView(view) {
     if (getSandboxCompareView() === nextView) return;
 
     setSandboxCompareView(nextView);
+    const layerId = getSandboxLayerId();
+    if (layerId) {
+        await context.refreshSandboxLayer?.(layerId);
+    }
+    updateCompareControls();
+    syncCompositeSandboxPanel(layerId, context.getActiveResolution?.());
+}
+
+async function switchDisplayMode(mode) {
+    if (!context || !isSandboxActive() || isSandboxComputing()) return;
+    const nextMode =
+        mode === SANDBOX_DISPLAY_MODES.SINGLE_COLOR
+            ? SANDBOX_DISPLAY_MODES.SINGLE_COLOR
+            : SANDBOX_DISPLAY_MODES.STANDARD;
+    if (getSandboxDisplayMode() === nextMode) return;
+
+    setSandboxDisplayMode(nextMode);
     const layerId = getSandboxLayerId();
     if (layerId) {
         await context.refreshSandboxLayer?.(layerId);
