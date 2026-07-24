@@ -1,0 +1,22 @@
+﻿source_csv,level,theme,action,output_csv,indicator_count
+GOV Theme 1 - Displacement Pressure.csv,GOV,1,copied_unchanged,GOV Theme 1 - Displacement Pressure.csv,
+GOV Theme 2 - Tensions and Conflict Risk.csv,GOV,2,composite_scored,GOV Theme 2 - Tensions and Conflict Risk.csv,6.0
+GOV Theme 3 - Socioeconomic Vulnerability.csv,GOV,3,composite_scored,GOV Theme 3 - Socioeconomic Vulnerability.csv,3.0
+GOV Theme 4 - Service & Infrastructure Vulnerability.csv,GOV,4,composite_scored,GOV Theme 4 - Service & Infrastructure Vulnerability.csv,9.0
+GOV Theme 5 - Demographic Tension Stress.csv,GOV,5,copied_unchanged,GOV Theme 5 - Demographic Tension Stress.csv,
+GOV Theme 6 - Climate and Environmental Risk.csv,GOV,6,composite_scored,GOV Theme 6 - Climate and Environmental Risk.csv,3.0
+GOV Theme 7 - Political Vulnerability.csv,GOV,7,composite_scored,GOV Theme 7 - Political Vulnerability.csv,9.0
+GOV Theme 8 - Gender Based Vulnerabilities.csv,GOV,8,composite_scored,GOV Theme 8 - Gender Based Vulnerabilities.csv,7.0
+DIS Theme 1 - Displacement Pressure.csv,DIS,1,copied_unchanged,DIS Theme 1 - Displacement Pressure.csv,
+DIS Theme 2 - Tensions and Conflict Risk.csv,DIS,2,composite_scored,DIS Theme 2 - Tensions and Conflict Risk.csv,6.0
+DIS Theme 3 - Socioeconomic Vulnerability.csv,DIS,3,composite_scored,DIS Theme 3 - Socioeconomic Vulnerability.csv,3.0
+DIS Theme 4 - Service & Infrastructure Vulnerability.csv,DIS,4,composite_scored,DIS Theme 4 - Service & Infrastructure Vulnerability.csv,16.0
+DIS Theme 5 - Demographic Tension Stress.csv,DIS,5,copied_unchanged,DIS Theme 5 - Demographic Tension Stress.csv,
+DIS Theme 6 - Climate Change and Environmental Risk.csv,DIS,6,composite_scored,DIS Theme 6 - Climate Change and Environmental Risk.csv,3.0
+DIS Theme 7 - Political Vulnerability.csv,DIS,7,composite_scored,DIS Theme 7 - Political Vulnerability.csv,12.0
+DIS Theme 8 - Gender Based Vulnerabilities.csv,DIS,8,composite_scored,DIS Theme 8 - Gender Based Vulnerabilities.csv,7.0
+CAD Theme 1 - Displacement Pressure.csv,CAD,1,copied_unchanged,CAD Theme 1 - Displacement Pressure.csv,
+CAD Theme 2 - Tensions and Conflict Risk.csv,CAD,2,composite_scored,CAD Theme 2 - Tensions and Conflict Risk.csv,6.0
+CAD Theme 3 - Socioeconomic Vulnerability.csv,CAD,3,composite_scored,CAD Theme 3 - Socioeconomic Vulnerability.csv,3.0
+CAD Theme 5 - Demographic Tension Stress.csv,CAD,5,copied_unchanged,CAD Theme 5 - Demographic Tension Stress.csv,
+CAD Theme 6 - Climate Change and Environmental Risk.csv,CAD,6,composite_scored,CAD Theme 6 - Climate Change and Environmental Risk.csv,3.0

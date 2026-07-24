@@ -2,6 +2,8 @@
  * Sandbox mode state for experimental composite weight previews.
  */
 
+import { isColorOnlyMode } from './map_display_controls.js';
+
 export const SANDBOX_MODES = {
     NORMAL: 'normal',
     COMPUTING: 'computing',
@@ -17,7 +19,7 @@ const state = {
     sliderValues: [],
     snapshot: null,
     compareView: 'after',
-    displayMode: 'single-color'
+    displayMode: 'standard'
 };
 
 export const SANDBOX_COMPARE_VIEWS = {
@@ -74,14 +76,12 @@ export function getSandboxDisplayMode() {
 }
 
 export function isSandboxSingleColorMode() {
-    return state.displayMode === SANDBOX_DISPLAY_MODES.SINGLE_COLOR;
+    // Display mode is owned by the global map tray control.
+    return isColorOnlyMode();
 }
 
-export function setSandboxDisplayMode(mode) {
-    if (state.mode !== SANDBOX_MODES.SANDBOX) return;
-    state.displayMode = mode === SANDBOX_DISPLAY_MODES.SINGLE_COLOR
-        ? SANDBOX_DISPLAY_MODES.SINGLE_COLOR
-        : SANDBOX_DISPLAY_MODES.STANDARD;
+export function setSandboxDisplayMode(_mode) {
+    // No-op: sandbox follows global isColorOnlyMode(); kept for API compatibility.
 }
 
 export function getSandboxLayerId() {
@@ -100,7 +100,7 @@ export function setSandboxActive(prepCache) {
     state.mode = SANDBOX_MODES.SANDBOX;
     state.prepCache = prepCache;
     state.compareView = SANDBOX_COMPARE_VIEWS.AFTER;
-    state.displayMode = SANDBOX_DISPLAY_MODES.SINGLE_COLOR;
+    // Do not force color-only; tray control is the single source of truth.
 }
 
 export function setSandboxSnapshot(snapshot) {
@@ -120,13 +120,9 @@ export function resetSandboxState() {
     state.sliderValues = [];
     state.snapshot = null;
     state.compareView = SANDBOX_COMPARE_VIEWS.AFTER;
-    state.displayMode = SANDBOX_DISPLAY_MODES.SINGLE_COLOR;
+    state.displayMode = SANDBOX_DISPLAY_MODES.STANDARD;
 }
 
-export function isSandboxSingleColorForLayer(layerId) {
-    return (
-        state.mode === SANDBOX_MODES.SANDBOX &&
-        state.layerId === layerId &&
-        state.displayMode === SANDBOX_DISPLAY_MODES.SINGLE_COLOR
-    );
+export function isSandboxSingleColorForLayer(_layerId) {
+    return isColorOnlyMode();
 }

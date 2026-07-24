@@ -10,13 +10,13 @@ import { loadVectorLayer,
     layerHasAcsCodeNoData,
     ACS_CODE_NO_DATA_COLOR,
     ACS_CODE_NO_DATA_LEGEND_LABEL,
-    calculateQuantileBreaks,
     getValueClassIndex,
-    formatClassLegendRanges } from './vector_layers.js';
+    formatClassLegendRanges,
+    resolveClassificationBreaks } from './vector_layers.js';
 import { loadTiff } from './zoom-adaptive-tiff-loader.js';
 import { setupColorRampSelector, getColorRamp } from './color_ramp_selector.js';
 import { legendColorsForMapOpacity } from './color_scales.js';
-import { generateAdminLabels } from './admin_labels.js';
+import { generateAdminLabels, setAdminLabelLayersEnabled } from './admin_labels.js';
 import { addInfoPopupHandler, hideInfoPopup } from './info_popup.js';
 import {
     configureSVSubindicators,
@@ -35,17 +35,28 @@ import {
 } from './analysis_selection.js';
 import { CUSTOM_COMPOSITE_FIELD } from './composite_score.js';
 import {
-    usesCustomComposite,
-    isSandboxActive,
-    getSandboxLayerId,
-    isSandboxSingleColorMode,
-    isSandboxSingleColorForLayer
+    usesCustomComposite
 } from './composite_sandbox_state.js';
 import {
     initCompositeWeightSandbox,
     syncCompositeSandboxPanel,
     blockCompositeSandboxNavigation
 } from './composite_weight_ui.js';
+import {
+    CUSTOM_OVERALL_BUILDER_ENABLED,
+    CUSTOM_OVERALL_LAYER_ID,
+    CUSTOM_OVERALL_SCORE_FIELD,
+    initCustomOverallBuilder,
+    getCustomOverallGeoJson,
+    isCustomOverallActive,
+    clearCustomOverallOnResolutionChange
+} from './custom_overall_builder.js';
+import {
+    initMapDisplayControls,
+    isColorOnlyMode,
+    isShowLabelsMode,
+    getClassificationMode
+} from './map_display_controls.js';
 
 const JUNE17_DATA = 'data/June17';
 const DATA = 'data';
@@ -169,6 +180,25 @@ const layerConfig = {
         colorRampPreview: 'svColorPreview',
         svAttribute: OVERALL_VULNERABILITY_SCORE_FIELD,
         layerType: 'sv-overall'
+    },
+    svCustomOverallLayer: {
+        fixedColorRamp: 'whiteToDarkBlue3',
+        type: 'sv-vector',
+        url: JUNE17_FILES.overall.cadastre,
+        legendName: 'Custom Overall Index',
+        style: {
+            color: '#0f766e',
+            weight: 2,
+            opacity: 1,
+            fillOpacity: 0.6
+        },
+        opacityControl: 'svOpacity',
+        opacityDisplay: 'svOpacityValue',
+        colorRampSelector: 'svColorRamp',
+        colorRampPreview: 'svColorPreview',
+        svAttribute: CUSTOM_OVERALL_SCORE_FIELD,
+        layerType: 'sv-custom-overall',
+        customOverall: true
     },
     svAdmin1Layer: {
         fixedColorRamp: 'whiteToDarkGreen',
@@ -547,6 +577,7 @@ const SV_ADMIN_RESOLUTION_BUTTON_SELECTOR = '.sv-admin-resolution-btn';
 const DEFAULT_SV_ADMIN_RESOLUTION = 'district';
 const SV_LAYER_IDS = [
     'svOverallTensionLayer',
+    CUSTOM_OVERALL_LAYER_ID,
     'svAdmin1Layer',
     'svAdmin2Layer',
     'svAdmin3Layer',
@@ -557,7 +588,9 @@ const SV_LAYER_IDS = [
     'svGenderLayer'
 ];
 const SV_OVERALL_LAYER_ID = 'svOverallTensionLayer';
-const SV_COMPOSITE_LAYER_IDS = SV_LAYER_IDS.filter(id => id !== SV_OVERALL_LAYER_ID);
+const SV_COMPOSITE_LAYER_IDS = SV_LAYER_IDS.filter(
+    id => id !== SV_OVERALL_LAYER_ID && id !== CUSTOM_OVERALL_LAYER_ID
+);
 /** Pillar layers that may be shown together with Overall Vulnerability. */
 const SV_OVERALL_COMPATIBLE_LAYER_IDS = ['svAdmin1Layer', 'svAdmin2Layer', 'svAdmin4Layer'];
 /** Pillar layers that cannot be shown while Overall Vulnerability is on. */
@@ -567,9 +600,13 @@ const SV_OVERALL_INCOMPATIBLE_LAYER_IDS = SV_COMPOSITE_LAYER_IDS.filter(
 
 function reconcileSVLayerSelection(layerIds) {
     const unique = [...new Set(layerIds)];
-    if (unique.includes(SV_OVERALL_LAYER_ID)) {
+    const hasOfficial = unique.includes(SV_OVERALL_LAYER_ID);
+    const hasCustom = unique.includes(CUSTOM_OVERALL_LAYER_ID);
+    if (hasOfficial || hasCustom) {
+        // Prefer a single master choropleth; custom wins if both were selected.
+        const master = hasCustom && isCustomOverallActive() ? CUSTOM_OVERALL_LAYER_ID : SV_OVERALL_LAYER_ID;
         const compatible = unique.filter(id => SV_OVERALL_COMPATIBLE_LAYER_IDS.includes(id));
-        return [SV_OVERALL_LAYER_ID, ...compatible];
+        return [master, ...compatible];
     }
     return unique.filter(id => SV_COMPOSITE_LAYER_IDS.includes(id));
 }
@@ -584,12 +621,19 @@ function uncheckSVLayerToggles(layerIds) {
 }
 
 function applySVLayerExclusivity(selectedLayerId) {
-    if (selectedLayerId === SV_OVERALL_LAYER_ID) {
+    const isMaster =
+        selectedLayerId === SV_OVERALL_LAYER_ID || selectedLayerId === CUSTOM_OVERALL_LAYER_ID;
+    if (isMaster) {
         uncheckSVLayerToggles(SV_OVERALL_INCOMPATIBLE_LAYER_IDS);
+        if (selectedLayerId === SV_OVERALL_LAYER_ID) {
+            uncheckSVLayerToggles([CUSTOM_OVERALL_LAYER_ID]);
+        } else {
+            uncheckSVLayerToggles([SV_OVERALL_LAYER_ID]);
+        }
         return;
     }
     if (SV_OVERALL_INCOMPATIBLE_LAYER_IDS.includes(selectedLayerId)) {
-        uncheckSVLayerToggles([SV_OVERALL_LAYER_ID]);
+        uncheckSVLayerToggles([SV_OVERALL_LAYER_ID, CUSTOM_OVERALL_LAYER_ID]);
     }
 }
 const SV_BASE_LAYER_CONFIG = {
@@ -598,6 +642,12 @@ const SV_BASE_LAYER_CONFIG = {
         legendName: 'Overall Vulnerability Index ',
         renderMode: 'choropleth',
         svAttribute: OVERALL_VULNERABILITY_SCORE_FIELD
+    },
+    svCustomOverallLayer: {
+        fixedColorRamp: 'whiteToDarkBlue3',
+        legendName: 'Custom Overall Index',
+        renderMode: 'choropleth',
+        svAttribute: CUSTOM_OVERALL_SCORE_FIELD
     },
     svAdmin1Layer: {
         fixedColorRamp: 'whiteToDarkGreen',
@@ -662,6 +712,11 @@ const SV_RESOLUTION_CONFIG = {
             available: true,
             svAttribute: OVERALL_VULNERABILITY_SCORE_FIELD
         },
+        svCustomOverallLayer: {
+            url: JUNE17_FILES.overall.district,
+            available: true,
+            svAttribute: CUSTOM_OVERALL_SCORE_FIELD
+        },
         svAdmin1Layer: {
             url: JUNE17_FILES.theme1.district,
             available: true,
@@ -713,6 +768,12 @@ const SV_RESOLUTION_CONFIG = {
             url: JUNE17_FILES.overall.cadastre,
             available: true,
             svAttribute: OVERALL_VULNERABILITY_SCORE_FIELD,
+            thinBoundaries: true
+        },
+        svCustomOverallLayer: {
+            url: JUNE17_FILES.overall.cadastre,
+            available: true,
+            svAttribute: CUSTOM_OVERALL_SCORE_FIELD,
             thinBoundaries: true
         },
         svAdmin1Layer: {
@@ -769,6 +830,11 @@ const SV_RESOLUTION_CONFIG = {
             url: JUNE17_FILES.overall.governorate,
             available: true,
             svAttribute: OVERALL_VULNERABILITY_SCORE_FIELD
+        },
+        svCustomOverallLayer: {
+            url: JUNE17_FILES.overall.governorate,
+            available: true,
+            svAttribute: CUSTOM_OVERALL_SCORE_FIELD
         },
         svAdmin1Layer: {
             url: JUNE17_FILES.theme1.governorate,
@@ -1554,6 +1620,9 @@ function getPopulationChoroplethLegendTitle(attributeKey, config) {
 }
 
 function getEffectiveChoroplethAttribute(layerId, config) {
+    if (layerId === CUSTOM_OVERALL_LAYER_ID) {
+        return CUSTOM_OVERALL_SCORE_FIELD;
+    }
     if (usesCustomComposite(layerId)) {
         return CUSTOM_COMPOSITE_FIELD;
     }
@@ -2001,6 +2070,103 @@ function refreshSVDisplacementLayerCircles(layerId, layers, config, map) {
     refreshSVDisplacementCircles(layerId, layers, config, map);
 }
 
+function refreshSVDisplacementSingleColorMode(map, layers, addLegendEntry) {
+    const layerId = 'svAdmin1Layer';
+    const config = layerConfig[layerId];
+    const layer = layers.vector[layerId];
+    if (!config || !layer || !layer._isSVProportionalLayer || !activeSVLayers.has(layerId)) return;
+
+    const outline = layer._svAdminOutlineLayer;
+    if (!outline) return;
+
+    if (map?.hasLayer(layer)) {
+        map.removeLayer(layer);
+    }
+    if (map && !map.hasLayer(outline)) {
+        outline.addTo(map);
+    }
+
+    const attr = getEffectiveDisplacementCircleAttribute(config);
+    const fixedRamp = getColorRamp(SV_SANDBOX_SINGLE_COLOR_RAMP_ID);
+    if (!fixedRamp) return;
+    const opacitySlider = document.getElementById(config.opacityControl);
+    const opacity = opacitySlider ? parseFloat(opacitySlider.value) : 0.6;
+
+    if (!outline.layerData) {
+        outline.layerData = {
+            raw: layer.layerData?.raw,
+            propertyFields: Object.keys(layer.layerData?.raw?.features?.[0]?.properties || {}),
+            selectedProperty: attr,
+            colorRamp: null
+        };
+    } else {
+        outline.layerData.raw = layer.layerData?.raw || outline.layerData.raw;
+        outline.layerData.selectedProperty = attr;
+        outline.layerData._styleSignature = null;
+    }
+    layer._svDisplacementColorOnly = true;
+
+    outline.eachLayer(featureLayer => {
+        if (featureLayer?.options) {
+            featureLayer.options.interactive = true;
+        }
+    });
+
+    const updateLegendForLayer = (layerName, colorScheme, description, labels) => {
+        pushSVChoroplethLegendEntry(
+            layerId,
+            attr,
+            config,
+            layerName,
+            colorScheme,
+            description,
+            labels,
+            addLegendEntry
+        );
+    };
+
+    updateVectorLayerStyle(outline, attr, fixedRamp, opacity, updateLegendForLayer, { skipTooltips: true });
+    applySVPolygonOutlineStyle(outline, config, { hide: true });
+    updateSVHoverTooltips(outline, layerId, config);
+    reapplySelectedPolygonHighlight(layerId);
+    syncDisplacementSubindicatorExtras(map, layerId, layers, config);
+}
+
+function restoreSVDisplacementCirclesFromColorOnly(map, layers, layerId) {
+    const layer = layers.vector[layerId];
+    if (!layer?._isSVProportionalLayer || !layer._svDisplacementColorOnly) return;
+
+    const outline = layer._svAdminOutlineLayer;
+    const isCadastre = Boolean(layerConfig[layerId]?.thinBoundaries);
+    if (outline?.eachLayer) {
+        outline.eachLayer(featureLayer => {
+            if (typeof featureLayer.setStyle !== 'function') return;
+            featureLayer.setStyle({
+                color: isCadastre ? SV_OUTLINE_CADASTRE_COLOR : SV_OUTLINE_COLOR,
+                weight: isCadastre ? SV_OUTLINE_CADASTRE_WEIGHT : SV_OUTLINE_WEIGHT,
+                opacity: isCadastre ? SV_OUTLINE_CADASTRE_OPACITY : SV_OUTLINE_OPACITY,
+                fill: false,
+                fillOpacity: 0,
+                fillColor: null
+            });
+            if (featureLayer.options) {
+                featureLayer.options.interactive = false;
+            }
+        });
+        if (outline.layerData) {
+            outline.layerData._styleSignature = null;
+        }
+        if (map && !map.hasLayer(outline)) {
+            outline.addTo(map);
+        }
+    }
+
+    if (map && !map.hasLayer(layer)) {
+        layer.addTo(map);
+    }
+    layer._svDisplacementColorOnly = false;
+}
+
 
 function refreshSVEconomicStripePattern(map, layers, addLegendEntry) {
     const layerId = 'svAdmin2Layer';
@@ -2116,7 +2282,7 @@ function refreshSVServiceSingleColorMode(map, layers, addLegendEntry) {
             config,
             layerName,
             colorScheme,
-            `${description} Sandbox single-color mode.`,
+            `${description} Color-only mode.`,
             labels,
             addLegendEntry
         );
@@ -2154,7 +2320,7 @@ function refreshSVEconomicSingleColorMode(map, layers, addLegendEntry) {
             config,
             layerName,
             colorScheme,
-            `${description} Sandbox single-color mode.`,
+            `${description} Color-only mode.`,
             labels,
             addLegendEntry
         );
@@ -2174,14 +2340,19 @@ function refreshSVEconomicSingleColorMode(map, layers, addLegendEntry) {
 }
 
 async function refreshSandboxLayer(layerId, map, layers, addLegendEntry) {
+    await refreshSVLayerForDisplay(layerId, map, layers, addLegendEntry);
+}
+
+/**
+ * Restyle one active SV layer for the current global display settings
+ * (color-only, classification mode).
+ */
+async function refreshSVLayerForDisplay(layerId, map, layers, addLegendEntry) {
     const config = layerConfig[layerId];
     const layer = layers.vector[layerId];
     if (!config || !layer || !activeSVLayers.has(layerId)) return;
 
-    const singleColorMode =
-        isSandboxActive() &&
-        getSandboxLayerId() === layerId &&
-        isSandboxSingleColorMode();
+    const singleColorMode = isColorOnlyMode();
 
     if (config.renderMode === 'service-symbol') {
         if (singleColorMode) {
@@ -2195,10 +2366,19 @@ async function refreshSandboxLayer(layerId, map, layers, addLegendEntry) {
         } else {
             refreshSVEconomicStripePattern(map, layers, addLegendEntry);
         }
+    } else if (config.renderMode === 'proportional-circles') {
+        if (singleColorMode) {
+            refreshSVDisplacementSingleColorMode(map, layers, addLegendEntry);
+        } else {
+            restoreSVDisplacementCirclesFromColorOnly(map, layers, layerId);
+            refreshSVDisplacementLayerCircles(layerId, layers, config, map);
+        }
     } else if (layerId === 'svAdmin3Layer') {
         refreshSVPeaceCadastreChoropleth(map, layers, addLegendEntry, { singleColorMode });
     } else if (THEME_SUBINDICATOR_LAYER_IDS.includes(layerId)) {
         refreshSVThemeSubindicatorChoropleth(layerId, map, layers, addLegendEntry, { singleColorMode });
+    } else if (layerId === 'svAdmin5Layer') {
+        refreshSVDemographicChoropleth(map, layers, addLegendEntry, { singleColorMode });
     } else {
         const chAttr = getEffectiveChoroplethAttribute(layerId, config);
         const fixedRamp = singleColorMode
@@ -2231,7 +2411,6 @@ async function refreshSandboxLayer(layerId, map, layers, addLegendEntry) {
                     addLegendEntry
                 );
             };
-            // Force style refresh when switching Before/After attributes
             if (layer.layerData) {
                 layer.layerData._styleSignature = null;
             }
@@ -2242,11 +2421,47 @@ async function refreshSandboxLayer(layerId, map, layers, addLegendEntry) {
     }
 
     updateSVHoverTooltips(layer, layerId, config);
+    syncSVPermanentScoreLabels(map, layers);
     if (window.currentInfoPanel) {
         window.currentInfoPanel.updateLayer(layerId, {
             selectedAttribute: getEffectiveChoroplethAttribute(layerId, config)
         });
     }
+}
+
+async function refreshActiveSVLayersForDisplay(map, layers, addLegendEntry) {
+    for (const layerId of Array.from(activeSVLayers)) {
+        await refreshSVLayerForDisplay(layerId, map, layers, addLegendEntry);
+    }
+    syncMapDisplayLabels(map, layers);
+}
+
+async function rebuildActiveSVLayerStyles(map, layers, addLegendEntry) {
+    svPatternCache.clear();
+    await refreshActiveSVLayersForDisplay(map, layers, addLegendEntry);
+}
+
+function syncMapDisplayLabels(map, layers) {
+    // Compact score labels already include the place name. Boxed Map Controls
+    // admin badges only create duplicates — turn them off while Show labels is on.
+    if (isShowLabelsMode()) {
+        setAdminLabelLayersEnabled(false, map, layers?.labels);
+    }
+    syncSVPermanentScoreLabels(map, layers);
+    attachSVScoreLabelZoomSync(map, layers);
+}
+
+function bindSVHoverTooltipsOnLayer(target, layerId, config) {
+    if (!target || typeof target.eachLayer !== 'function') return;
+    target.eachLayer(featureLayer => {
+        const props = featureLayer?.feature?.properties;
+        if (!props || typeof featureLayer.bindTooltip !== 'function') return;
+        const tooltipText = buildSVHoverTooltipText(props, layerId, config);
+        featureLayer.unbindTooltip();
+        featureLayer.bindTooltip(tooltipText, { permanent: false, direction: 'top' });
+        featureLayer._svHoverTooltipText = tooltipText;
+        featureLayer._svPermanentScoreLabel = false;
+    });
 }
 
 const sourceGeoJsonCache = new Map();
@@ -2270,6 +2485,149 @@ async function getSourceLayerGeoJson(sourceLayerId, resolution, layers) {
     const data = await response.json();
     sourceGeoJsonCache.set(cacheKey, data);
     return data;
+}
+
+function createVectorLayerFromGeoJson(data, config = {}) {
+    const vectorLayer = L.geoJSON(data, {
+        style: config.style || {
+            color: '#0f766e',
+            weight: 2,
+            opacity: 1,
+            fillOpacity: 0.6
+        }
+    });
+    vectorLayer.layerData = {
+        raw: data,
+        propertyFields: Object.keys(data.features?.[0]?.properties || {}),
+        selectedProperty: config.svAttribute || CUSTOM_OVERALL_SCORE_FIELD,
+        colorRamp: null
+    };
+    return vectorLayer;
+}
+
+async function showCustomOverallLayer(geojson, map, layers, addLegendEntry, removeLegendEntry) {
+    const layerId = CUSTOM_OVERALL_LAYER_ID;
+    const config = layerConfig[layerId];
+    if (!config || !geojson?.features?.length) return;
+
+    const row = document.getElementById('svCustomOverallRow');
+    if (row) row.hidden = false;
+
+    // Remove any previous instance
+    if (layers.vector[layerId]) {
+        removeSubindicatorMapExtras(map, layers.vector[layerId]);
+        clearPolygonSelection(layerId, layers);
+        if (map.hasLayer(layers.vector[layerId])) map.removeLayer(layers.vector[layerId]);
+        removeLegendEntry?.(layerId);
+        delete layers.vector[layerId];
+        activeSVLayers.delete(layerId);
+    }
+
+    const toggle = document.getElementById(layerId);
+    if (toggle) {
+        toggle.disabled = false;
+        toggle.checked = true;
+    }
+
+    const overallToggle = document.getElementById(SV_OVERALL_LAYER_ID);
+    svCustomOverallOfficialWasChecked = Boolean(overallToggle?.checked);
+    applySVLayerExclusivity(layerId);
+    if (overallToggle?.checked) {
+        overallToggle.checked = false;
+        overallToggle.dispatchEvent(new Event('change'));
+    }
+
+    layers.vector[layerId] = createVectorLayerFromGeoJson(geojson, config);
+    addInfoPopupHandler(layers.vector[layerId], config.layerType || 'sv-custom-overall');
+    attachPolygonSelectionHandlers(layerId, layers.vector[layerId], layers, config);
+    layers.vector[layerId].addTo(map);
+    keepRoadLayerOnTop(layers);
+    activeSVLayers.add(layerId);
+    currentSVLayer = layerId;
+
+    const opacitySlider = document.getElementById(config.opacityControl);
+    const opacity = opacitySlider ? parseFloat(opacitySlider.value) : 0.6;
+    const fixedRamp = getColorRamp(config.fixedColorRamp);
+    if (fixedRamp) {
+        const updateLegendForLayer = (layerName, colorScheme, description, labels) => {
+            addLegendEntry?.(layerId, {
+                layerName: config.legendName || 'Custom Overall Index',
+                colorScheme,
+                description: description || 'Experimental custom overall (selected themes / sub-indicators)',
+                labels
+            });
+        };
+        if (layers.vector[layerId].layerData) {
+            layers.vector[layerId].layerData._styleSignature = null;
+        }
+        updateVectorLayerStyle(
+            layers.vector[layerId],
+            CUSTOM_OVERALL_SCORE_FIELD,
+            fixedRamp,
+            opacity,
+            updateLegendForLayer,
+            { skipTooltips: true }
+        );
+        applySVPolygonOutlineStyle(layers.vector[layerId], config);
+        reapplySelectedPolygonHighlight(layerId);
+    }
+    updateSVHoverTooltips(layers.vector[layerId], layerId, config);
+
+    const controlsContainer = document
+        .querySelector('.social-vulnerability-btn')
+        ?.nextElementSibling?.querySelector('.layer-controls');
+    if (controlsContainer) controlsContainer.style.display = 'block';
+
+    if (window.currentInfoPanel) {
+        window.currentInfoPanel.updateLayer(layerId, {
+            selectedAttribute: CUSTOM_OVERALL_SCORE_FIELD,
+            opacity
+        });
+    }
+}
+
+function hideCustomOverallVisibility(map, layers, removeLegendEntry, restoreOfficial = true) {
+    const layerId = CUSTOM_OVERALL_LAYER_ID;
+    const layer = layers.vector[layerId];
+    if (layer) {
+        removeSubindicatorMapExtras(map, layer);
+        clearPolygonSelection(layerId, layers);
+        if (map.hasLayer(layer)) map.removeLayer(layer);
+        removeLegendEntry?.(layerId);
+        delete layers.vector[layerId];
+    }
+    activeSVLayers.delete(layerId);
+    if (currentSVLayer === layerId) {
+        currentSVLayer = activeSVLayers.size ? Array.from(activeSVLayers).at(-1) : null;
+    }
+    if (window.currentInfoPanel) {
+        window.currentInfoPanel.removeLayer(layerId);
+    }
+
+    const toggle = document.getElementById(layerId);
+    if (toggle) {
+        toggle.checked = false;
+        toggle.disabled = false;
+    }
+    if (restoreOfficial && svCustomOverallOfficialWasChecked) {
+        const overallToggle = document.getElementById(SV_OVERALL_LAYER_ID);
+        if (overallToggle && !overallToggle.checked && !overallToggle.disabled) {
+            overallToggle.checked = true;
+            overallToggle.dispatchEvent(new Event('change'));
+        }
+    }
+}
+
+function hideCustomOverallLayer(map, layers, removeLegendEntry) {
+    hideCustomOverallVisibility(map, layers, removeLegendEntry, false);
+    const row = document.getElementById('svCustomOverallRow');
+    if (row) row.hidden = true;
+    const toggle = document.getElementById(CUSTOM_OVERALL_LAYER_ID);
+    if (toggle) {
+        toggle.checked = false;
+        toggle.disabled = true;
+    }
+    svCustomOverallOfficialWasChecked = false;
 }
 
 
@@ -2305,6 +2663,7 @@ const SV_SERVICE_MARKER_SIZE_AGGREGATE = 28;
 const SV_SERVICE_MARKER_SIZE_UNCLUSTERED_CADASTRE = 22;
 const SV_SANDBOX_SINGLE_COLOR_RAMP_ID = 'whiteToDarkRed';
 const SV_SANDBOX_SERVICE_SYMBOL_COLORS = ['#fecaca', '#f87171', '#991b1b'];
+let svCustomOverallOfficialWasChecked = false;
 
 function usesServiceMarkerClustering(resolution = getActiveAdminResolution()) {
     return resolution === 'cadastre';
@@ -2518,20 +2877,9 @@ function setupSVRadioControls(map, layers, colorScales, addLegendEntry, removeLe
         isLayerActive: layerId => activeSVLayers.has(layerId),
         onChange: layerId => {
             if (usesCustomComposite(layerId)) return;
-            if (layerId === 'svAdmin3Layer') {
-                refreshSVPeaceCadastreChoropleth(map, layers, addLegendEntry);
-            } else if (layerId === 'svAdmin5Layer') {
-                refreshSVDemographicChoropleth(map, layers, addLegendEntry);
-            } else if (layerId === 'svAdmin1Layer') {
-                refreshSVDisplacementLayerCircles('svAdmin1Layer', layers, layerConfig.svAdmin1Layer, map);
-            } else if (layerId === 'svAdmin2Layer') {
-                refreshSVEconomicStripePattern(map, layers, addLegendEntry);
-            } else if (layerId === 'svAdmin4Layer') {
-                refreshSVServiceSymbolLayer(map, layers, addLegendEntry);
-            } else if (layerId === 'populationLayer') {
+            void refreshSVLayerForDisplay(layerId, map, layers, addLegendEntry);
+            if (layerId === 'populationLayer') {
                 refreshPopulationChoropleth(map, layers, addLegendEntry);
-            } else if (THEME_SUBINDICATOR_LAYER_IDS.includes(layerId)) {
-                refreshSVThemeSubindicatorChoropleth(layerId, map, layers, addLegendEntry);
             }
         }
     });
@@ -2560,6 +2908,7 @@ function setupSVRadioControls(map, layers, colorScales, addLegendEntry, removeLe
             if (typeof window.syncSVSubindicatorPanelsVisibility === 'function') {
                 window.syncSVSubindicatorPanelsVisibility();
             }
+            syncSVPermanentScoreLabels(map, layers);
         });
     });
 
@@ -2575,6 +2924,31 @@ function setupSVRadioControls(map, layers, colorScales, addLegendEntry, removeLe
         refreshSandboxLayer: layerId => refreshSandboxLayer(layerId, map, layers, addLegendEntry)
     });
     void syncCompositeSandboxPanel(currentSVLayer, getActiveAdminResolution());
+
+    if (CUSTOM_OVERALL_BUILDER_ENABLED) {
+        initCustomOverallBuilder({
+            map,
+            layers,
+            getActiveResolution: getActiveAdminResolution,
+            isWeightSandboxLocked: () => blockCompositeSandboxNavigation(),
+            getSourceLayerGeoJson: (sourceLayerId, resolution) =>
+                getSourceLayerGeoJson(sourceLayerId, resolution, layers),
+            getOverallGeoJson: resolution =>
+                getSourceLayerGeoJson(SV_OVERALL_LAYER_ID, resolution, layers),
+            showCustomOverallLayer: geojson =>
+                showCustomOverallLayer(geojson, map, layers, addLegendEntry, removeLegendEntry),
+            hideCustomOverallVisibility: () =>
+                hideCustomOverallVisibility(map, layers, removeLegendEntry),
+            hideCustomOverallLayer: () =>
+                hideCustomOverallLayer(map, layers, removeLegendEntry)
+        });
+    }
+
+    initMapDisplayControls({
+        refreshActiveLayersForDisplay: () => refreshActiveSVLayersForDisplay(map, layers, addLegendEntry),
+        rebuildActiveLayerStyles: () => rebuildActiveSVLayerStyles(map, layers, addLegendEntry),
+        syncLabels: () => syncMapDisplayLabels(map, layers)
+    });
 }
 
 function getDefaultServicePriorityOnly(resolution = getActiveAdminResolution()) {
@@ -2666,6 +3040,7 @@ async function applySVResolution(resolution, map, layers, colorScales, addLegend
     if (blockCompositeSandboxNavigation()) {
         return;
     }
+    await clearCustomOverallOnResolutionChange();
     sourceGeoJsonCache.clear();
     const requestVersion = ++svResolutionVersion;
     clearAnalysisSelection();
@@ -2735,7 +3110,11 @@ async function applySVResolution(resolution, map, layers, colorScales, addLegend
 
         const toggle = document.getElementById(layerId);
         if (!toggle) return;
-        toggle.disabled = !resolutionLayer.available;
+        if (layerId === CUSTOM_OVERALL_LAYER_ID) {
+            toggle.disabled = !resolutionLayer.available || !isCustomOverallActive();
+        } else {
+            toggle.disabled = !resolutionLayer.available;
+        }
     });
 
     syncSVServicePriorityToggleState(selectedResolution);
@@ -2770,11 +3149,12 @@ async function applySVResolution(resolution, map, layers, colorScales, addLegend
         window.syncSVSubindicatorPanelsVisibility();
     }
     if (activeSVLayers.has('svAdmin2Layer')) {
-        refreshSVEconomicStripePattern(map, layers, window.addLegendEntry);
+        await refreshSVLayerForDisplay('svAdmin2Layer', map, layers, window.addLegendEntry);
     }
     if (activeSVLayers.has('svAdmin4Layer')) {
-        refreshSVServiceSymbolLayer(map, layers, window.addLegendEntry);
+        await refreshSVLayerForDisplay('svAdmin4Layer', map, layers, window.addLegendEntry);
     }
+    syncMapDisplayLabels(map, layers);
     await applyPopulationResolution(
         selectedResolution,
         map,
@@ -2975,7 +3355,15 @@ async function loadSVLayer(layerId, map, layers, colorScales, addLegendEntry, re
         if (expectedVersion !== svResolutionVersion) return;
         if (!layers.vector[layerId]) {
             let loadedLayer = null;
-            if (config.renderMode === 'proportional-circles') {
+            if (layerId === CUSTOM_OVERALL_LAYER_ID) {
+                const customGeo = getCustomOverallGeoJson();
+                if (!customGeo?.features?.length) {
+                    const toggle = document.getElementById(layerId);
+                    if (toggle) toggle.checked = false;
+                    return;
+                }
+                loadedLayer = createVectorLayerFromGeoJson(customGeo, config);
+            } else if (config.renderMode === 'proportional-circles') {
                 loadedLayer = await loadSVCircleLayer(config);
             } else if (config.renderMode === 'service-symbol') {
                 loadedLayer = await loadSVServiceSymbolLayer(config);
@@ -3108,6 +3496,12 @@ async function loadSVLayer(layerId, map, layers, colorScales, addLegendEntry, re
         }
         updateSVHoverTooltips(layers.vector[layerId], layerId, config);
         refreshSVSubindicatorPanelAfterLoad(layerId);
+
+        if (isColorOnlyMode()) {
+            await refreshSVLayerForDisplay(layerId, map, layers, addLegendEntry);
+        } else {
+            syncSVPermanentScoreLabels(map, layers);
+        }
         
     } catch (error) {
         console.error(`Error loading Social-Vulnerability layer ${layerId}:`, error);
@@ -3360,7 +3754,7 @@ async function loadSVServiceSymbolLayer(config) {
     const numericValues = pointFeatures
         .map(feature => Number(feature.properties?.[config.svAttribute]))
         .filter(value => Number.isFinite(value));
-    const breaks = calculateQuantileBreaks(numericValues, SOCIO_STRIPE_CLASS_COUNT);
+    const breaks = resolveClassificationBreaks(numericValues, SOCIO_STRIPE_CLASS_COUNT, getClassificationMode());
     const symbolColors = config.serviceSymbolColors || ['#22c55e', '#f59e0b', '#dc2626'];
     const resolution = getActiveAdminResolution();
     const markerSize = getSVServiceMarkerSize(null, resolution);
@@ -3605,7 +3999,7 @@ function refreshSVServiceSymbolLayer(map, layers, addLegendEntry, options = {}) 
     const numericValues = pointFeatures
         .map(feature => Number(feature.properties?.[attr]))
         .filter(value => Number.isFinite(value));
-    const breaks = calculateQuantileBreaks(numericValues, SOCIO_STRIPE_CLASS_COUNT);
+    const breaks = resolveClassificationBreaks(numericValues, SOCIO_STRIPE_CLASS_COUNT, getClassificationMode());
     const symbolColors = options.singleColorMode
         ? SV_SANDBOX_SERVICE_SYMBOL_COLORS
         : (config.serviceSymbolColors || ['#22c55e', '#f59e0b', '#dc2626']);
@@ -3640,7 +4034,7 @@ function refreshSVServiceSymbolLayer(map, layers, addLegendEntry, options = {}) 
             selected.map(value => getServiceSubindicatorLegendTitle(value, config)).join(' · ') ||
             getServiceSubindicatorLegendTitle(attr, config);
         const layerTitle = options.singleColorMode
-            ? `${layerTitleBase} (Sandbox single-color mode)`
+            ? `${layerTitleBase} (Color-only mode)`
             : layerTitleBase;
         const terms = ['Low', 'Medium', 'High'];
         const rangeLabels =
@@ -3783,6 +4177,7 @@ function removeSVAuxiliaryLayers(map, layer) {
     if (layer._svAdminOutlineLayer && map.hasLayer(layer._svAdminOutlineLayer)) map.removeLayer(layer._svAdminOutlineLayer);
     if (layer._svCadastreOutlineLayer && map.hasLayer(layer._svCadastreOutlineLayer)) map.removeLayer(layer._svCadastreOutlineLayer);
     if (layer._svChoroplethFillLayer && map.hasLayer(layer._svChoroplethFillLayer)) map.removeLayer(layer._svChoroplethFillLayer);
+    if (layer._svScoreLabelHost && map.hasLayer(layer._svScoreLabelHost)) map.removeLayer(layer._svScoreLabelHost);
 }
 
 function updateSVServiceCadastreOutlineVisibility(map, layer) {
@@ -3829,6 +4224,7 @@ function attachSVDisplacementZoomSync(map, layerId, layers, config) {
     }
 
     const handler = () => {
+        if (isColorOnlyMode()) return;
         refreshSVDisplacementCircles(layerId, layers, config, map);
     };
     layer._svZoomEndHandler = handler;
@@ -3951,7 +4347,7 @@ function attachSVPatternZoomSync(map, layerId, layers, config, addLegendEntry) {
     }
 
     const handler = () => {
-        if (isSandboxSingleColorForLayer(layerId)) {
+        if (isColorOnlyMode()) {
             refreshSVEconomicSingleColorMode(map, layers, addLegendEntry || window.addLegendEntry);
             updateSVHoverTooltips(layer, layerId, config);
             return;
@@ -4206,14 +4602,16 @@ function applySVStripePatternStyle(layerId, layer, config, opacity, map, addLege
     if (!targetMap) return;
 
     const stripeAttr = getEffectiveStripeAttribute(layerId, config);
-    const opacityKey = Math.round(opacity * 100) / 100;
+        const opacityKey = Math.round(opacity * 100) / 100;
     const zoomKey = Math.round(getSVPatternZoomScale(targetMap) * 1000) / 1000;
+    const classMode = getClassificationMode();
     let cache = svPatternCache.get(layerId);
     const needsRebuild = !cache
         || cache.map !== targetMap
         || cache.opacity !== opacityKey
         || cache.zoomKey !== zoomKey
-        || cache.attr !== stripeAttr;
+        || cache.attr !== stripeAttr
+        || cache.classificationMode !== classMode;
 
     if (needsRebuild) {
         if (cache) {
@@ -4229,11 +4627,19 @@ function applySVStripePatternStyle(layerId, layer, config, opacity, map, addLege
             if (Number.isFinite(value)) values.push(value);
         });
 
-        const breaks = calculateQuantileBreaks(values, SOCIO_STRIPE_CLASS_COUNT);
+        const breaks = resolveClassificationBreaks(values, SOCIO_STRIPE_CLASS_COUNT, classMode);
         const isServicePattern = config.renderMode === 'service-pattern';
         const patternSpecs = isServicePattern ? SERVICE_PATTERN_CLASS_SPECS : SOCIO_STRIPE_CLASS_SPECS;
         const patterns = createStripePatterns(targetMap, config.patternColor || '#2b83ba', opacity, patternSpecs);
-        cache = { map: targetMap, breaks, patterns, opacity: opacityKey, zoomKey, attr: stripeAttr };
+        cache = {
+            map: targetMap,
+            breaks,
+            patterns,
+            opacity: opacityKey,
+            zoomKey,
+            attr: stripeAttr,
+            classificationMode: classMode
+        };
         svPatternCache.set(layerId, cache);
     }
 
@@ -4310,12 +4716,8 @@ function applySVLayerOpacity(layerId, layers, opacity, map = null, addLegendEntr
     const layer = layers.vector[layerId];
     if (!config || !layer) return;
 
-    if (isSandboxSingleColorForLayer(layerId)) {
-        if (config.renderMode === 'service-symbol') {
-            refreshSVServiceSingleColorMode(map, layers, addLegendEntry);
-        } else if (config.renderMode === 'stripe-pattern' || config.renderMode === 'service-pattern') {
-            refreshSVEconomicSingleColorMode(map, layers, addLegendEntry);
-        }
+    if (isColorOnlyMode()) {
+        void refreshSVLayerForDisplay(layerId, map, layers, addLegendEntry);
         return;
     }
 
@@ -5404,6 +5806,7 @@ function getLayerDisplayName(layerId, config) {
         'geojsonLayer2': 'Statistics: mohafaza',
         'geojsonLayer3': 'Statistics: Cadastre',
         'svOverallTensionLayer': 'Overall Vulnerability Index',
+        'svCustomOverallLayer': 'Custom Overall Index',
         'svAdmin1Layer': 'Displacement Pressure',
         'svAdmin2Layer': 'Socioeconomic Vulnerability',
         'svAdmin3Layer': 'Tension and Conflict Risk',
@@ -5683,6 +6086,27 @@ function buildSVHoverTooltipText(props, layerId, config) {
     return lines.join('<br>');
 }
 
+/** Compact permanent map label: place name over score, no admin/attribute prefixes. */
+function buildSVPermanentScoreLabelText(props, layerId, config) {
+    const name = getSelectedFeatureName(props) || '—';
+    if (!layerId || !config) {
+        return name;
+    }
+    if (isAcsCodeNoData(props)) {
+        return `${name}<br>No data`;
+    }
+    const attributeName = getSelectionAttributeFromConfig(config, layerId);
+    if (
+        attributeName &&
+        props[attributeName] !== undefined &&
+        props[attributeName] !== null &&
+        props[attributeName] !== ''
+    ) {
+        return `${name}<br>${formatSVHoverScoreValue(props[attributeName])}`;
+    }
+    return name;
+}
+
 function updateSVHoverTooltips(layer, layerId, config) {
     if (!layer || typeof layer.eachLayer !== 'function') return;
 
@@ -5700,14 +6124,206 @@ function updateSVHoverTooltips(layer, layerId, config) {
         if (!props || typeof featureLayer.bindTooltip !== 'function') return;
 
         const tooltipText = buildSVHoverTooltipText(props, layerId, config);
-        if (featureLayer._svHoverTooltipText === tooltipText) return;
+        if (featureLayer._svHoverTooltipText === tooltipText && !featureLayer._svPermanentScoreLabel) {
+            return;
+        }
         featureLayer.unbindTooltip();
         featureLayer.bindTooltip(tooltipText, {
             permanent: false,
             direction: 'top'
         });
         featureLayer._svHoverTooltipText = tooltipText;
+        featureLayer._svPermanentScoreLabel = false;
     });
+}
+
+const SV_SCORE_LABEL_CADASTRE_MIN_ZOOM = 10;
+
+function getSVScoreLabelTarget(layer, layerId, config) {
+    if (!layer || !config) return null;
+    if (config.renderMode === 'service-symbol') {
+        if (isColorOnlyMode() && layer._svChoroplethFillLayer) {
+            return layer._svChoroplethFillLayer;
+        }
+        return ensureSVScoreLabelHost(layer);
+    }
+    if (config.renderMode === 'proportional-circles') {
+        return layer._svAdminOutlineLayer || null;
+    }
+    if (config.renderMode === 'sectarian-glyph') {
+        return layer._svAdminOutlineLayer || layer;
+    }
+    return layer;
+}
+
+function ensureSVScoreLabelHost(layer) {
+    const data = layer._svPolygonGeoJson || layer.layerData?.raw;
+    if (!data?.features?.length) return null;
+    if (!layer._svScoreLabelHost) {
+        layer._svScoreLabelHost = L.geoJSON(data, {
+            style: {
+                fill: false,
+                fillOpacity: 0,
+                opacity: 0,
+                weight: 0,
+                stroke: false
+            },
+            interactive: false
+        });
+    }
+    return layer._svScoreLabelHost;
+}
+
+function clearAllFeatureTooltips(layer) {
+    if (!layer || typeof layer.eachLayer !== 'function') return;
+    layer.eachLayer(featureLayer => {
+        if (typeof featureLayer.closeTooltip === 'function') {
+            featureLayer.closeTooltip();
+        }
+        if (typeof featureLayer.unbindTooltip === 'function') {
+            featureLayer.unbindTooltip();
+        }
+        featureLayer._svPermanentScoreLabel = false;
+        featureLayer._svHoverTooltipText = null;
+    });
+}
+
+function shouldShowPermanentScoreLabels(map) {
+    if (!isShowLabelsMode()) return false;
+    if (getActiveAdminResolution() !== 'cadastre') return true;
+    if (!map || typeof map.getZoom !== 'function') return false;
+    return map.getZoom() >= SV_SCORE_LABEL_CADASTRE_MIN_ZOOM;
+}
+
+function getSVLabelRelatedLayers(layer) {
+    if (!layer) return [];
+    return [
+        layer,
+        layer._svAdminOutlineLayer,
+        layer._svChoroplethFillLayer,
+        layer._svDisplacementMarkerLayer,
+        layer._svSectarianMarkerLayer,
+        layer._svScoreLabelHost
+    ].filter(Boolean);
+}
+
+function syncSVPermanentScoreLabels(map, layers) {
+    // Strip every score/hover tooltip on SV layers so boxed leftovers cannot linger.
+    Object.keys(layerConfig).forEach(id => {
+        const config = layerConfig[id];
+        const layer = layers?.vector?.[id];
+        if (!layer || config?.type !== 'sv-vector') return;
+        getSVLabelRelatedLayers(layer).forEach(clearAllFeatureTooltips);
+        if (layer._svScoreLabelHost && map?.hasLayer(layer._svScoreLabelHost)) {
+            map.removeLayer(layer._svScoreLabelHost);
+        }
+    });
+
+    if (map?.getPanes?.()?.tooltipPane) {
+        map.getPanes().tooltipPane
+            .querySelectorAll('.sv-score-label-tooltip')
+            .forEach(node => node.remove());
+    }
+
+    if (!isShowLabelsMode() || !currentSVLayer) {
+        activeSVLayers.forEach(id => {
+            const config = layerConfig[id];
+            const layer = layers?.vector?.[id];
+            if (layer && config) updateSVHoverTooltips(layer, id, config);
+        });
+        return;
+    }
+
+    const layerId = currentSVLayer;
+    const config = layerConfig[layerId];
+    const layer = layers?.vector?.[layerId];
+    if (!config || !layer || !activeSVLayers.has(layerId)) return;
+
+    const labelTarget = getSVScoreLabelTarget(layer, layerId, config);
+    const showPermanent = shouldShowPermanentScoreLabels(map);
+
+    // Restore hover tooltips on all active layers, skipping the permanent label host.
+    activeSVLayers.forEach(id => {
+        const cfg = layerConfig[id];
+        const lyr = layers?.vector?.[id];
+        if (!lyr || !cfg) return;
+
+        if (id === layerId && showPermanent && labelTarget) {
+            if (lyr._svDisplacementMarkerLayer && lyr._svDisplacementMarkerLayer !== labelTarget) {
+                bindSVHoverTooltipsOnLayer(lyr._svDisplacementMarkerLayer, id, cfg);
+            } else if (lyr._svSectarianMarkerLayer && lyr._svSectarianMarkerLayer !== labelTarget) {
+                bindSVHoverTooltipsOnLayer(lyr._svSectarianMarkerLayer, id, cfg);
+            } else if (lyr !== labelTarget && lyr._svChoroplethFillLayer !== labelTarget) {
+                // e.g. service markers while labels sit on polygon host
+                if (lyr._isSVServiceSymbolLayer) {
+                    bindSVHoverTooltipsOnLayer(lyr._svServiceMarkerLayer || lyr, id, cfg);
+                }
+            }
+            return;
+        }
+
+        updateSVHoverTooltips(lyr, id, cfg);
+    });
+
+    if (!labelTarget || typeof labelTarget.eachLayer !== 'function') {
+        updateSVHoverTooltips(layer, layerId, config);
+        return;
+    }
+
+    if (map && labelTarget === layer._svScoreLabelHost && !map.hasLayer(labelTarget)) {
+        labelTarget.addTo(map);
+    }
+
+    const isCadastre = getActiveAdminResolution() === 'cadastre';
+    clearAllFeatureTooltips(labelTarget);
+
+    labelTarget.eachLayer(featureLayer => {
+        const props = featureLayer?.feature?.properties;
+        if (!props || typeof featureLayer.bindTooltip !== 'function') return;
+
+        if (showPermanent) {
+            const tooltipText = buildSVPermanentScoreLabelText(props, layerId, config);
+            const className = [
+                'sv-score-label-tooltip',
+                isCadastre ? 'sv-score-label-cadastre' : ''
+            ]
+                .filter(Boolean)
+                .join(' ');
+            featureLayer.bindTooltip(tooltipText, {
+                permanent: true,
+                direction: 'center',
+                className,
+                opacity: 1,
+                interactive: false
+            });
+            featureLayer._svPermanentScoreLabel = true;
+            featureLayer._svHoverTooltipText = tooltipText;
+        } else {
+            const tooltipText = buildSVHoverTooltipText(props, layerId, config);
+            featureLayer.bindTooltip(tooltipText, {
+                permanent: false,
+                direction: 'top'
+            });
+            featureLayer._svPermanentScoreLabel = false;
+            featureLayer._svHoverTooltipText = tooltipText;
+        }
+    });
+}
+
+function attachSVScoreLabelZoomSync(map, layers) {
+    if (!map) return;
+    if (map._svScoreLabelZoomHandler) {
+        map.off('zoomend', map._svScoreLabelZoomHandler);
+        map._svScoreLabelZoomHandler = null;
+    }
+    if (!isShowLabelsMode()) return;
+
+    const handler = () => {
+        if (getActiveAdminResolution() !== 'cadastre') return;
+        syncSVPermanentScoreLabels(map, layers);
+    };
+    map._svScoreLabelZoomHandler = handler;
+    map.on('zoomend', handler);
 }
 
 async function updateSelectedPolygonInfoPanel(layerId, properties, config, layers = null) {

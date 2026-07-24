@@ -1,0 +1,4 @@
+﻿,Mean annual hot days,Forest fire risk,Annual Dry Spell Length
+Mean annual hot days,1.0,-0.28967676913984186,0.28615384615384615
+Forest fire risk,-0.28967676913984186,1.0,-0.32049344670791013
+Annual Dry Spell Length,0.28615384615384615,-0.3204934467079102,1.0

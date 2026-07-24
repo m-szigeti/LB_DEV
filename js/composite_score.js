@@ -1,9 +1,17 @@
 /**
- * Client-side composite score recomputation (custom weights only).
- * Mirrors scripts/composite_index_score.py normalize + weighted sum steps.
+ * Client-side composite score recomputation.
+ * - Slider path: normalize + caller-supplied weights (weight sandbox)
+ * - Official recipe: mirrors scripts/composite_index_score.py
+ *   (median impute → min-max → invert → Kendall-τ weights → weighted sum)
  */
 
 export const CUSTOM_COMPOSITE_FIELD = '_custom_composite';
+
+/** Same inverted set as scripts/composite_index_score.py */
+export const OFFICIAL_INVERTED_INDICATORS = new Set([
+    'Nighttime light radiance',
+    'Nightlight Intensity'
+]);
 
 const BINARY_MAP = {
     true: 1,
@@ -120,6 +128,117 @@ export function computeCompositeForProperties(props, prep, weights) {
         sum += normalizedValue(props, field, prep) * weights[idx];
     });
     return sum;
+}
+
+/**
+ * Kendall τ-b for paired finite samples. Returns 0 when undefined (matches safe_kendall).
+ */
+export function safeKendallTau(xValues, yValues) {
+    const n = Math.min(xValues.length, yValues.length);
+    const pairs = [];
+    for (let i = 0; i < n; i++) {
+        const x = xValues[i];
+        const y = yValues[i];
+        if (Number.isFinite(x) && Number.isFinite(y)) pairs.push([x, y]);
+    }
+    if (pairs.length < 2) return 0;
+
+    const xSet = new Set();
+    const ySet = new Set();
+    pairs.forEach(([x, y]) => {
+        xSet.add(x);
+        ySet.add(y);
+    });
+    if (xSet.size < 2 || ySet.size < 2) return 0;
+
+    let concordant = 0;
+    let discordant = 0;
+    let tiesX = 0;
+    let tiesY = 0;
+    for (let i = 0; i < pairs.length; i++) {
+        for (let j = i + 1; j < pairs.length; j++) {
+            const dx = Math.sign(pairs[i][0] - pairs[j][0]);
+            const dy = Math.sign(pairs[i][1] - pairs[j][1]);
+            if (dx === 0 && dy === 0) continue;
+            if (dx === 0) {
+                tiesX += 1;
+                continue;
+            }
+            if (dy === 0) {
+                tiesY += 1;
+                continue;
+            }
+            if (dx === dy) concordant += 1;
+            else discordant += 1;
+        }
+    }
+
+    const denom = Math.sqrt((concordant + discordant + tiesX) * (concordant + discordant + tiesY));
+    if (!denom) return 0;
+    return (concordant - discordant) / denom;
+}
+
+export function indicatorIsOfficiallyInverted(field, explicitInverted = false) {
+    if (explicitInverted) return true;
+    if (!field) return false;
+    if (OFFICIAL_INVERTED_INDICATORS.has(field)) return true;
+    const trimmed = String(field).trim();
+    return OFFICIAL_INVERTED_INDICATORS.has(trimmed);
+}
+
+/**
+ * Build prep cache using official invert rules (hardcoded set ∪ indicator.inverted).
+ */
+export function buildOfficialPrepCache(features, indicators) {
+    const withInvert = indicators.map(ind => ({
+        ...ind,
+        inverted: indicatorIsOfficiallyInverted(ind.field, ind.inverted)
+    }));
+    return buildPrepCache(features, withInvert);
+}
+
+/**
+ * Official Kendall weights from normalized indicator columns (sum to 1).
+ * Mirrors mean |τ| / total_strength in composite_index_score.score_dataframe.
+ */
+export function computeKendallWeightsFromPrep(features, prep) {
+    const fields = prep?.fields || [];
+    if (!fields.length) return [];
+    if (fields.length === 1) return [1];
+
+    const normColumns = fields.map(field =>
+        (features || []).map(feature => normalizedValue(feature?.properties || {}, field, prep))
+    );
+
+    const meanAbsCorr = fields.map((_, i) => {
+        const others = [];
+        for (let j = 0; j < fields.length; j++) {
+            if (i === j) continue;
+            others.push(Math.abs(safeKendallTau(normColumns[i], normColumns[j])));
+        }
+        if (!others.length) return 0;
+        return others.reduce((sum, v) => sum + v, 0) / others.length;
+    });
+
+    const totalStrength = meanAbsCorr.reduce((sum, v) => sum + v, 0);
+    if (totalStrength <= 0) {
+        const equal = 1 / fields.length;
+        return fields.map(() => equal);
+    }
+    return meanAbsCorr.map(v => v / totalStrength);
+}
+
+/**
+ * Full official composite recipe for a feature collection + indicator defs.
+ * Returns { prep, weights, scoresByIndex }.
+ */
+export function scoreFeaturesOfficialRecipe(features, indicators) {
+    const prep = buildOfficialPrepCache(features, indicators);
+    const weights = computeKendallWeightsFromPrep(features, prep);
+    const scoresByIndex = (features || []).map(feature =>
+        computeCompositeForProperties(feature?.properties || {}, prep, weights)
+    );
+    return { prep, weights, scoresByIndex };
 }
 
 export function applyCustomCompositeToGeoJson(rawGeoJson, prep, weights) {

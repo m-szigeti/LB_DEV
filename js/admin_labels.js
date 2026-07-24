@@ -2,6 +2,9 @@
 
 import { basemaps, basemapOptions } from './basemaps.js';
 
+/** Shared handle so tray “Show labels” can sync Map Controls admin labels. */
+let adminLabelControlState = null;
+
 /**
  * Create label layers for administrative boundaries and combined map control
  * @param {Object} map - Leaflet map instance
@@ -65,6 +68,12 @@ function createMapFeaturesControl(map, labelLayers, countryOutline, compareMap, 
     const adm1Button = createButton('Municipality Labels', contentContainer);
     const adm2Button = createButton('District Labels', contentContainer);
     // const adm3Button = createButton('Cadastre Labels', contentContainer);
+
+    adminLabelControlState = {
+        map,
+        labelLayers,
+        buttons: { adm1: adm1Button, adm2: adm2Button }
+    };
 
     const leftMapLabel = document.createElement('label');
     leftMapLabel.className = 'basemap-label';
@@ -224,28 +233,62 @@ function createButton(text, container) {
  */
 function toggleLabels(level, button, labelLayers, map) {
     const isActive = button.classList.contains('active');
-    
-    if (isActive) {
-        // Turn off labels
+    setLabelLevelEnabled(level, !isActive, button, labelLayers, map);
+}
+
+/**
+ * Enable or disable an admin label level and sync its Map Controls button.
+ */
+function setLabelLevelEnabled(level, enabled, button, labelLayers, map) {
+    if (!button || !labelLayers?.[level] || !map) return;
+
+    const isActive = button.classList.contains('active');
+    if (enabled === isActive) {
+        if (enabled && !map.hasLayer(labelLayers[level])) {
+            labelLayers[level].addTo(map);
+        }
+        return;
+    }
+
+    if (!enabled) {
         button.classList.remove('active');
         button.style.backgroundColor = '#f8f8f8';
         button.style.fontWeight = 'normal';
-        
-        map.removeLayer(labelLayers[level]);
-    } else {
-        // Turn on labels
-        button.classList.add('active');
-        button.style.backgroundColor = '#d4edda';
-        button.style.fontWeight = 'bold';
-        
-        // Check if labels are already generated
-        if (labelLayers[level].getLayers().length === 0) {
-            // Labels not yet generated, load the data and generate them
-            loadAndGenerateLabels(level, labelLayers[level], map);
+        if (map.hasLayer(labelLayers[level])) {
+            map.removeLayer(labelLayers[level]);
         }
-        
+        return;
+    }
+
+    button.classList.add('active');
+    button.style.backgroundColor = '#d4edda';
+    button.style.fontWeight = 'bold';
+
+    if (labelLayers[level].getLayers().length === 0) {
+        loadAndGenerateLabels(level, labelLayers[level], map);
+    }
+
+    if (!map.hasLayer(labelLayers[level])) {
         labelLayers[level].addTo(map);
     }
+}
+
+/**
+ * Sync governorate (adm1) + district (adm2) permanent labels from the tray control.
+ * Keeps Map Controls buttons in the same on/off state.
+ * @param {boolean} enabled
+ * @param {Object} [map]
+ * @param {Object} [labelLayers]
+ */
+export function setAdminLabelLayersEnabled(enabled, map = null, labelLayers = null) {
+    const state = adminLabelControlState;
+    const targetMap = map || state?.map;
+    const layers = labelLayers || state?.labelLayers;
+    const buttons = state?.buttons;
+    if (!targetMap || !layers) return;
+
+    setLabelLevelEnabled('adm1', enabled, buttons?.adm1, layers, targetMap);
+    setLabelLevelEnabled('adm2', enabled, buttons?.adm2, layers, targetMap);
 }
 
 /**

@@ -9,6 +9,7 @@
     <link rel="stylesheet" href="css/styles.css">
     <link rel="stylesheet" href="css/info_panel.css">
     <link rel="stylesheet" href="css/composite_weights.css">
+    <link rel="stylesheet" href="css/custom_overall_builder.css">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
   integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
   crossorigin=""/>
@@ -70,6 +71,35 @@
                             <span class="sv-admin-resolution-label">Governorate</span>
                         </button>
                     </div>
+                    <div class="sv-map-display-controls" role="group" aria-label="Map display options">
+                        <button
+                            type="button"
+                            id="mapDisplayColorOnlyBtn"
+                            class="sv-map-display-btn"
+                            aria-pressed="false"
+                            title="Show all layers as plain color choropleths"
+                        >
+                            Show Color only
+                        </button>
+                        <button
+                            type="button"
+                            id="mapDisplayLabelsBtn"
+                            class="sv-map-display-btn"
+                            aria-pressed="false"
+                            title="Show district and governorate labels plus scores on polygons"
+                        >
+                            Show labels
+                        </button>
+                        <button
+                            type="button"
+                            id="mapDisplayClassLimitsBtn"
+                            class="sv-map-display-btn sv-map-display-btn-cycle"
+                            data-mode="equal-count"
+                            title="Cycle class break method for all layers"
+                        >
+                            Class Limits: Equal count
+                        </button>
+                    </div>
                 </div>
             </section>
 
@@ -88,6 +118,26 @@
                         <span class="sv-layer-toggle-check" aria-hidden="true"></span>
                     </label>
                 </div>
+            </div>
+
+            <div id="svCustomOverallRow" class="sv-layer-toggle-row sv-composite-master-row" hidden>
+                <input type="checkbox" id="svCustomOverallLayer" class="sv-layer-toggle-input" name="svLayer" value="customOverall" disabled>
+                <label class="sv-layer-toggle-btn sv-composite-master-btn sv-custom-overall-btn" for="svCustomOverallLayer">
+                    <span class="sv-layer-toggle-text">Custom Overall Index</span>
+                    <span class="sv-layer-toggle-check" aria-hidden="true"></span>
+                </label>
+            </div>
+
+            <div id="customOverallBuilderWrap" class="custom-overall-builder-wrap">
+                <button type="button" id="customOverallOpenBtn" class="custom-overall-btn">
+                    Build custom index…
+                </button>
+                <button type="button" id="customOverallDeleteBtn" class="custom-overall-btn custom-overall-btn-danger" hidden>
+                    Delete custom index
+                </button>
+                <button type="button" id="customOverallExportBtn" class="custom-overall-btn" hidden>
+                    Export side by side comparison
+                </button>
             </div>
 
             <details class="composite-sandbox-panel" data-sandbox-layer="svOverallTensionLayer" hidden>
@@ -669,11 +719,8 @@
                         <button type="button" class="composite-sandbox-compare-btn is-active" data-view="after" aria-pressed="true">After</button>
                     </div>
                 </div>
-                <div id="compositeSandboxDisplayBanner" class="composite-sandbox-compare-wrap composite-sandbox-compare-wrap-banner" hidden>
-                    <div class="composite-sandbox-compare-toggle" role="group" aria-label="Sandbox display mode">
-                        <button type="button" class="composite-sandbox-compare-btn composite-sandbox-display-btn" data-mode="standard" aria-pressed="false">Patterns &amp; icons</button>
-                        <button type="button" class="composite-sandbox-compare-btn composite-sandbox-display-btn is-active" data-mode="single-color" aria-pressed="true">Single color</button>
-                    </div>
+                <div id="compositeSandboxDisplayBanner" class="composite-sandbox-compare-wrap composite-sandbox-compare-wrap-banner" hidden aria-hidden="true" style="display: none !important;">
+                    <!-- Display mode moved to Administrative resolution tray (Show Color only). -->
                 </div>
                 <button type="button" id="compositeSandboxBannerDeleteBtn" class="composite-sandbox-btn composite-sandbox-btn-danger">
                     Delete weighted map
@@ -707,6 +754,31 @@
             </div>
             <div id="info-popup-body" class="info-popup-body">
                 <!-- Content will be populated dynamically -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Experimental Custom Overall builder modal -->
+    <div id="customOverallModal" class="custom-overall-modal" hidden>
+        <div id="customOverallModalBackdrop" class="custom-overall-modal-backdrop" aria-hidden="true"></div>
+        <div class="custom-overall-modal-card" role="dialog" aria-modal="true" aria-labelledby="customOverallModalTitle">
+            <div class="custom-overall-modal-header">
+                <div>
+                    <h2 id="customOverallModalTitle">Build custom overall index</h2>
+                    <p id="customOverallModalSubtitle" class="custom-overall-modal-subtitle">
+                        Select themes and sub-indicators. Scoring follows the official recipe (median impute, min–max, Kendall τ weights, weighted sum).
+                    </p>
+                </div>
+                <button type="button" id="customOverallModalClose" class="custom-overall-modal-close" aria-label="Close">&times;</button>
+            </div>
+            <div class="custom-overall-modal-body">
+                <div id="customOverallModalError" class="custom-overall-modal-error" hidden></div>
+                <div id="customOverallModalStatus" class="custom-overall-modal-status" hidden></div>
+                <div id="customOverallThemeList" class="custom-overall-theme-list"></div>
+            </div>
+            <div class="custom-overall-modal-footer">
+                <button type="button" id="customOverallModalCancel" class="custom-overall-btn-secondary">Cancel</button>
+                <button type="button" id="customOverallModalCreate" class="custom-overall-btn-primary">Create custom overall</button>
             </div>
         </div>
     </div>

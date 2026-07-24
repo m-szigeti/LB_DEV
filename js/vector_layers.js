@@ -1,5 +1,6 @@
 // vector_layers.js - Functions for handling vector and point data
 import { legendColorsForMapOpacity } from './color_scales.js';
+import { getClassificationMode } from './map_display_controls.js';
 
 export { getColorFromRamp, formatValue, updateVectorLegend };
 
@@ -169,9 +170,16 @@ export function updateVectorLayerStyle(layer, property, colorRamp, opacity = 1, 
     layer.layerData.colorRamp = colorRamp;
     
     try {
-        const colorSpec = buildColorSpec(layer.layerData.raw, property, colorRamp);
+        const classificationMode = options.classificationMode || getClassificationMode();
+        const colorSpec = buildColorSpec(layer.layerData.raw, property, colorRamp, classificationMode);
         layer.layerData.colorSpec = colorSpec;
-        const styleSignature = buildStyleSignature(property, colorRamp, opacity, colorSpec.mode);
+        const styleSignature = buildStyleSignature(
+            property,
+            colorRamp,
+            opacity,
+            colorSpec.mode,
+            classificationMode
+        );
         const needsStyleUpdate = layer.layerData._styleSignature !== styleSignature;
         const skipTooltips = options?.skipTooltips === true;
         const needsTooltipUpdate = !skipTooltips && layer.layerData._tooltipProperty !== property;
@@ -285,13 +293,14 @@ function getColorFromRamp(value, data, property, colorRamp) {
         return '#CCCCCC'; // Default gray if invalid
     }
     
-    const spec = buildColorSpec(data, property, colorRamp);
+    const spec = buildColorSpec(data, property, colorRamp, getClassificationMode());
     const resolver = createColorResolverFromSpec(spec, colorRamp);
     return resolver(value);
 }
 
 /**
  * Calculate class breaks for choropleth maps (3-class aware, handles zero-heavy counts).
+ * This is the equal-count (quantile) method and remains the default.
  */
 export function calculateQuantileBreaks(values, numClasses) {
     const sorted = values.filter(v => Number.isFinite(v)).sort((a, b) => a - b);
@@ -331,13 +340,104 @@ export function calculateQuantileBreaks(values, numClasses) {
     breaks.push(max);
 
     if (new Set(breaks).size < numClasses + 1) {
-        const step = (max - min) / numClasses;
-        return Array.from({ length: numClasses + 1 }, (_, i) =>
-            i === numClasses ? max : min + step * i
-        );
+        return calculateEqualIntervalBreaks(sorted, numClasses);
     }
 
     return breaks;
+}
+
+/** Equal-interval breaks over [min, max]. */
+export function calculateEqualIntervalBreaks(values, numClasses) {
+    const sorted = values.filter(v => Number.isFinite(v)).sort((a, b) => a - b);
+    const n = sorted.length;
+    if (n === 0) {
+        return Array.from({ length: numClasses + 1 }, () => 0);
+    }
+    const min = sorted[0];
+    const max = sorted[n - 1];
+    if (min === max) {
+        return Array.from({ length: numClasses + 1 }, () => min);
+    }
+    const step = (max - min) / numClasses;
+    return Array.from({ length: numClasses + 1 }, (_, i) =>
+        i === numClasses ? max : min + step * i
+    );
+}
+
+/**
+ * Jenks natural breaks. Falls back to equal-count for tiny samples.
+ */
+export function calculateNaturalBreaks(values, numClasses) {
+    const sorted = values.filter(v => Number.isFinite(v)).sort((a, b) => a - b);
+    const n = sorted.length;
+    if (n === 0) {
+        return Array.from({ length: numClasses + 1 }, () => 0);
+    }
+    if (n <= numClasses || new Set(sorted).size <= 1) {
+        return calculateQuantileBreaks(sorted, numClasses);
+    }
+
+    const mat1 = Array.from({ length: n + 1 }, () => Array(numClasses + 1).fill(0));
+    const mat2 = Array.from({ length: n + 1 }, () => Array(numClasses + 1).fill(0));
+
+    for (let i = 1; i <= numClasses; i++) {
+        mat1[1][i] = 1;
+        mat2[1][i] = 0;
+        for (let j = 2; j <= n; j++) {
+            mat2[j][i] = Infinity;
+        }
+    }
+
+    for (let rangeEnd = 2; rangeEnd <= n; rangeEnd++) {
+        let s1 = 0;
+        let s2 = 0;
+        let w = 0;
+        for (let m = 1; m <= rangeEnd; m++) {
+            const val = sorted[rangeEnd - m];
+            s2 += val * val;
+            s1 += val;
+            w += 1;
+            const variance = s2 - (s1 * s1) / w;
+            const i4 = rangeEnd - m;
+            if (i4 !== 0) {
+                for (let j = 2; j <= numClasses; j++) {
+                    const challenge = variance + mat2[i4][j - 1];
+                    if (challenge <= mat2[rangeEnd][j]) {
+                        mat1[rangeEnd][j] = i4 + 1;
+                        mat2[rangeEnd][j] = challenge;
+                    }
+                }
+            }
+        }
+        mat1[rangeEnd][1] = 1;
+        mat2[rangeEnd][1] = s2 - (s1 * s1) / w;
+    }
+
+    const breaks = Array(numClasses + 1);
+    breaks[numClasses] = sorted[n - 1];
+    breaks[0] = sorted[0];
+    let k = n;
+    for (let j = numClasses; j >= 2; j--) {
+        const id = mat1[k][j] - 2;
+        breaks[j - 1] = sorted[Math.max(0, id)];
+        k = mat1[k][j] - 1;
+    }
+
+    // Ensure monotonic non-decreasing breaks.
+    for (let i = 1; i < breaks.length; i++) {
+        if (breaks[i] < breaks[i - 1]) breaks[i] = breaks[i - 1];
+    }
+    return breaks;
+}
+
+export function resolveClassificationBreaks(values, numClasses, mode = 'equal-count') {
+    if (mode === 'equal-interval') {
+        return calculateEqualIntervalBreaks(values, numClasses);
+    }
+    if (mode === 'natural-breaks') {
+        return calculateNaturalBreaks(values, numClasses);
+    }
+    return calculateQuantileBreaks(values, numClasses);
 }
 
 function isZeroInflatedBreaks(breaks) {
@@ -405,7 +505,7 @@ function appendAcsNoDataLegend(colorScheme, labels, data, opacity = 1) {
 
 function updateVectorLegend(layer, property, colorRamp, updateLegend, colorSpec = null, opacity = 1) {
     const raw = layer.layerData?.raw;
-    const spec = colorSpec || buildColorSpec(raw, property, colorRamp);
+    const spec = colorSpec || buildColorSpec(raw, property, colorRamp, getClassificationMode());
     if (!spec || !spec.hasValues) {
         if (layerHasAcsCodeNoData(raw) && typeof updateLegend === 'function') {
             updateLegend(property, [ACS_CODE_NO_DATA_COLOR], '', [ACS_CODE_NO_DATA_LEGEND_LABEL]);
@@ -435,11 +535,11 @@ function updateVectorLegend(layer, property, colorRamp, updateLegend, colorSpec 
 }
 
 function buildColorResolver(data, property, colorRamp) {
-    const spec = buildColorSpec(data, property, colorRamp);
+    const spec = buildColorSpec(data, property, colorRamp, getClassificationMode());
     return createColorResolverFromSpec(spec, colorRamp);
 }
 
-function buildColorSpec(data, property, colorRamp) {
+function buildColorSpec(data, property, colorRamp, classificationMode = 'equal-count') {
     const stats = computePropertyStats(data, property);
     if (!stats.values.length) {
         return { mode: 'empty', hasValues: false, fallback: colorRamp.colors[0] };
@@ -458,11 +558,16 @@ function buildColorSpec(data, property, colorRamp) {
             colorMap
         };
     }
-    const breaks = calculateQuantileBreaks(stats.values, colorRamp.colors.length);
+    const breaks = resolveClassificationBreaks(
+        stats.values,
+        colorRamp.colors.length,
+        classificationMode
+    );
     return {
         mode: 'continuous',
         hasValues: true,
-        breaks
+        breaks,
+        classificationMode
     };
 }
 
@@ -519,7 +624,7 @@ export function getQuantilePresentation(value, geoJsonData, property, colorRamp,
     if (!Number.isFinite(numValue) || !geoJsonData || !colorRamp?.colors?.length) {
         return null;
     }
-    const spec = buildColorSpec(geoJsonData, property, colorRamp);
+    const spec = buildColorSpec(geoJsonData, property, colorRamp, getClassificationMode());
     if (spec.mode !== 'continuous' || !spec.breaks) {
         return null;
     }
@@ -552,9 +657,9 @@ function createColorResolverFromSpec(spec, colorRamp) {
     };
 }
 
-function buildStyleSignature(property, colorRamp, opacity, mode) {
+function buildStyleSignature(property, colorRamp, opacity, mode, classificationMode = 'equal-count') {
     const colors = Array.isArray(colorRamp?.colors) ? colorRamp.colors.join('|') : '';
-    return `${property}::${opacity}::${mode}::${colors}`;
+    return `${property}::${opacity}::${mode}::${classificationMode}::${colors}`;
 }
 
 function deferToNextFrame(fn) {

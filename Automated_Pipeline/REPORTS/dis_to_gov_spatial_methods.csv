@@ -1,0 +1,65 @@
+﻿theme,dis_file,indicator,method
+1,DIS Theme 1 - Displacement Pressure__joined.geojson,Displacement Ratio,mean
+1,DIS Theme 1 - Displacement Pressure__joined.geojson,Outside CS,sum
+1,DIS Theme 1 - Displacement Pressure__joined.geojson,Inside CS,sum
+1,DIS Theme 1 - Displacement Pressure__joined.geojson,Overall IDPs,sum
+1,DIS Theme 1 - Displacement Pressure__joined.geojson,Population,sum
+2,DIS Theme 2 - Tensions and Conflict Risk__joined.geojson,Inter-sectarian and inter-communal conflict incidents,sum
+2,DIS Theme 2 - Tensions and Conflict Risk__joined.geojson,Number of violent incidents,sum
+2,DIS Theme 2 - Tensions and Conflict Risk__joined.geojson,Number of crime incidents,sum
+2,DIS Theme 2 - Tensions and Conflict Risk__joined.geojson,Number of fatalities in tension incidents,sum
+2,DIS Theme 2 - Tensions and Conflict Risk__joined.geojson,Fear of traveling within Lebanon safely,mean
+2,DIS Theme 2 - Tensions and Conflict Risk__joined.geojson,Feeling lack of safety during the night,mean
+2,DIS Theme 2 - Tensions and Conflict Risk__joined.geojson,composite_score,recomputed
+3,DIS Theme 3 - Socioeconomic Vulnerability__joined.geojson,Nighttime light radiance,mean
+3,DIS Theme 3 - Socioeconomic Vulnerability__joined.geojson,Household Deprivation Score,mean
+3,DIS Theme 3 - Socioeconomic Vulnerability__joined.geojson,Absolute Vulnerability,mean
+3,DIS Theme 3 - Socioeconomic Vulnerability__joined.geojson,composite_score,recomputed
+4,DIS Theme 4 - Service & Infrastructure Vulnerability__joined.geojson,Service-related incidents,sum
+4,DIS Theme 4 - Service & Infrastructure Vulnerability__joined.geojson,Perceptions on quality of services: Water,mean
+4,DIS Theme 4 - Service & Infrastructure Vulnerability__joined.geojson,Perceptions on quality of services: Electricity,mean
+4,DIS Theme 4 - Service & Infrastructure Vulnerability__joined.geojson,Perceptions on quality of services: Waste Removal,mean
+4,DIS Theme 4 - Service & Infrastructure Vulnerability__joined.geojson,Worry about access to healthcare services,mean
+4,DIS Theme 4 - Service & Infrastructure Vulnerability__joined.geojson,Worry about access to safe drinking water,mean
+4,DIS Theme 4 - Service & Infrastructure Vulnerability__joined.geojson,Water availability and accessibility,mean
+4,DIS Theme 4 - Service & Infrastructure Vulnerability__joined.geojson,Services as a tension driver,mean
+4,DIS Theme 4 - Service & Infrastructure Vulnerability__joined.geojson,Solid waste pressure (displacement),mean
+4,DIS Theme 4 - Service & Infrastructure Vulnerability__joined.geojson,quality of education,mean
+4,DIS Theme 4 - Service & Infrastructure Vulnerability__joined.geojson,quality of waste removal,mean
+4,DIS Theme 4 - Service & Infrastructure Vulnerability__joined.geojson,quality of healthcare services,mean
+4,DIS Theme 4 - Service & Infrastructure Vulnerability__joined.geojson,incidents around electricity,sum
+4,DIS Theme 4 - Service & Infrastructure Vulnerability__joined.geojson,incidents around generator,sum
+4,DIS Theme 4 - Service & Infrastructure Vulnerability__joined.geojson,incidents around health,sum
+4,DIS Theme 4 - Service & Infrastructure Vulnerability__joined.geojson,incidents around education,sum
+4,DIS Theme 4 - Service & Infrastructure Vulnerability__joined.geojson,incidents around civil defence,sum
+4,DIS Theme 4 - Service & Infrastructure Vulnerability__joined.geojson,composite_score,recomputed
+5,DIS Theme 5 - Demographic Tension Stress__joined.geojson,Resident Population,sum
+5,DIS Theme 5 - Demographic Tension Stress__joined.geojson,Displaced Population,sum
+5,DIS Theme 5 - Demographic Tension Stress__joined.geojson,Heterogeneity,mean
+5,DIS Theme 5 - Demographic Tension Stress__joined.geojson,Displacement Ratio,mean
+5,DIS Theme 5 - Demographic Tension Stress__joined.geojson,Demographic Factor,mean
+6,DIS Theme 6 - Climate Change and Environmental Risk__joined.geojson,Mean annual hot days,mean
+6,DIS Theme 6 - Climate Change and Environmental Risk__joined.geojson,Forest fire risk,mean
+6,DIS Theme 6 - Climate Change and Environmental Risk__joined.geojson,Annual Dry Spell Length,mean
+6,DIS Theme 6 - Climate Change and Environmental Risk__joined.geojson,composite_score,recomputed
+7,DIS Theme 7 - Political Vulnerability__joined.geojson,Municipal elections turnout,mean
+7,DIS Theme 7 - Political Vulnerability__joined.geojson,Municipal council entrenchment,mean
+7,DIS Theme 7 - Political Vulnerability__joined.geojson,Trust in Parliament,mean
+7,DIS Theme 7 - Political Vulnerability__joined.geojson,Faith in politics,mean
+7,DIS Theme 7 - Political Vulnerability__joined.geojson,Trust in LAF,mean
+7,DIS Theme 7 - Political Vulnerability__joined.geojson,Faith in elections,mean
+7,DIS Theme 7 - Political Vulnerability__joined.geojson,Trust in the court system,mean
+7,DIS Theme 7 - Political Vulnerability__joined.geojson,Trust in security forces,mean
+7,DIS Theme 7 - Political Vulnerability__joined.geojson,State Citizen Incidents ,sum
+7,DIS Theme 7 - Political Vulnerability__joined.geojson,ISF effect on quality of life: worsened life somewhat + alot,mean
+7,DIS Theme 7 - Political Vulnerability__joined.geojson,LAF effect on quality of life: worsened life somewhat + alot,mean
+7,DIS Theme 7 - Political Vulnerability__joined.geojson,Municipal authorities effect on quality of life: worsened life somewhat + alot,mean
+7,DIS Theme 7 - Political Vulnerability__joined.geojson,composite_score,recomputed
+8,DIS Theme 8 - Gender Based Vulnerabilities__joined.geojson,Reported incidents of gender-based violence,sum
+8,DIS Theme 8 - Gender Based Vulnerabilities__joined.geojson,Service access difficulty (female),mean
+8,DIS Theme 8 - Gender Based Vulnerabilities__joined.geojson,Safety at night (female),mean
+8,DIS Theme 8 - Gender Based Vulnerabilities__joined.geojson,Fear of movement or travel (female),mean
+8,DIS Theme 8 - Gender Based Vulnerabilities__joined.geojson,Reports of harassment or violence,mean
+8,DIS Theme 8 - Gender Based Vulnerabilities__joined.geojson,Trust in the court system,mean
+8,DIS Theme 8 - Gender Based Vulnerabilities__joined.geojson,Female unemployment rate,mean
+8,DIS Theme 8 - Gender Based Vulnerabilities__joined.geojson,composite_score,recomputed

@@ -27,11 +27,9 @@ import {
     getSandboxLayerId,
     getSandboxCompareView,
     setSandboxCompareView,
-    SANDBOX_COMPARE_VIEWS,
-    SANDBOX_DISPLAY_MODES,
-    getSandboxDisplayMode,
-    setSandboxDisplayMode
+    SANDBOX_COMPARE_VIEWS
 } from './composite_sandbox_state.js';
+import { isColorOnlyMode } from './map_display_controls.js';
 import { syncSandboxBodyClasses, installSandboxGuard } from './composite_sandbox_guard.js';
 import { clearSubindicatorSelection, renderSVSubindicatorPanel } from './sv_subindicators.js';
 
@@ -82,11 +80,6 @@ function bindPanelControls() {
         const compareBtn = target.closest('.composite-sandbox-compare-btn');
         if (compareBtn?.dataset?.view) {
             void switchCompareView(compareBtn.dataset.view);
-            return;
-        }
-        const displayBtn = target.closest('.composite-sandbox-display-btn');
-        if (displayBtn?.dataset?.mode) {
-            void switchDisplayMode(displayBtn.dataset.mode);
         }
     });
 
@@ -170,13 +163,16 @@ function updateCompareControls() {
     const sandbox = isSandboxActive();
     const computing = isSandboxComputing();
     const view = getSandboxCompareView();
-    const displayMode = getSandboxDisplayMode();
 
-    document.querySelectorAll('.composite-sandbox-compare-wrap').forEach(wrap => {
-        if (wrap.id === 'compositeSandboxCompareBanner' || wrap.id === 'compositeSandboxDisplayBanner') {
-            wrap.hidden = !sandbox;
-        }
-    });
+    const compareBanner = document.getElementById('compositeSandboxCompareBanner');
+    if (compareBanner) {
+        compareBanner.hidden = !sandbox;
+    }
+    const displayBanner = document.getElementById('compositeSandboxDisplayBanner');
+    if (displayBanner) {
+        displayBanner.hidden = true;
+        displayBanner.setAttribute('aria-hidden', 'true');
+    }
 
     document.querySelectorAll('.composite-sandbox-compare-btn[data-view]').forEach(btn => {
         const isActive = btn.dataset.view === view;
@@ -185,23 +181,13 @@ function updateCompareControls() {
         btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
     });
 
-    document.querySelectorAll('.composite-sandbox-display-btn').forEach(btn => {
-        const isActive = btn.dataset.mode === displayMode;
-        btn.classList.toggle('is-active', isActive);
-        btn.disabled = computing || !sandbox;
-        btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
-    });
-
     const bannerText = document.getElementById('compositeSandboxBannerText');
     if (bannerText) {
-        const displayText =
-            displayMode === SANDBOX_DISPLAY_MODES.SINGLE_COLOR
-                ? 'single color'
-                : 'patterns and icons';
+        const colorNote = isColorOnlyMode() ? 'color only' : 'patterns and icons';
         bannerText.textContent =
             view === SANDBOX_COMPARE_VIEWS.BEFORE
-                ? `Sandbox — viewing Before (official score, ${displayText}).`
-                : `Sandbox — viewing After (experimental weighted score, ${displayText}).`;
+                ? `Sandbox — viewing Before (official score, ${colorNote}).`
+                : `Sandbox — viewing After (experimental weighted score, ${colorNote}).`;
     }
 }
 
@@ -351,23 +337,6 @@ async function switchCompareView(view) {
     if (getSandboxCompareView() === nextView) return;
 
     setSandboxCompareView(nextView);
-    const layerId = getSandboxLayerId();
-    if (layerId) {
-        await context.refreshSandboxLayer?.(layerId);
-    }
-    updateCompareControls();
-    syncCompositeSandboxPanel(layerId, context.getActiveResolution?.());
-}
-
-async function switchDisplayMode(mode) {
-    if (!context || !isSandboxActive() || isSandboxComputing()) return;
-    const nextMode =
-        mode === SANDBOX_DISPLAY_MODES.SINGLE_COLOR
-            ? SANDBOX_DISPLAY_MODES.SINGLE_COLOR
-            : SANDBOX_DISPLAY_MODES.STANDARD;
-    if (getSandboxDisplayMode() === nextMode) return;
-
-    setSandboxDisplayMode(nextMode);
     const layerId = getSandboxLayerId();
     if (layerId) {
         await context.refreshSandboxLayer?.(layerId);
