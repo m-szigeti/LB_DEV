@@ -1,20 +1,21 @@
 /**
  * Multi-polygon area selection for targeted analysis.
+ *
+ * Selection highlight is outline-only so choropleth fillColor / class colors
+ * are never overwritten (critical for cadastre AOI clear).
  */
 
-const SELECTED_STYLE = {
+const SELECTED_OUTLINE_STYLE = {
     color: '#7c3aed',
     weight: 3,
-    opacity: 1,
-    fillColor: '#a78bfa',
-    fillOpacity: 0.35
+    opacity: 1
 };
 
 const listeners = new Set();
 
 const state = {
     active: false,
-    /** @type {Map<string, { key: string, name: string, properties: object, featureLayer: object, baseStyle: object }>} */
+    /** @type {Map<string, { key: string, name: string, properties: object, featureLayer: object, baseOutline: object }>} */
     items: new Map()
 };
 
@@ -53,9 +54,9 @@ export function getFeatureSelectionKey(properties) {
         return `pcode:${String(pcode).trim()}`;
     }
 
-    const adm3 = properties.ADM3_NAME ?? properties.adm3_name ?? properties.adm3_name1;
-    const adm2 = properties.ADM2_NAME ?? properties.adm2_name ?? properties.adm2_name1;
-    const adm1 = properties.ADM1_NAME ?? properties.adm1_name ?? properties.adm1_name1;
+    const adm3 = properties.adm3_name ?? properties.ADM3_NAME ?? properties.adm3_name1;
+    const adm2 = properties.adm2_name ?? properties.ADM2_NAME ?? properties.adm2_name1;
+    const adm1 = properties.adm1_name ?? properties.ADM1_NAME ?? properties.adm1_name1;
 
     if (adm3 && adm2) {
         return `adm3:${String(adm2).trim()}|${String(adm3).trim()}`;
@@ -77,10 +78,12 @@ export function getFeatureSelectionKey(properties) {
 
 export function getFeatureDisplayName(properties) {
     if (!properties) return 'Selected unit';
+    // Prefer English admin names (adm*_name / ADM*_NAME) over Arabic locals (adm*_name1).
     const keys = [
-        'ADM3_NAME', 'adm3_name', 'adm3_name1',
-        'ADM2_NAME', 'adm2_name', 'adm2_name1',
-        'ADM1_NAME', 'adm1_name', 'adm1_name1',
+        'adm3_name', 'ADM3_NAME', 'ADM3_Name',
+        'adm2_name', 'ADM2_NAME', 'ADM2_Name',
+        'adm1_name', 'ADM1_NAME', 'ADM1_Name',
+        'adm3_name1', 'adm2_name1', 'adm1_name1',
         'NAME_3', 'NAME_2', 'NAME_1', 'name', 'NAME'
     ];
     for (const key of keys) {
@@ -96,28 +99,30 @@ export function getFeatureDisplayName(properties) {
     return 'Selected unit';
 }
 
-function captureFeatureStyle(featureLayer) {
+function captureOutlineStyle(featureLayer) {
     const options = featureLayer?.options || {};
-    const styleKeys = ['color', 'weight', 'opacity', 'fillColor', 'fillOpacity', 'dashArray', 'fill'];
-    const baseStyle = {};
-    styleKeys.forEach(key => {
-        if (options[key] !== undefined) {
-            baseStyle[key] = options[key];
-        }
-    });
-    return baseStyle;
+    return {
+        color: options.color,
+        weight: options.weight,
+        opacity: options.opacity
+    };
 }
 
 function applySelectedStyle(featureLayer) {
     if (typeof featureLayer?.setStyle !== 'function') return;
-    featureLayer.setStyle(SELECTED_STYLE);
+    // Outline only — never touch fillColor / fillOpacity (choropleth class colors).
+    featureLayer.setStyle({ ...SELECTED_OUTLINE_STYLE });
     featureLayer.bringToFront?.();
 }
 
 function restoreFeatureStyle(entry) {
-    const { featureLayer, baseStyle } = entry;
-    if (!featureLayer || typeof featureLayer.setStyle !== 'function' || !baseStyle) return;
-    featureLayer.setStyle(baseStyle);
+    const { featureLayer, baseOutline } = entry;
+    if (!featureLayer || typeof featureLayer.setStyle !== 'function' || !baseOutline) return;
+    const next = {};
+    if (baseOutline.color !== undefined) next.color = baseOutline.color;
+    if (baseOutline.weight !== undefined) next.weight = baseOutline.weight;
+    if (baseOutline.opacity !== undefined) next.opacity = baseOutline.opacity;
+    featureLayer.setStyle(next);
 }
 
 export function toggleAnalysisSelectionFeature(featureLayer, properties, layerId = null) {
@@ -138,11 +143,54 @@ export function toggleAnalysisSelectionFeature(featureLayer, properties, layerId
         properties: { ...properties },
         layerId,
         featureLayer,
-        baseStyle: captureFeatureStyle(featureLayer)
+        baseOutline: captureOutlineStyle(featureLayer)
     });
     applySelectedStyle(featureLayer);
     notify();
     return true;
+}
+
+/**
+ * Add a feature to the AOI selection if not already present (never removes).
+ * @returns {boolean} true if newly added
+ */
+export function addAnalysisSelectionFeature(featureLayer, properties, layerId = null, options = {}) {
+    const key = getFeatureSelectionKey(properties);
+    if (!key || !featureLayer) return false;
+    if (state.items.has(key)) return false;
+
+    state.items.set(key, {
+        key,
+        name: getFeatureDisplayName(properties),
+        properties: { ...properties },
+        layerId,
+        featureLayer,
+        baseOutline: captureOutlineStyle(featureLayer)
+    });
+    applySelectedStyle(featureLayer);
+    if (options.silent !== true) {
+        notify();
+    }
+    return true;
+}
+
+/**
+ * Bulk-add features (single notification).
+ * @param {{ featureLayer: object, properties: object, layerId?: string }[]} entries
+ */
+export function addAnalysisSelectionFeatures(entries) {
+    let added = 0;
+    (entries || []).forEach(entry => {
+        if (
+            addAnalysisSelectionFeature(entry.featureLayer, entry.properties, entry.layerId, {
+                silent: true
+            })
+        ) {
+            added += 1;
+        }
+    });
+    if (added > 0) notify();
+    return added;
 }
 
 export function clearAnalysisSelection() {

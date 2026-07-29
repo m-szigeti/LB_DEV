@@ -7,6 +7,18 @@ import { getColorRamp } from './color_ramp_selector.js';
 
 const VULNERABILITY_CLASS_LABELS = ['Low', 'Medium', 'High'];
 
+/** @type {null | ((properties: object, layerType: string, sourceLayer: object|null) => Promise<object|null>)} */
+let enrichmentProvider = null;
+let popupRequestId = 0;
+
+/**
+ * Register async enrichment for polygon popups (theme scores, Arabic name, population).
+ * Wired from layer_controls to avoid circular imports.
+ */
+export function configureInfoPopupEnrichment(provider) {
+    enrichmentProvider = typeof provider === 'function' ? provider : null;
+}
+
 /** Pillar scores shown in Additional Data (aligned with composite index names). */
 const PILLAR_SCORE_FIELDS = [
     {
@@ -21,7 +33,7 @@ const PILLAR_SCORE_FIELDS = [
     },
     {
         field: 'tension_peace_score',
-        label: 'Tension and Conflict Risk',
+        label: 'Tensions and Conflict Risk',
         colorRampId: 'whiteToDarkPurple3'
     },
     {
@@ -41,10 +53,24 @@ const SV_LAYER_TYPE_TO_ID = {
     'sv-admin1': 'svAdmin1Layer',
     'sv-admin2': 'svAdmin2Layer',
     'sv-admin3': 'svAdmin3Layer',
+    'sv-admin4': 'svAdmin4Layer',
     'sv-climate': 'svClimateLayer',
     'sv-political': 'svPoliticalLayer',
     'sv-gender': 'svGenderLayer'
 };
+
+const COMPOSITE_LAYER_TYPES = new Set([
+    'sv-overall',
+    'sv-custom-overall',
+    'sv-admin1',
+    'sv-admin2',
+    'sv-admin3',
+    'sv-admin4',
+    'sv-admin5',
+    'sv-climate',
+    'sv-political',
+    'sv-gender'
+]);
 
 /**
  * Initialize the information popup system
@@ -127,7 +153,14 @@ export function initializeInfoPopup() {
  * @param {Object} feature - GeoJSON feature object
  * @param {string} layerType - Type of layer (e.g., 'sv-admin1', 'sv-admin2', etc.)
  */
-export function showInfoPopup(feature, layerType = 'default', clickEvent = null, sourceLayer = null) {
+/**
+ * Show information popup for a feature
+ * @param {Object} feature - GeoJSON feature
+ * @param {string} layerType - Type of layer
+ * @param {Object} clickEvent - Optional click event for positioning
+ * @param {Object} sourceLayer - Optional Leaflet layer for class labels
+ */
+export async function showInfoPopup(feature, layerType = 'default', clickEvent = null, sourceLayer = null) {
     if (isAnalysisSelectionActive()) {
         return;
     }
@@ -135,22 +168,40 @@ export function showInfoPopup(feature, layerType = 'default', clickEvent = null,
     const popup = document.getElementById('info-popup');
     const title = document.getElementById('info-popup-title');
     const body = document.getElementById('info-popup-body');
-    
+
     if (!popup || !title || !body || !feature?.properties) {
         return;
     }
-    
-    // Set title based on layer type and available name fields
-    const areaName = getAreaName(feature.properties, layerType);
-    title.textContent = areaName || 'Area Information';
-    
-    // Generate content based on layer type
-    const content = generatePopupContent(feature.properties, layerType, sourceLayer);
-    body.innerHTML = content;
-    
-    // Show popup
-    popup.style.display = 'block';
 
+    const requestId = ++popupRequestId;
+    const properties = feature.properties;
+    const areaName = getAreaName(properties, layerType);
+    title.textContent = areaName || 'Area Information';
+
+    const useRichLayout = COMPOSITE_LAYER_TYPES.has(layerType);
+    body.innerHTML = useRichLayout
+        ? '<p class="info-no-data">Loading area details…</p>'
+        : generatePopupContent(properties, layerType, sourceLayer, null);
+
+    popup.style.display = 'block';
+    positionInfoPopup(popup, clickEvent);
+
+    if (!useRichLayout || !enrichmentProvider) {
+        return;
+    }
+
+    let enrichment = null;
+    try {
+        enrichment = await enrichmentProvider(properties, layerType, sourceLayer);
+    } catch (error) {
+        console.warn('Info popup enrichment failed:', error);
+    }
+
+    if (requestId !== popupRequestId) {
+        return;
+    }
+
+    body.innerHTML = generatePopupContent(properties, layerType, sourceLayer, enrichment);
     positionInfoPopup(popup, clickEvent);
 }
 
@@ -238,10 +289,12 @@ function getPointerPosition(clickEvent) {
  * @returns {string} - Area name
  */
 function getAreaName(properties, layerType) {
+    // Prefer English admin names (adm*_name / ADM*_NAME) over Arabic locals (adm*_name1).
     const nameFields = [
-        'ADM3_NAME', 'adm3_name', 'adm3_name1',
-        'ADM2_NAME', 'adm2_name', 'adm2_name1',
-        'ADM1_NAME', 'adm1_name', 'adm1_name1',
+        'adm3_name', 'ADM3_NAME', 'ADM3_Name',
+        'adm2_name', 'ADM2_NAME', 'ADM2_Name',
+        'adm1_name', 'ADM1_NAME', 'ADM1_Name',
+        'adm3_name1', 'adm2_name1', 'adm1_name1',
         'NAME_3', 'NAME_2', 'NAME_1',
         'Districts', 'District', 'Cercle/District', 'Commune',
         'name', 'Name', 'NAME', 'AREA_NAME'
@@ -261,12 +314,17 @@ function getAreaName(properties, layerType) {
  * Generate popup content based on layer type and properties
  * @param {Object} properties - Feature properties
  * @param {string} layerType - Type of layer
+ * @param {Object|null} sourceLayer - Leaflet source layer
+ * @param {Object|null} enrichment - Async enrichment (themes, Arabic name, population)
  * @returns {string} - HTML content for popup
  */
-function generatePopupContent(properties, layerType, sourceLayer = null) {
+function generatePopupContent(properties, layerType, sourceLayer = null, enrichment = null) {
+    if (COMPOSITE_LAYER_TYPES.has(layerType)) {
+        return generateEnrichedCompositePopup(properties, layerType, sourceLayer, enrichment);
+    }
+
     let content = '';
 
-    // Composite score section (if applicable)
     if (
         layerType.includes('sv-admin') ||
         layerType === 'sv-overall' ||
@@ -277,13 +335,105 @@ function generatePopupContent(properties, layerType, sourceLayer = null) {
     ) {
         content += generateSocialVulnerabilitySection(properties, layerType, sourceLayer);
     }
-    
-    // Statistics Section
+
     content += generateStatisticsSection(properties, layerType);
-    
-    // Additional Data Section
     content += generateAdditionalDataSection(properties, sourceLayer);
-    
+
+    return content || '<p class="info-no-data">No detailed information available for this area.</p>';
+}
+
+function escapeHtml(value) {
+    return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function formatPopulationNumber(value) {
+    const num = typeof value === 'number' ? value : Number(value);
+    if (!Number.isFinite(num)) return '—';
+    return Math.round(num).toLocaleString();
+}
+
+function generatePopupIdentitySection(enrichment) {
+    const arabicName = enrichment?.arabicName;
+    const population = enrichment?.population;
+    if (!arabicName && (population?.total == null)) {
+        return '';
+    }
+
+    let content = '<div class="info-popup-identity">';
+    if (arabicName) {
+        content += `<div class="info-popup-arabic" dir="rtl" lang="ar">${escapeHtml(arabicName)}</div>`;
+    }
+    if (population?.total != null) {
+        content += `<div class="info-popup-population"><span class="info-popup-population-label">Population</span><span class="info-popup-population-value">${escapeHtml(formatPopulationNumber(population.total))}</span></div>`;
+        if (Array.isArray(population.breakdown) && population.breakdown.length) {
+            content += '<div class="info-popup-population-breakdown">';
+            population.breakdown.forEach(part => {
+                content += `<span class="info-popup-pop-chip"><span class="info-popup-pop-chip-label">${escapeHtml(part.label)}</span><span class="info-popup-pop-chip-value">${escapeHtml(formatPopulationNumber(part.value))}</span></span>`;
+            });
+            content += '</div>';
+        }
+    }
+    content += '</div>';
+    return content;
+}
+
+function generateThemeBarsSection(themes) {
+    if (!Array.isArray(themes) || !themes.length) {
+        return '';
+    }
+
+    // 0–1 composite scores use an absolute scale; larger metrics (e.g. Displacement Ratio)
+    // are scaled relative to the largest outlier so bars stay readable.
+    const outlierMax = Math.max(
+        0.001,
+        ...themes.filter(theme => theme.value > 1.0001).map(theme => theme.value)
+    );
+
+    const rows = themes
+        .map(theme => {
+            const width = theme.value <= 1.0001
+                ? Math.round(Math.max(0, Math.min(1, theme.value)) * 100)
+                : Math.round((Math.max(0, theme.value) / outlierMax) * 100);
+            return `
+                <div class="info-theme-row">
+                    <div class="info-theme-label" title="${escapeHtml(theme.label)}">${escapeHtml(theme.label)}</div>
+                    <div class="info-theme-bar-track">
+                        <div class="info-theme-bar-fill" style="width:${width}%;background:${escapeHtml(theme.color)}"></div>
+                    </div>
+                    <div class="info-theme-value">${escapeHtml(formatValue(theme.value))}</div>
+                </div>
+            `;
+        })
+        .join('');
+
+    return `
+        <div class="info-section info-theme-section">
+            <h4>Theme scores</h4>
+            <div class="info-theme-bars">${rows}</div>
+        </div>
+    `;
+}
+
+function generateEnrichedCompositePopup(properties, layerType, sourceLayer, enrichment) {
+    let content = '';
+    content += generatePopupIdentitySection(enrichment);
+    content += generateSocialVulnerabilitySection(properties, layerType, sourceLayer);
+
+    const themes = enrichment?.themes || [];
+    const activeLayerId = SV_LAYER_TYPE_TO_ID[layerType];
+    const otherThemes = activeLayerId
+        ? themes.filter(theme => theme.layerId !== activeLayerId)
+        : themes;
+    // Overall / custom overall: show all themes. Pillar layers: show the other themes.
+    content += generateThemeBarsSection(
+        layerType === 'sv-overall' || layerType === 'sv-custom-overall' ? themes : otherThemes
+    );
+
     return content || '<p class="info-no-data">No detailed information available for this area.</p>';
 }
 
@@ -395,9 +545,10 @@ function isAcsCodeNoData(properties) {
 
 function generateSocialVulnerabilitySection(properties, layerType = 'default', sourceLayer = null) {
     const sectionTitle = getLayerScoreSectionTitle(layerType);
-    let content = `<div class="info-section"><h4>${sectionTitle}</h4>`;
+    let content = `<div class="info-section info-score-section">`;
 
     if (isAcsCodeNoData(properties)) {
+        content += `<h4>${sectionTitle}</h4>`;
         content += createInfoItem('Status', 'no-data', true);
         content += '</div>';
         return content;
@@ -427,7 +578,14 @@ function generateSocialVulnerabilitySection(properties, layerType = 'default', s
             }
         }
         const label = getPrimaryFieldDisplayLabel(primaryField, layerType);
-        content += createInfoItem(label, `${svValue}${svCategory}`, false);
+        content += `
+            <div class="info-score-hero">
+                <div class="info-score-hero-label">${escapeHtml(label)}</div>
+                <div class="info-score-hero-value">${escapeHtml(svValue)}${escapeHtml(svCategory)}</div>
+            </div>
+        `;
+    } else {
+        content += `<h4>${sectionTitle}</h4>`;
     }
 
     const subLayerId = SV_LAYER_TYPE_TO_ID[layerType];
@@ -674,7 +832,7 @@ function getLayerScoreSectionTitle(layerType) {
     if (layerType === 'sv-overall') return 'Overall Vulnerability Index';
     if (layerType === 'sv-admin1') return 'Displacement Pressure';
     if (layerType === 'sv-admin2') return 'Socioeconomic Vulnerability';
-    if (layerType === 'sv-admin3') return 'Tension and Conflict Risk';
+    if (layerType === 'sv-admin3') return 'Tensions and Conflict Risk';
     if (layerType === 'sv-admin5') return 'Demographic Tension / Stress';
     if (layerType === 'sv-climate') return 'Climate and Environmental Risk';
     if (layerType === 'sv-political') return 'Political Vulnerability';
@@ -685,7 +843,7 @@ function getLayerScoreSectionTitle(layerType) {
 
 function getPrimaryFieldDisplayLabel(fieldName, layerType) {
     if (layerType === 'sv-admin1' && fieldName === 'Displacement Ratio') {
-        return 'Displacement ratio';
+        return 'Displacement Ratio';
     }
     if (layerType === 'sv-admin1' && fieldName === 'Displacement Pressure Score') {
         return 'Displacement Pressure Score';
@@ -700,13 +858,13 @@ function getPrimaryFieldDisplayLabel(fieldName, layerType) {
         return 'Overall Vulnerability Index';
     }
     if (layerType === 'sv-admin3' && fieldName === 'composite_score') {
-        return 'Tension and Conflict Risk';
+        return 'Tensions and Conflict Risk';
     }
     if (layerType === 'sv-admin2' && fieldName === 'composite_score') {
         return 'Socioeconomic Vulnerability';
     }
     if (layerType === 'sv-admin5' && fieldName === 'Demographic Factor') {
-        return 'Demographic factor';
+        return 'Demographic Shock Factor';
     }
     if (layerType === 'sv-admin5' && fieldName === 'composite_score') {
         return 'Demographic Tension / Stress';
@@ -726,21 +884,21 @@ function getPrimaryFieldDisplayLabel(fieldName, layerType) {
 
     const labelByField = {
         'Social-Vulnerability': 'Composite Score',
-        'Demographic Factor': 'Demographic factor',
-        'Demographic_Factor (DF = S*H)': 'Demographic Tension / Stress',
-        'Demographic_Factor (DF = S*H)_mean': 'Demographic Tension / Stress (mean)',
-        'Resident Population': 'Resident population',
-        'Displaced Population': 'Displaced population',
-        'Displacement Ratio': 'Displacement ratio',
-        'Resident_Population (R)': 'Resident population',
-        'Resident_Population (R)_mean': 'Resident population (mean)',
-        'Displaced_Population (D)': 'Displaced population',
-        'Displaced_Population (D)_mean': 'Displaced population (mean)',
+        'Demographic Factor': 'Demographic Shock Factor',
+        'Demographic_Factor (DF = S*H)': 'Demographic Shock Factor',
+        'Demographic_Factor (DF = S*H)_mean': 'Demographic Shock Factor (mean)',
+        'Resident Population': 'Resident Population',
+        'Displaced Population': 'Displaced Population',
+        'Displacement Ratio': 'Displacement Ratio',
+        'Resident_Population (R)': 'Resident Population',
+        'Resident_Population (R)_mean': 'Resident Population (mean)',
+        'Displaced_Population (D)': 'Displaced Population',
+        'Displaced_Population (D)_mean': 'Displaced Population (mean)',
         'Heterogeneity (H)': 'Heterogeneity',
         'Heterogeneity (H)_mean': 'Heterogeneity (mean)',
-        'Displacement_Ratio (S = D/R)': 'Displacement ratio',
-        'Displacement_Ratio (S = D/R)_mean': 'Displacement ratio (mean)',
-        'Displacement Ratio': 'Displacement ratio',
+        'Displacement_Ratio (S = D/R)': 'Displacement Ratio',
+        'Displacement_Ratio (S = D/R)_mean': 'Displacement Ratio (mean)',
+        'Displacement Ratio': 'Displacement Ratio',
         'Displacement Pressure Score': 'Displacement Pressure Score',
         'Number of IDPs': 'Number of IDPs',
         'Number of of Palestinians': 'Number of Palestinians',
@@ -751,7 +909,7 @@ function getPrimaryFieldDisplayLabel(fieldName, layerType) {
         'displace_composite_score_mean': 'Displacement Pressure Score (mean)',
         overall_vulnerability_score: 'Overall Vulnerability Index',
         overall_tension_index_score: 'Overall Vulnerability Index',
-        tension_peace_score: 'Tension and Conflict Risk',
+        tension_peace_score: 'Tensions and Conflict Risk',
         displacement_pressure_score: 'Displacement Pressure',
         economic_vulnerability_score: 'Socioeconomic Vulnerability',
         composite_score: 'Socioeconomic Vulnerability',
@@ -767,11 +925,11 @@ function getPrimaryFieldDisplayLabel(fieldName, layerType) {
         'Negative Coping Tendency': 'Negative coping tendency',
         'Food insecurity level (IPC)': 'Food insecurity level (IPC)',
         HDS: 'HDS',
-        'Household Deprivation Score': 'Household deprivation score',
+        'Household Deprivation Score': 'Household Deprivation Score',
         'Poverty Level (Relative Vulnerability - AMAAN)':
-            'Poverty level (relative vulnerability — AMAAN)',
+            'Poverty Level',
         'Poverty Level (Internal Vulnerability - AMAAN)':
-            'Poverty level (internal vulnerability — AMAAN)',
+            'Poverty Level',
         'Inter-sectarian and inter-communal conflict incidents':
             'Inter-sectarian and inter-communal conflict incidents',
         'Number of violent incidents': 'Number of violent incidents',
@@ -779,6 +937,19 @@ function getPrimaryFieldDisplayLabel(fieldName, layerType) {
         'Number of fatalities in tension incidents': 'Number of fatalities in tension incidents',
         'Fear of traveling within Lebanon safely': 'Fear of traveling within Lebanon safely',
         'Feeling lack of safety during the night': 'Feeling lack of safety during the night',
+        'Absolute Vulnerability': 'Poverty Level',
+        'Solid waste pressure (displacement)': 'Solid waste pressure (kg)',
+        'Municipal elections turnout': 'Abstantion municipal elections turnout',
+        'Trust in Parliament': 'Distrust in Parliament',
+        'Faith in politics': 'Lack of faith in politics',
+        'Trust in LAF': 'Lack in trust in LAF',
+        'Faith in elections': 'Lack of faith in elections',
+        'Trust in the court system': 'Distrust in the court system',
+        'Trust in security forces': 'Distrust in security forces',
+        'State Citizen Incidents ': 'Number of state Citizen Incidents',
+        'State Citizen Incidents': 'Number of state Citizen Incidents',
+        'Safety at night (female)': 'lack of safety at night (female)',
+        'Female unemployment rate': 'Unemployment rate (female)',
         'All Populations': 'All Populations',
         LEB: 'Lebanese (LEB)',
         PRL: 'Palestinians — Lebanon (PRL)',
@@ -786,9 +957,9 @@ function getPrimaryFieldDisplayLabel(fieldName, layerType) {
         SYR: 'Syrians (SYR)',
         'socio_composite_score': 'Socioeconomic Vulnerability',
         'socio_composite_score_mean': 'Socioeconomic Vulnerability (mean)',
-        'peace_composite_score': 'Tension and Conflict Risk',
-        'peace_composite_score_mean_mean': 'Tension and Conflict Risk (Mean)',
-        'peace_composite_score_mean': 'Tension and Conflict Risk (Mean)',
+        'peace_composite_score': 'Tensions and Conflict Risk',
+        'peace_composite_score_mean_mean': 'Tensions and Conflict Risk (Mean)',
+        'peace_composite_score_mean': 'Tensions and Conflict Risk (Mean)',
         peace_si_intersectarian_per_1k:
             'Annual rate of UNDPTMS incidents tagged as “intersectarian” or “intercommunal” per 1000 residents',
         peace_si_battle_events_count:
@@ -804,7 +975,7 @@ function getPrimaryFieldDisplayLabel(fieldName, layerType) {
 
     if (layerType === 'sv-admin1') return 'Displacement Pressure Score';
     if (layerType === 'sv-admin2') return 'Socioeconomic Vulnerability';
-    if (layerType === 'sv-admin3') return 'Tension and Conflict Risk';
+    if (layerType === 'sv-admin3') return 'Tensions and Conflict Risk';
     if (layerType === 'sv-admin5') return 'Demographic Tension / Stress';
     return fieldName.replace(/_/g, ' ');
 }
@@ -898,6 +1069,10 @@ function generateAdditionalDataSection(properties, sourceLayer = null) {
         'NAME_0', 'NAME_1', 'NAME_2', 'NAME_3',
         'Cercle/District', 'COUNTRY', 'REGION',
         'ADM1_NAME', 'ADM2_NAME', 'ADM3_NAME',
+        'ADM1_Name', 'ADM2_Name', 'ADM3_Name',
+        'adm1_name', 'adm2_name', 'adm3_name',
+        'adm1_name1', 'adm2_name1', 'adm3_name1',
+        'adm3_pcode',
         'ADMIN_ID', 'Social-Vulnerability', 'POPULATION', 'POP',
         'AREA', 'DENSITY', 'HOUSEHOLDS', 'GDP_PC',
         'Shape_Area', 'Shape_Length',

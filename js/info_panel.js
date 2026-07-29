@@ -2,6 +2,7 @@
 
 import { WELCOME_TAB_HTML } from './welcome_tab_content.js';
 import { OVERALL_VULNERABILITY_INDEX_DESCRIPTION_HTML } from './overall_vulnerability_index_content.js';
+import { getIndicatorDefinitionsForLayer } from './indicator_definitions.js';
 import {
     clearAnalysisSelection,
     getAnalysisSelectionCount,
@@ -13,38 +14,30 @@ import {
     subscribeAnalysisSelection
 } from './analysis_selection.js';
 import { hideInfoPopup } from './info_popup.js';
+import { bindAoiPanelInteractions, renderAoiPanelHtml } from './aoi_panel.js';
+import { forceAoiStyleRecovery } from './aoi_spotlight.js';
 
-const NEGATIVE_COPING_SURVEY_PREFIX =
-    'In the last year, have you had to engage in any of the following?';
+function renderThemeIndicatorDefinitionsHtml(layerId, escapeHtml) {
+    const definitions = getIndicatorDefinitionsForLayer(layerId);
+    if (!definitions.length) {
+        return '';
+    }
 
-const NEGATIVE_COPING_CONSTRUCT_INPUTS = [
-    'Cut the electricity / generator',
-    'Stopped phone service',
-    'Restricted food consumption of adults so that children can eat',
-    'Went into debt',
-    'Sent children to work',
-    'Sold assets',
-    'Spent savings',
-    'Removed children from school'
-];
+    const items = definitions
+        .map(entry => {
+            const name = escapeHtml(entry.indicator);
+            const definition = String(entry.definition || '').trim();
+            if (definition) {
+                return `<li><strong>${name}</strong><p class="layer-indicator-definition">${escapeHtml(definition)}</p></li>`;
+            }
+            return `<li><strong>${name}</strong></li>`;
+        })
+        .join('');
 
-function generateSocioeconomicVulnerabilityInputsHtml() {
-    const copingItems = NEGATIVE_COPING_CONSTRUCT_INPUTS.map(item => `<li>${item}</li>`).join('');
     return `
-        <div class="layer-inputs-list">
-            <div class="layer-inputs-title">Used inputs:</div>
-            <ul>
-                <li>Nighttime light radiance</li>
-                <li>332 Most Vulnerability Map</li>
-                <li>
-                    Negative coping behavior
-                    <p class="layer-inputs-nested-intro">${NEGATIVE_COPING_SURVEY_PREFIX}</p>
-                    <ul class="layer-inputs-nested-list">${copingItems}</ul>
-                </li>
-                <li>Unemployment rate per district</li>
-                <li>Population dependency ratio (governorate)</li>
-                <li>IPC</li>
-            </ul>
+        <div class="layer-inputs-list layer-indicator-definitions">
+            <div class="layer-inputs-title">Indicators</div>
+            <ul>${items}</ul>
         </div>
     `;
 }
@@ -198,9 +191,9 @@ export class InfoPanel {
                         </div>
                         <div class="analysis-area-selection" id="analysis-area-selection">
                             <div class="analysis-area-selection-header">
-                                <h5>Area selection</h5>
+                                <h5>Area of interest (AOI)</h5>
                                 <p class="analysis-area-hint" id="analysis-area-resolution-hint">
-                                    Select multiple map units for targeted analysis at the current administrative resolution.
+                                    Select map units to build an AOI. Metrics, class shares, and exports update from the selection.
                                 </p>
                             </div>
                             <button
@@ -220,7 +213,7 @@ export class InfoPanel {
                             <ul id="analysis-selection-chips" class="analysis-selection-chips" aria-label="Selected map units"></ul>
                         </div>
                         <div class="analysis-area-charts" id="analysis-area-charts">
-                            <p class="no-results-message">Enable selection mode and click map units to see targeted charts here.</p>
+                            <p class="no-results-message">Enable selection mode and click map units to build an AOI.</p>
                         </div>
                         <div class="analysis-selected-charts" id="analysis-selected-charts">
                             <p class="no-results-message">No selected polygon charts yet</p>
@@ -462,6 +455,8 @@ setupEventListeners() {
 
         clearBtn?.addEventListener('click', () => {
             clearAnalysisSelection();
+            setAnalysisSelectionActive(false);
+            void forceAoiStyleRecovery();
             this.updateAnalysisAreaSelection();
         });
 
@@ -482,7 +477,10 @@ setupEventListeners() {
 
         if (resolutionHint) {
             resolutionHint.textContent =
-                `Selecting at ${resolution} level. Click polygons on the map to add or remove them from the analysis area.`;
+                `Building an AOI at ${resolution} level. Click units to add or remove them` +
+                (resolution === 'Cadastre'
+                    ? ', or use “Add whole district” below.'
+                    : '.');
         }
 
         if (toggleBtn) {
@@ -505,14 +503,21 @@ setupEventListeners() {
             if (!items.length) {
                 chips.innerHTML = '';
             } else {
-                chips.innerHTML = items
-                    .map(item => `<li class="analysis-selection-chip">${this.escapeHtml(item.name)}</li>`)
-                    .join('');
+                const maxChips = 12;
+                const shown = items.slice(0, maxChips);
+                const extra = items.length - shown.length;
+                chips.innerHTML =
+                    shown
+                        .map(item => `<li class="analysis-selection-chip">${this.escapeHtml(item.name)}</li>`)
+                        .join('') +
+                    (extra > 0
+                        ? `<li class="analysis-selection-chip analysis-selection-chip-more">+${extra} more</li>`
+                        : '');
             }
         }
 
         if (areaCharts) {
-            areaCharts.innerHTML = this.renderAnalysisAreaCharts();
+            void this.renderAoiAreaCharts(areaCharts);
         }
 
         if (this.isVisible) {
@@ -520,42 +525,28 @@ setupEventListeners() {
         }
     }
 
+    async renderAoiAreaCharts(areaCharts) {
+        if (!areaCharts) return;
+        const requestId = (this._aoiRenderRequestId = (this._aoiRenderRequestId || 0) + 1);
+        areaCharts.innerHTML = '<p class="no-results-message">Updating AOI summary…</p>';
+        try {
+            const html = await renderAoiPanelHtml();
+            if (requestId !== this._aoiRenderRequestId) return;
+            areaCharts.innerHTML = html;
+            await bindAoiPanelInteractions(areaCharts, {
+                onChanged: () => this.updateAnalysisAreaSelection()
+            });
+        } catch (error) {
+            console.error('AOI panel render failed', error);
+            if (requestId !== this._aoiRenderRequestId) return;
+            areaCharts.innerHTML =
+                '<p class="no-results-message">Could not build AOI summary. Check the console for details.</p>';
+        }
+    }
+
     renderAnalysisAreaCharts() {
-        const items = getAnalysisSelectionItems();
-        if (!items.length) {
-            if (isAnalysisSelectionActive()) {
-                return '<p class="no-results-message">Click map polygons to build your selection.</p>';
-            }
-            return '<p class="no-results-message">Enable selection mode and click map units to see targeted charts here.</p>';
-        }
-
-        const blocks = [];
-        const resolution = getActiveAdminResolutionLabel();
-
-        blocks.push(`
-            <div class="analysis-layer-block analysis-area-summary">
-                <h5 class="analysis-layer-title">Selected area (${this.escapeHtml(resolution)})</h5>
-                <p class="analysis-layer-attribute">${items.length} unit${items.length === 1 ? '' : 's'} in selection</p>
-                <ul class="analysis-area-unit-list">
-                    ${items.map(item => `<li>${this.escapeHtml(item.name)}</li>`).join('')}
-                </ul>
-            </div>
-        `);
-
-        Array.from(this.activeLayers.values()).forEach(layer => {
-            const selectionRankings = this.getLayerRankingsForSelection(layer, items);
-            if (selectionRankings) {
-                blocks.push(this.renderSelectionRankingsBlock(layer, selectionRankings));
-            }
-        });
-
-        if (blocks.length === 1) {
-            blocks.push(
-                '<p class="no-results-message">Turn on a composite or stressor layer to see scores for the selected area.</p>'
-            );
-        }
-
-        return blocks.join('');
+        // Legacy sync path kept for compatibility; prefer renderAoiAreaCharts.
+        return '<p class="no-results-message">Updating AOI summary…</p>';
     }
 
     renderSelectionRankingsBlock(layer, rankings) {
@@ -868,52 +859,16 @@ setupEventListeners() {
             return OVERALL_VULNERABILITY_INDEX_DESCRIPTION_HTML;
         }
 
-        if (layer.id === 'svAdmin2Layer') {
-            return generateSocioeconomicVulnerabilityInputsHtml();
-        }
-
-        if (layer.type === 'sv-vector') {
-            const inputMap = {
-                svAdmin1Layer: [
-                    'Pressure of IDPs',
-                    'Number of IDPs per origin Distirct',
-                    'Net Human Mobility Balance',
-                    'Concentration of displaced Syrians',
-                    'Concentration of Palestinians'
-                ],
-                svAdmin3Layer: [
-                    'Annual rate of UNDPTMS incidents tagged as “intersectarian” or “intercommunal” per 1000 residents → Inter-sectarian and inter-communal conflict incidents',
-                    'Number of incidents/events involving battles, explosions, violence against civilians, armed clashes, and airstrikes. → Number of violent incidents',
-                    'Safety and Security typology incidents without state operations → Number of crime incidents',
-                    'Fatalities per 1000 residents in the last 12 months → Number of fatalities in tension incidents',
-                    'Share of households who worry about travelling to key destinations within Lebanon safely → Fear of traveling within Lebanon safely',
-                    '% of population reporting feeling "unsafe" or "very unsafe" in their neighborhoods during the night → Feeling lack of safety during the night'
-                ],
-                svAdmin4Layer: [
-                    'Damage data (CNRS) - replaceable by triangle if needed',
-                    'Service-related tension incidents (Feb 2025-Feb 2026)',
-                    'Perceptions on quality of services (water, electricity, waste removal)',
-                    'Worry about access to healthcare services',
-                    'Worry about access to safe drinking water',
-                    'Household situation with regards to water availability and access',
-                    "Competition for services believed to be driving tensions (competition over at least one service driving tensions: 'Yes')",
-                    'Additional solid waste generation following displacement - mapping (Vahakn)',
-                    'Additional electricity demand following displacement - mapping (Vahakn)'
-                ]
-            };
-
-            const inputs = inputMap[layer.id];
-            if (inputs?.length) {
-                const items = inputs.map(item => `<li>${item}</li>`).join('');
-                return `
-                    <div class="layer-inputs-list">
-                        <div class="layer-inputs-title">Used inputs:</div>
-                        <ul>${items}</ul>
-                    </div>
-                `;
+        if (layer.type === 'sv-vector' || layer.id?.startsWith?.('sv')) {
+            const fromSheet = renderThemeIndicatorDefinitionsHtml(
+                layer.id,
+                value => this.escapeHtml(value)
+            );
+            if (fromSheet) {
+                return fromSheet;
             }
-            return '';
         }
+
         // Hide generic metadata (type/opacity/features/attribute/color ramp)
         // to keep the Active Layers section cleaner for end users.
         return '';
@@ -1473,7 +1428,14 @@ setupEventListeners() {
     }
 
     getAdminUnitName(properties) {
-        const nameKeys = ['ADM3_NAME', 'ADM2_NAME', 'ADM1_NAME', 'NAME_3', 'NAME_2', 'NAME_1', 'name', 'NAME'];
+        // Prefer English cadastre/district/governorate names over Arabic adm*_name1.
+        const nameKeys = [
+            'adm3_name', 'ADM3_NAME', 'ADM3_Name',
+            'adm2_name', 'ADM2_NAME', 'ADM2_Name',
+            'adm1_name', 'ADM1_NAME', 'ADM1_Name',
+            'adm3_name1', 'adm2_name1', 'adm1_name1',
+            'NAME_3', 'NAME_2', 'NAME_1', 'name', 'NAME'
+        ];
         for (const key of nameKeys) {
             const value = properties[key];
             if (value !== undefined && value !== null && String(value).trim() !== '') {
@@ -1494,13 +1456,17 @@ setupEventListeners() {
         if (!sampleProperties) {
             return 'units';
         }
-        if (sampleProperties.ADM3_NAME !== undefined) {
+        if (
+            sampleProperties.ADM3_NAME !== undefined ||
+            sampleProperties.adm3_name !== undefined ||
+            sampleProperties.adm3_pcode !== undefined
+        ) {
             return 'cadastres';
         }
-        if (sampleProperties.ADM2_NAME !== undefined) {
+        if (sampleProperties.ADM2_NAME !== undefined || sampleProperties.adm2_name !== undefined) {
             return 'districts';
         }
-        if (sampleProperties.ADM1_NAME !== undefined) {
+        if (sampleProperties.ADM1_NAME !== undefined || sampleProperties.adm1_name !== undefined) {
             return 'governorates';
         }
         return 'units';
@@ -1918,20 +1884,23 @@ extractRealLayerData(svLayer, statLayer) {
  * Get region name from feature properties
  */
 getRegionName(properties) {
-    // Try different possible name fields in order of preference
+    // Prefer English admin names (adm*_name / ADM*_NAME) over Arabic locals.
     const nameFields = [
+        'adm3_name', 'ADM3_NAME', 'ADM3_Name',
+        'adm2_name', 'ADM2_NAME', 'ADM2_Name',
+        'adm1_name', 'ADM1_NAME', 'ADM1_Name',
         'NAME_1', 'NAME_2', 'NAME_3',
         'name', 'Name', 'AREA_NAME',
-        'ADM1_NAME', 'ADM2_NAME', 'ADM3_NAME',
+        'adm3_name1', 'adm2_name1', 'adm1_name1',
         'Cercle/District', 'District', 'Commune'
     ];
-    
+
     for (const field of nameFields) {
         if (properties[field] && typeof properties[field] === 'string') {
             return properties[field].trim();
         }
     }
-    
+
     return null;
 }
 

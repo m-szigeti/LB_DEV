@@ -1,6 +1,9 @@
 /**
  * Catalog for the experimental Custom Overall builder.
  * Self-contained so the feature can be removed without hunting through layer_controls.
+ *
+ * Display labels follow scripts/Indicators_Inside_Tool.xlsx.
+ * `field` values must match GeoJSON property keys (do not rename without updating data).
  */
 
 /** @typedef {{ field: string, label: string }} CustomIndicator */
@@ -24,7 +27,7 @@ export const CUSTOM_OVERALL_THEMES = [
         scoreField: 'Displacement Ratio',
         resolutions: ['governorate', 'district', 'cadastre'],
         indicators: [
-            { field: 'Displacement Ratio', label: 'Displacement ratio' },
+            { field: 'Displacement Ratio', label: 'Displacement Ratio' },
             { field: 'Outside CS', label: 'Outside CS' },
             { field: 'Inside CS', label: 'Inside CS' },
             { field: 'Overall IDPs', label: 'Overall IDPs' },
@@ -42,7 +45,7 @@ export const CUSTOM_OVERALL_THEMES = [
         themeNumber: 2,
         layerId: 'svAdmin3Layer',
         weightsKey: '2',
-        title: 'Tension and Conflict Risk',
+        title: 'Tensions and Conflict Risk',
         scoreField: 'composite_score',
         resolutions: ['governorate', 'district', 'cadastre'],
         indicators: [
@@ -62,8 +65,8 @@ export const CUSTOM_OVERALL_THEMES = [
         scoreField: 'composite_score',
         resolutions: ['governorate', 'district', 'cadastre'],
         indicators: [
-            { field: 'Absolute Vulnerability', label: 'Absolute vulnerability' },
-            { field: 'Household Deprivation Score', label: 'Household deprivation score' },
+            { field: 'Absolute Vulnerability', label: 'Poverty Level' },
+            { field: 'Household Deprivation Score', label: 'Household Deprivation Score' },
             { field: 'Nighttime light radiance', label: 'Nighttime light radiance' }
         ]
     },
@@ -76,14 +79,21 @@ export const CUSTOM_OVERALL_THEMES = [
         resolutions: ['governorate', 'district'],
         indicators: [
             { field: 'Service-related incidents', label: 'Service-related incidents' },
-            { field: 'Perceptions on quality of services: Water', label: 'Quality of services: Water' },
-            { field: 'Perceptions on quality of services: Electricity', label: 'Quality of services: Electricity' },
-            { field: 'Perceptions on quality of services: Waste Removal', label: 'Quality of services: Waste removal' },
-            { field: 'Worry about access to healthcare services', label: 'Worry about access to healthcare' },
+            { field: 'Perceptions on quality of services: Water', label: 'Perceptions on quality of services: Water' },
+            { field: 'Perceptions on quality of services: Electricity', label: 'Perceptions on quality of services: Electricity' },
+            { field: 'Perceptions on quality of services: Waste Removal', label: 'Perceptions on quality of services: Waste Removal' },
+            { field: 'Worry about access to healthcare services', label: 'Worry about access to healthcare services' },
             { field: 'Worry about access to safe drinking water', label: 'Worry about access to safe drinking water' },
             { field: 'Water availability and accessibility', label: 'Water availability and accessibility' },
             { field: 'Services as a tension driver', label: 'Services as a tension driver' },
-            { field: 'Solid waste pressure (displacement)', label: 'Solid waste pressure (displacement)' },
+            { field: 'Solid waste pressure (displacement)', label: 'Solid waste pressure (kg)' },
+            { field: 'Incidents around civil defence', label: 'Incidents around civil defence' },
+            { field: 'Incidents around education', label: 'Incidents around education' },
+            { field: 'Incidents around electricity', label: 'Incidents around electricity' },
+            { field: 'Incidents around generator', label: 'Incidents around generator' },
+            { field: 'Incidents around health', label: 'Incidents around health' },
+            { field: 'Quality of education', label: 'Quality of education' },
+            { field: 'Quality of healthcare services', label: 'Quality of healthcare services' },
             { field: 'incidents around civil defence', label: 'Incidents around civil defence' },
             { field: 'incidents around education', label: 'Incidents around education' },
             { field: 'incidents around electricity', label: 'Incidents around electricity' },
@@ -102,11 +112,11 @@ export const CUSTOM_OVERALL_THEMES = [
         scoreField: 'Demographic Factor',
         resolutions: ['governorate', 'district', 'cadastre'],
         indicators: [
-            { field: 'Demographic Factor', label: 'Demographic factor' },
-            { field: 'Resident Population', label: 'Resident population' },
-            { field: 'Displaced Population', label: 'Displaced population' },
+            { field: 'Demographic Factor', label: 'Demographic Shock Factor' },
+            { field: 'Resident Population', label: 'Resident Population' },
+            { field: 'Displaced Population', label: 'Displaced Population' },
             { field: 'Heterogeneity', label: 'Heterogeneity' },
-            { field: 'Displacement Ratio', label: 'Displacement ratio' }
+            { field: 'Displacement Ratio', label: 'Displacement Ratio' }
         ]
     },
     {
@@ -130,15 +140,15 @@ export const CUSTOM_OVERALL_THEMES = [
         scoreField: 'composite_score',
         resolutions: ['governorate', 'district'],
         indicators: [
-            { field: 'Municipal elections turnout', label: 'Municipal elections turnout' },
-            { field: 'Trust in Parliament', label: 'Trust in Parliament' },
-            { field: 'Faith in politics', label: 'Faith in politics' },
-            { field: 'Trust in LAF', label: 'Trust in LAF' },
-            { field: 'Faith in elections', label: 'Faith in elections' },
-            { field: 'Trust in the court system', label: 'Trust in the court system' },
-            { field: 'Trust in security forces', label: 'Trust in security forces' },
+            { field: 'Municipal elections turnout', label: 'Abstantion municipal elections turnout' },
+            { field: 'Trust in Parliament', label: 'Distrust in Parliament' },
+            { field: 'Faith in politics', label: 'Lack of faith in politics' },
+            { field: 'Trust in LAF', label: 'Lack in trust in LAF' },
+            { field: 'Faith in elections', label: 'Lack of faith in elections' },
+            { field: 'Trust in the court system', label: 'Distrust in the court system' },
+            { field: 'Trust in security forces', label: 'Distrust in security forces' },
             { field: 'Municipal council entrenchment', label: 'Municipal council entrenchment' },
-            { field: 'State Citizen Incidents ', label: 'State Citizen Incidents' },
+            { field: 'State Citizen Incidents ', label: 'Number of state Citizen Incidents' },
             {
                 field: 'Municipal authorities effect on quality of life: worsened life somewhat + alot',
                 label: 'Municipal authorities effect on quality of life'
@@ -163,11 +173,11 @@ export const CUSTOM_OVERALL_THEMES = [
         indicators: [
             { field: 'Reported incidents of gender-based violence', label: 'Reported incidents of gender-based violence' },
             { field: 'Service access difficulty (female)', label: 'Service access difficulty (female)' },
-            { field: 'Safety at night (female)', label: 'Safety at night (female)' },
+            { field: 'Safety at night (female)', label: 'lack of safety at night (female)' },
             { field: 'Fear of movement or travel (female)', label: 'Fear of movement or travel (female)' },
             { field: 'Reports of harassment or violence', label: 'Reports of harassment or violence' },
-            { field: 'Trust in the court system', label: 'Trust in the court system' },
-            { field: 'Female unemployment rate', label: 'Female unemployment rate' }
+            { field: 'Trust in the court system', label: 'Distrust in the court system (female)' },
+            { field: 'Female unemployment rate', label: 'Unemployment rate (female)' }
         ]
     }
 ];

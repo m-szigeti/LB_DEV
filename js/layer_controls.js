@@ -17,7 +17,7 @@ import { loadTiff } from './zoom-adaptive-tiff-loader.js';
 import { setupColorRampSelector, getColorRamp } from './color_ramp_selector.js';
 import { legendColorsForMapOpacity } from './color_scales.js';
 import { generateAdminLabels, setAdminLabelLayersEnabled } from './admin_labels.js';
-import { addInfoPopupHandler, hideInfoPopup } from './info_popup.js';
+import { addInfoPopupHandler, hideInfoPopup, configureInfoPopupEnrichment } from './info_popup.js';
 import {
     configureSVSubindicators,
     registerSVSubindicatorPanel,
@@ -31,7 +31,8 @@ import {
     isAnalysisSelectionActive,
     toggleAnalysisSelectionFeature,
     reapplyAnalysisSelectionStyles,
-    clearAnalysisSelection
+    clearAnalysisSelection,
+    setAnalysisSelectionActive
 } from './analysis_selection.js';
 import { CUSTOM_COMPOSITE_FIELD } from './composite_score.js';
 import {
@@ -57,6 +58,8 @@ import {
     isShowLabelsMode,
     getClassificationMode
 } from './map_display_controls.js';
+import { configureAoiProviders, resolvePopulationDetailsForProperties } from './aoi_context.js';
+import { configureAoiSpotlight, forceAoiStyleRecovery } from './aoi_spotlight.js';
 
 const JUNE17_DATA = 'data/June17';
 const DATA = 'data';
@@ -84,7 +87,7 @@ const JUNE17_FILES = {
     theme3: {
         governorate: dataFile('GOV Theme 3 - Socioeconomic Vulnerability__from_dis_spatial.geojson'),
         district: dataFile('DIS Theme 3 - Socioeconomic Vulnerability__joined.geojson'),
-        cadastre: dataFile('CAD Theme 3 - Socioeconomic Vulnerability v2__joined.geojson')
+        cadastre: dataFile('CAD Theme 3 - Socioeconomic Vulnerability__joined.geojson')
     },
     theme4: {
         governorate: dataFile('GOV Theme 4 - Service & Infrastructure Vulnerability__from_dis_spatial.geojson'),
@@ -244,7 +247,7 @@ const layerConfig = {
         fixedColorRamp: 'whiteToDarkPurple3',
         type: 'sv-vector',
         url: JUNE17_FILES.theme2.cadastre,
-        legendName: 'Tension and Conflict Risk',
+        legendName: 'Tensions and Conflict Risk',
         style: {
             color: "#2b83ba",
             weight: 2,
@@ -567,10 +570,60 @@ const SV_PILLAR_DEFINITIONS = [
     },
     {
         layerId: 'svAdmin3Layer',
-        label: 'Tension and Conflict Risk',
+        label: 'Tensions and Conflict Risk',
         color: '#7b3294',
         attribute: 'composite_score'
     }
+];
+
+/** All theme pillars shown in polygon click popups (resolution-filtered). */
+const SV_THEME_SCORE_DEFINITIONS = [
+    {
+        layerId: 'svAdmin1Layer',
+        label: 'Displacement Pressure',
+        color: '#2e8b57'
+    },
+    {
+        layerId: 'svAdmin2Layer',
+        label: 'Socioeconomic Vulnerability',
+        color: '#2b83ba'
+    },
+    {
+        layerId: 'svAdmin3Layer',
+        label: 'Tensions and Conflict Risk',
+        color: '#7b3294'
+    },
+    {
+        layerId: 'svAdmin4Layer',
+        label: 'Service & Infrastructure Vulnerability',
+        color: '#8b5cf6'
+    },
+    {
+        layerId: 'svAdmin5Layer',
+        label: 'Demographic Tension / Stress',
+        color: '#d94701'
+    },
+    {
+        layerId: 'svClimateLayer',
+        label: 'Climate and Environmental Risk',
+        color: '#b2182b'
+    },
+    {
+        layerId: 'svPoliticalLayer',
+        label: 'Political Vulnerability',
+        color: '#e66101'
+    },
+    {
+        layerId: 'svGenderLayer',
+        label: 'Gender Based Vulnerabilities',
+        color: '#c51b7d'
+    }
+];
+
+const ARABIC_NAME_FIELDS = [
+    'adm3_name1',
+    'adm2_name1',
+    'adm1_name1'
 ];
 
 const SV_ADMIN_RESOLUTION_BUTTON_SELECTOR = '.sv-admin-resolution-btn';
@@ -600,15 +653,68 @@ const SV_OVERALL_INCOMPATIBLE_LAYER_IDS = SV_COMPOSITE_LAYER_IDS.filter(
 
 function reconcileSVLayerSelection(layerIds) {
     const unique = [...new Set(layerIds)];
+    if (isColorOnlyMode() && unique.length > 1) {
+        return [unique[unique.length - 1]];
+    }
     const hasOfficial = unique.includes(SV_OVERALL_LAYER_ID);
     const hasCustom = unique.includes(CUSTOM_OVERALL_LAYER_ID);
     if (hasOfficial || hasCustom) {
-        // Prefer a single master choropleth; custom wins if both were selected.
         const master = hasCustom && isCustomOverallActive() ? CUSTOM_OVERALL_LAYER_ID : SV_OVERALL_LAYER_ID;
         const compatible = unique.filter(id => SV_OVERALL_COMPATIBLE_LAYER_IDS.includes(id));
         return [master, ...compatible];
     }
     return unique.filter(id => SV_COMPOSITE_LAYER_IDS.includes(id));
+}
+
+/**
+ * When color-only mode is enabled with multiple active layers, keep only the
+ * most-recently selected one and fully remove the others from the map.
+ */
+function enforceColorOnlySingleLayer(map, layers, removeLegendEntry) {
+    if (!isColorOnlyMode()) return;
+    if (activeSVLayers.size <= 1) return;
+
+    const keep = currentSVLayer || Array.from(activeSVLayers).at(-1);
+    const toRemove = Array.from(activeSVLayers).filter(id => id !== keep);
+
+    toRemove.forEach(layerId => {
+        const config = layerConfig[layerId];
+        const layer = layers.vector[layerId];
+        if (layer) {
+            if (config?.renderMode === 'proportional-circles') {
+                restoreSVDisplacementCirclesFromColorOnly(map, layers, layerId);
+                detachSVDisplacementZoom(map, layer);
+            }
+            if (config?.renderMode === 'stripe-pattern' || config?.renderMode === 'service-pattern') {
+                detachSVPatternZoom(map, layer);
+                const pc = svPatternCache.get(layerId);
+                disposeSocioStripePatterns(pc);
+                svPatternCache.delete(layerId);
+            }
+            if (config?.renderMode === 'service-symbol') {
+                setSVServiceMarkersOnMap(map, layer, false);
+                setSVServiceChoroplethOnMap(map, layer, false);
+            }
+            removeSVAuxiliaryLayers(map, layer);
+            removeSubindicatorMapExtras(map, layer);
+            clearPolygonSelection(layerId, layers);
+            if (map.hasLayer(layer)) map.removeLayer(layer);
+            removeLegendEntry(layerId);
+            delete layers.vector[layerId];
+        }
+        activeSVLayers.delete(layerId);
+        const toggle = document.getElementById(layerId);
+        if (toggle?.checked) {
+            toggle.checked = false;
+        }
+        if (window.currentInfoPanel) {
+            window.currentInfoPanel.removeLayer(layerId);
+        }
+    });
+
+    if (keep) {
+        currentSVLayer = keep;
+    }
 }
 
 function uncheckSVLayerToggles(layerIds) {
@@ -621,6 +727,11 @@ function uncheckSVLayerToggles(layerIds) {
 }
 
 function applySVLayerExclusivity(selectedLayerId) {
+    if (isColorOnlyMode()) {
+        const allOthers = SV_LAYER_IDS.filter(id => id !== selectedLayerId);
+        uncheckSVLayerToggles(allOthers);
+        return;
+    }
     const isMaster =
         selectedLayerId === SV_OVERALL_LAYER_ID || selectedLayerId === CUSTOM_OVERALL_LAYER_ID;
     if (isMaster) {
@@ -667,7 +778,7 @@ const SV_BASE_LAYER_CONFIG = {
     },
     svAdmin3Layer: {
         fixedColorRamp: 'whiteToDarkPurple3',
-        legendName: 'Tension and Conflict Risk',
+        legendName: 'Tensions and Conflict Risk',
         renderMode: 'choropleth',
         svAttribute: 'composite_score'
     },
@@ -898,7 +1009,7 @@ const DISPLACEMENT_ID_FIELDS = new Set([
 ]);
 
 const DISPLACEMENT_SUBINDICATOR_OPTIONS_DISTRICT = [
-    { value: DISPLACEMENT_RATIO_FIELD, label: 'Displacement ratio' }
+    { value: DISPLACEMENT_RATIO_FIELD, label: 'Displacement Ratio' }
 ];
 
 const DISPLACEMENT_SUBINDICATOR_OPTIONS_CADASTRE = [
@@ -930,24 +1041,24 @@ const DEMOGRAPHIC_ID_FIELDS = new Set([
 ]);
 
 const DEMOGRAPHIC_SUBINDICATOR_OPTIONS_CADASTRE = [
-    { value: 'Resident Population', label: 'Resident population' },
-    { value: 'Displaced Population', label: 'Displaced population' },
+    { value: 'Resident Population', label: 'Resident Population' },
+    { value: 'Displaced Population', label: 'Displaced Population' },
     { value: 'Heterogeneity', label: 'Heterogeneity' },
-    { value: 'Displacement Ratio', label: 'Displacement ratio' }
+    { value: 'Displacement Ratio', label: 'Displacement Ratio' }
 ];
 
 const DEMOGRAPHIC_SUBINDICATOR_OPTIONS_DISTRICT = [
-    { value: 'Resident_Population (R)', label: 'Resident population' },
-    { value: 'Displaced_Population (D)', label: 'Displaced population' },
+    { value: 'Resident_Population (R)', label: 'Resident Population' },
+    { value: 'Displaced_Population (D)', label: 'Displaced Population' },
     { value: 'Heterogeneity (H)', label: 'Heterogeneity' },
-    { value: 'Displacement_Ratio (S = D/R)', label: 'Displacement ratio' }
+    { value: 'Displacement_Ratio (S = D/R)', label: 'Displacement Ratio' }
 ];
 
 const DEMOGRAPHIC_SUBINDICATOR_OPTIONS_AGGREGATE = [
-    { value: 'Resident_Population (R)_mean', label: 'Resident population (mean)' },
-    { value: 'Displaced_Population (D)_mean', label: 'Displaced population (mean)' },
+    { value: 'Resident_Population (R)_mean', label: 'Resident Population (mean)' },
+    { value: 'Displaced_Population (D)_mean', label: 'Displaced Population (mean)' },
     { value: 'Heterogeneity (H)_mean', label: 'Heterogeneity (mean)' },
-    { value: 'Displacement_Ratio (S = D/R)_mean', label: 'Displacement ratio (mean)' }
+    { value: 'Displacement_Ratio (S = D/R)_mean', label: 'Displacement Ratio (mean)' }
 ];
 
 const POPULATION_SCORE_FIELD = 'All Populations';
@@ -978,15 +1089,15 @@ const ECONOMIC_SCORE_FIELD = 'composite_score';
 
 /** Property keys from CAD Theme 3- Socioeconomic Vulnerability__joined.geojson (cadastre). */
 const ECONOMIC_SUBINDICATOR_OPTIONS_CADASTRE = [
-    { value: 'Absolute Vulnerability', label: 'Absolute vulnerability' },
-    { value: 'Household Deprivation Score', label: 'Household deprivation score' },
+    { value: 'Absolute Vulnerability', label: 'Poverty Level' },
+    { value: 'Household Deprivation Score', label: 'Household Deprivation Score' },
     { value: 'Nighttime light radiance', label: 'Nighttime light radiance' }
 ];
 
 /** Property keys from GOV/DIS Theme 3 socioeconomic layers (updated joined/spatial files). */
 const ECONOMIC_SUBINDICATOR_OPTIONS_GOVERNORATE = [
-    { value: 'Absolute Vulnerability', label: 'Absolute vulnerability' },
-    { value: 'Household Deprivation Score', label: 'Household deprivation score' },
+    { value: 'Absolute Vulnerability', label: 'Poverty Level' },
+    { value: 'Household Deprivation Score', label: 'Household Deprivation Score' },
     { value: 'Nighttime light radiance', label: 'Nighttime light radiance' }
 ];
 
@@ -1063,14 +1174,22 @@ const SERVICE_SCORE_FIELD = 'composite_score';
 /** Property keys from DIS/GOV Theme 4 Service and Infrastructure Vulnerability. */
 const SERVICE_SUBINDICATOR_OPTIONS_DISTRICT = [
     { value: 'Service-related incidents', label: 'Service-related incidents' },
-    { value: 'Perceptions on quality of services: Water', label: 'Quality of services: Water' },
-    { value: 'Perceptions on quality of services: Electricity', label: 'Quality of services: Electricity' },
-    { value: 'Perceptions on quality of services: Waste Removal', label: 'Quality of services: Waste removal' },
-    { value: 'Worry about access to healthcare services', label: 'Worry about access to healthcare' },
+    { value: 'Perceptions on quality of services: Water', label: 'Perceptions on quality of services: Water' },
+    { value: 'Perceptions on quality of services: Electricity', label: 'Perceptions on quality of services: Electricity' },
+    { value: 'Perceptions on quality of services: Waste Removal', label: 'Perceptions on quality of services: Waste Removal' },
+    { value: 'Worry about access to healthcare services', label: 'Worry about access to healthcare services' },
     { value: 'Worry about access to safe drinking water', label: 'Worry about access to safe drinking water' },
     { value: 'Water availability and accessibility', label: 'Water availability and accessibility' },
     { value: 'Services as a tension driver', label: 'Services as a tension driver' },
-    { value: 'Solid waste pressure (displacement)', label: 'Solid waste pressure (displacement)' },
+    { value: 'Solid waste pressure (displacement)', label: 'Solid waste pressure (kg)' },
+    { value: 'Incidents around civil defence', label: 'Incidents around civil defence' },
+    { value: 'Incidents around education', label: 'Incidents around education' },
+    { value: 'Incidents around electricity', label: 'Incidents around electricity' },
+    { value: 'Incidents around generator', label: 'Incidents around generator' },
+    { value: 'Incidents around health', label: 'Incidents around health' },
+    { value: 'Quality of education', label: 'Quality of education' },
+    { value: 'Quality of healthcare services', label: 'Quality of healthcare services' },
+    // GOV joined files use lowercase keys for some indicators
     { value: 'incidents around civil defence', label: 'Incidents around civil defence' },
     { value: 'incidents around education', label: 'Incidents around education' },
     { value: 'incidents around electricity', label: 'Incidents around electricity' },
@@ -1085,7 +1204,7 @@ const SERVICE_SUBINDICATOR_OPTIONS_GOVERNORATE = SERVICE_SUBINDICATOR_OPTIONS_DI
 
 /** Property keys from NEW_ADM3_CAD Theme 4 Service and Infrastructure Stress (cadastre). */
 const SERVICE_SUBINDICATOR_OPTIONS_CADASTRE = [
-    { value: 'Service-related tension incidents', label: 'Service-related tension incidents' },
+    { value: 'Service-related tension incidents', label: 'Service-related incidents' },
     {
         value: 'Perceptions on quality of services (water, electricity, waste removal)',
         label: 'Perceptions on quality of services (water, electricity, waste removal)'
@@ -1094,11 +1213,11 @@ const SERVICE_SUBINDICATOR_OPTIONS_CADASTRE = [
     { value: 'Worry about access to safe drinking water', label: 'Worry about access to safe drinking water' },
     {
         value: 'Competition for services believed to be driving tensions',
-        label: 'Competition for services believed to be driving tensions'
+        label: 'Services as a tension driver'
     },
     {
         value: 'Additional solid waste generation following displacement',
-        label: 'Additional solid waste generation following displacement'
+        label: 'Solid waste pressure (kg)'
     }
 ];
 
@@ -1177,17 +1296,17 @@ const THEME_SUBINDICATOR_LAYER_IDS = ['svClimateLayer', 'svPoliticalLayer', 'svG
 
 /** Property keys from DIS/GOV Theme 7 Political Vulnerability (exact GeoJSON field names). */
 const POLITICAL_SUBINDICATOR_OPTIONS_DISTRICT = [
-    { value: 'Municipal elections turnout', label: 'Municipal elections turnout' },
-    { value: 'Trust in Parliament', label: 'Trust in Parliament' },
-    { value: 'Faith in politics', label: 'Faith in politics' },
-    { value: 'Trust in LAF', label: 'Trust in LAF' },
-    { value: 'Faith in elections', label: 'Faith in elections' },
-    { value: 'Trust in the court system', label: 'Trust in the court system' },
-    { value: 'Trust in security forces', label: 'Trust in security forces' },
+    { value: 'Municipal elections turnout', label: 'Abstantion municipal elections turnout' },
+    { value: 'Trust in Parliament', label: 'Distrust in Parliament' },
+    { value: 'Faith in politics', label: 'Lack of faith in politics' },
+    { value: 'Trust in LAF', label: 'Lack in trust in LAF' },
+    { value: 'Faith in elections', label: 'Lack of faith in elections' },
+    { value: 'Trust in the court system', label: 'Distrust in the court system' },
+    { value: 'Trust in security forces', label: 'Distrust in security forces' },
     { value: 'Municipal council entrenchment', label: 'Municipal council entrenchment' },
     {
         value: 'State Citizen Incidents ',
-        label: 'State Citizen Incidents'
+        label: 'Number of state Citizen Incidents'
     },
     {
         value: 'Municipal authorities effect on quality of life: worsened life somewhat + alot',
@@ -1205,6 +1324,40 @@ const POLITICAL_SUBINDICATOR_OPTIONS_DISTRICT = [
 
 const POLITICAL_SUBINDICATOR_OPTIONS_GOVERNORATE = POLITICAL_SUBINDICATOR_OPTIONS_DISTRICT;
 
+/** Display labels for Theme 8 Gender (GeoJSON field keys unchanged). */
+const GENDER_SUBINDICATOR_OPTIONS_DISTRICT = [
+    {
+        value: 'Reported incidents of gender-based violence',
+        label: 'Reported incidents of gender-based violence'
+    },
+    {
+        value: 'Service access difficulty (female)',
+        label: 'Service access difficulty (female)'
+    },
+    {
+        value: 'Safety at night (female)',
+        label: 'lack of safety at night (female)'
+    },
+    {
+        value: 'Fear of movement or travel (female)',
+        label: 'Fear of movement or travel (female)'
+    },
+    {
+        value: 'Reports of harassment or violence',
+        label: 'Reports of harassment or violence'
+    },
+    {
+        value: 'Trust in the court system',
+        label: 'Distrust in the court system (female)'
+    },
+    {
+        value: 'Female unemployment rate',
+        label: 'Unemployment rate (female)'
+    }
+];
+
+const GENDER_SUBINDICATOR_OPTIONS_GOVERNORATE = GENDER_SUBINDICATOR_OPTIONS_DISTRICT;
+
 function mergeSubindicatorOptionLists(primary, secondary) {
     const seen = new Set();
     const merged = [];
@@ -1221,6 +1374,11 @@ function getThemeSubindicatorFallbackOptions(layerId, resolution = getActiveAdmi
         return resolution === 'governorate'
             ? POLITICAL_SUBINDICATOR_OPTIONS_GOVERNORATE
             : POLITICAL_SUBINDICATOR_OPTIONS_DISTRICT;
+    }
+    if (layerId === 'svGenderLayer') {
+        return resolution === 'governorate'
+            ? GENDER_SUBINDICATOR_OPTIONS_GOVERNORATE
+            : GENDER_SUBINDICATOR_OPTIONS_DISTRICT;
     }
     return [];
 }
@@ -1296,7 +1454,8 @@ function getPeaceSubindicatorOptions(resolution = getActiveAdminResolution()) {
     const fromLayer = buildSubindicatorOptionsFromProps(
         getLayerSampleProperties('svAdmin3Layer'),
         compositeAttr,
-        PEACE_ID_FIELDS
+        PEACE_ID_FIELDS,
+        key => getPeaceFieldLabel(key)
     );
     if (fromLayer.length) return fromLayer;
     if (resolution === 'governorate') {
@@ -1371,15 +1530,21 @@ const DISPLACEMENT_EXTRA_COLORS = ['#6366f1', '#0d9488', '#d97706', '#be185d'];
 
 function getDemographicFieldLabel(fieldKey) {
     const labels = {
-        'Demographic Factor': 'Demographic factor',
-        'Demographic_Factor (DF = S*H)': 'Demographic factor',
-        'Resident Population': 'Resident population',
-        'Displaced Population': 'Displaced population',
+        'Demographic Factor': 'Demographic Shock Factor',
+        'Demographic_Factor (DF = S*H)': 'Demographic Shock Factor',
+        'Demographic_Factor (DF = S*H)_mean': 'Demographic Shock Factor (mean)',
+        'Resident Population': 'Resident Population',
+        'Displaced Population': 'Displaced Population',
         Heterogeneity: 'Heterogeneity',
-        'Displacement Ratio': 'Displacement ratio',
-        'Resident_Population (R)': 'Resident population',
-        'Displaced_Population (D)': 'Displaced population',
-        'Displacement_Ratio (S = D/R)': 'Displacement ratio'
+        'Displacement Ratio': 'Displacement Ratio',
+        'Resident_Population (R)': 'Resident Population',
+        'Displaced_Population (D)': 'Displaced Population',
+        'Displacement_Ratio (S = D/R)': 'Displacement Ratio',
+        'Heterogeneity (H)': 'Heterogeneity',
+        'Resident_Population (R)_mean': 'Resident Population (mean)',
+        'Displaced_Population (D)_mean': 'Displaced Population (mean)',
+        'Heterogeneity (H)_mean': 'Heterogeneity (mean)',
+        'Displacement_Ratio (S = D/R)_mean': 'Displacement Ratio (mean)'
     };
     return labels[fieldKey] || fieldKey;
 }
@@ -1408,12 +1573,12 @@ function getEconomicFieldLabel(fieldKey) {
         'Population dependency ratio': 'Population dependency ratio',
         'Food insecurity level (IPC)': 'Food insecurity level (IPC)',
         HDS: 'HDS',
-        'Household Deprivation Score': 'Household deprivation score',
-        'Absolute Vulnerability': 'Absolute vulnerability',
+        'Household Deprivation Score': 'Household Deprivation Score',
+        'Absolute Vulnerability': 'Poverty Level',
         'Poverty Level (Relative Vulnerability - AMAAN)':
-            'Poverty level (relative vulnerability — AMAAN)',
+            'Poverty Level',
         'Poverty Level (Internal Vulnerability - AMAAN)':
-            'Poverty level (internal vulnerability — AMAAN)',
+            'Poverty Level',
         composite_score: 'Composite score'
     };
     return labels[fieldKey] || fieldKey;
@@ -1422,12 +1587,11 @@ function getEconomicFieldLabel(fieldKey) {
 function getEconomicSubindicatorOptions(resolution = getActiveAdminResolution()) {
     const config = layerConfig.svAdmin2Layer;
     const compositeAttr = config?.svAttribute || ECONOMIC_SCORE_FIELD;
-    const labelFn = resolution === 'district' ? key => key : key => getEconomicFieldLabel(key);
     const fromLayer = buildSubindicatorOptionsFromProps(
         getLayerSampleProperties('svAdmin2Layer'),
         compositeAttr,
         ECONOMIC_ID_FIELDS,
-        labelFn
+        key => getEconomicFieldLabel(key)
     );
     if (fromLayer.length) return fromLayer;
     if (resolution === 'governorate') {
@@ -1445,15 +1609,22 @@ function getServiceFieldLabel(fieldKey) {
     const districtOpt = SERVICE_SUBINDICATOR_OPTIONS_DISTRICT.find(o => o.value === fieldKey);
     if (districtOpt) return districtOpt.label;
     const legacyLabels = {
-        'Perceptions on quality of services: Water': 'Quality of services: Water',
-        'Perceptions on quality of services: Electricity': 'Quality of services: Electricity',
-        'Perceptions on quality of services: Waste Removal': 'Quality of services: Waste removal',
-        'Perceptions on quality of services: water': 'Quality of services: Water',
-        'Perceptions on quality of services: electricity': 'Quality of services: Electricity',
-        'Perceptions on quality of services: waste removal': 'Quality of services: Waste removal',
+        'Perceptions on quality of services: Water': 'Perceptions on quality of services: Water',
+        'Perceptions on quality of services: Electricity': 'Perceptions on quality of services: Electricity',
+        'Perceptions on quality of services: Waste Removal': 'Perceptions on quality of services: Waste Removal',
+        'Perceptions on quality of services: water': 'Perceptions on quality of services: Water',
+        'Perceptions on quality of services: electricity': 'Perceptions on quality of services: Electricity',
+        'Perceptions on quality of services: waste removal': 'Perceptions on quality of services: Waste Removal',
         'Service-related incidents': 'Service-related incidents',
         'Services as a tension driver': 'Services as a tension driver',
-        'Solid waste pressure (displacement)': 'Solid waste pressure (displacement)',
+        'Solid waste pressure (displacement)': 'Solid waste pressure (kg)',
+        'Incidents around civil defence': 'Incidents around civil defence',
+        'Incidents around education': 'Incidents around education',
+        'Incidents around electricity': 'Incidents around electricity',
+        'Incidents around generator': 'Incidents around generator',
+        'Incidents around health': 'Incidents around health',
+        'Quality of education': 'Quality of education',
+        'Quality of healthcare services': 'Quality of healthcare services',
         'incidents around civil defence': 'Incidents around civil defence',
         'incidents around education': 'Incidents around education',
         'incidents around electricity': 'Incidents around electricity',
@@ -1530,8 +1701,8 @@ function getServiceSubindicatorLegendTitle(attributeKey, config) {
 
 function getDisplacementFieldLabel(fieldKey) {
     const labels = {
-        [DISPLACEMENT_RATIO_FIELD]: 'Displacement ratio',
-        [DISPLACEMENT_SCORE_FIELD]: 'Displacement pressure score',
+        [DISPLACEMENT_RATIO_FIELD]: 'Displacement Ratio',
+        [DISPLACEMENT_SCORE_FIELD]: 'Displacement Pressure Score',
         'Number of IDPs': 'Number of IDPs',
         'Number of of Palestinians': 'Number of Palestinians',
         'Number of registered Syrians': 'Number of registered Syrians',
@@ -1780,7 +1951,7 @@ function getPeaceCadastreChoroplethLegendTitle(layerId, attributeKey, config) {
         return config?.legendName || 'Layer';
     }
     const opt = getPeaceSubindicatorOptions(resolution).find(o => o.value === attributeKey);
-    return opt ? opt.label : config.legendName || 'Tension and Conflict Risk';
+    return opt ? opt.label : config.legendName || 'Tensions and Conflict Risk';
 }
 
 function getDemographicChoroplethLegendTitle(layerId, attributeKey, config) {
@@ -2110,6 +2281,9 @@ function refreshSVDisplacementSingleColorMode(map, layers, addLegendEntry) {
         if (featureLayer?.options) {
             featureLayer.options.interactive = true;
         }
+        if (typeof featureLayer?.setStyle === 'function') {
+            featureLayer.setStyle({ fill: true });
+        }
     });
 
     const updateLegendForLayer = (layerName, colorScheme, description, labels) => {
@@ -2194,6 +2368,10 @@ function clearStripePatternFill(vectorLayer) {
             fillPattern: null,
             fill: true
         });
+        const path = featureLayer._path || featureLayer.getElement?.();
+        if (path && String(path.getAttribute('fill')).startsWith('url(')) {
+            path.removeAttribute('fill');
+        }
     });
 }
 
@@ -2470,7 +2648,11 @@ async function getSourceLayerGeoJson(sourceLayerId, resolution, layers) {
     const loaded = layers.vector[sourceLayerId]?.layerData?.raw;
     if (loaded?.features?.length) return loaded;
 
-    const url = layerConfig[sourceLayerId]?.url || SV_RESOLUTION_CONFIG[resolution]?.[sourceLayerId]?.url;
+    // Prefer resolution config URL (authoritative) over layerConfig.url, which can
+    // lag if a layer was last loaded under a different file naming scheme.
+    const url =
+        SV_RESOLUTION_CONFIG[resolution]?.[sourceLayerId]?.url ||
+        layerConfig[sourceLayerId]?.url;
     if (!url) return null;
 
     const cacheKey = `${resolution}:${sourceLayerId}:${url}`;
@@ -2480,7 +2662,9 @@ async function getSourceLayerGeoJson(sourceLayerId, resolution, layers) {
 
     const response = await fetch(url);
     if (!response.ok) {
-        throw new Error(`Failed to fetch ${sourceLayerId} (${response.status})`);
+        throw new Error(
+            `Failed to fetch ${sourceLayerId} (${response.status}): ${decodeURIComponent(url)}`
+        );
     }
     const data = await response.json();
     sourceGeoJsonCache.set(cacheKey, data);
@@ -2509,6 +2693,12 @@ async function showCustomOverallLayer(geojson, map, layers, addLegendEntry, remo
     const layerId = CUSTOM_OVERALL_LAYER_ID;
     const config = layerConfig[layerId];
     if (!config || !geojson?.features?.length) return;
+
+    // AOI selection/spotlight must not leave mutated path styles or selection mode
+    // interfering with the new custom layer.
+    clearAnalysisSelection();
+    setAnalysisSelectionActive(false);
+    await forceAoiStyleRecovery();
 
     const row = document.getElementById('svCustomOverallRow');
     if (row) row.hidden = false;
@@ -2947,7 +3137,72 @@ function setupSVRadioControls(map, layers, colorScales, addLegendEntry, removeLe
     initMapDisplayControls({
         refreshActiveLayersForDisplay: () => refreshActiveSVLayersForDisplay(map, layers, addLegendEntry),
         rebuildActiveLayerStyles: () => rebuildActiveSVLayerStyles(map, layers, addLegendEntry),
-        syncLabels: () => syncMapDisplayLabels(map, layers)
+        syncLabels: () => syncMapDisplayLabels(map, layers),
+        enforceColorOnlySingleLayer: () => enforceColorOnlySingleLayer(map, layers, removeLegendEntry)
+    });
+
+    // AOI (area of interest) — core analysis feature; providers keep it sandbox-free.
+    configureAoiProviders({
+        getMap: () => map,
+        getLayers: () => layers,
+        getActiveInfoLayers: () => window.currentInfoPanel?.activeLayers?.values?.() ?? [],
+        getScoreAttribute: infoLayer => {
+            if (!infoLayer) return null;
+            if (['escalationLayer', 'roadStatusLayer', 'ttfHotspotsLayer'].includes(infoLayer.id)) {
+                return null;
+            }
+            return (
+                infoLayer.selectedAttribute ||
+                layerConfig[infoLayer.id]?.svAttribute ||
+                null
+            );
+        },
+        getLeafletLayer: infoLayer => {
+            const leafletLayer = infoLayer?.layer;
+            if (!leafletLayer) return null;
+            return (
+                leafletLayer._svDisplacementMarkerLayer ||
+                leafletLayer._svChoroplethFillLayer ||
+                leafletLayer._svAdminOutlineLayer ||
+                leafletLayer
+            );
+        },
+        getColorSpec: (infoLayer, leafletLayer) => {
+            const root = infoLayer?.layer;
+            return (
+                root?.layerData?.colorSpec ||
+                root?._svChoroplethFillLayer?.layerData?.colorSpec ||
+                root?._svAdminOutlineLayer?.layerData?.colorSpec ||
+                leafletLayer?.layerData?.colorSpec ||
+                null
+            );
+        },
+        getPillarBreakdown: properties => getSVPillarBreakdown(properties, layers),
+        isOverallLayer: layerId =>
+            layerId === SV_OVERALL_LAYER_ID || layerId === CUSTOM_OVERALL_LAYER_ID,
+        getActiveResolution: () => getActiveAdminResolution()
+    });
+    configureInfoPopupEnrichment(async properties => {
+        const [themes, population] = await Promise.all([
+            getSVThemeScoresForFeature(properties, layers),
+            resolvePopulationDetailsForProperties(properties, getActiveAdminResolution())
+        ]);
+        return {
+            themes: themes?.themes || [],
+            arabicName: themes?.arabicName || getArabicNameFromProperties(properties),
+            population
+        };
+    });
+    configureAoiSpotlight({
+        restyleActiveLayers: async () => {
+            for (const layerId of Array.from(activeSVLayers)) {
+                const layer = layers.vector[layerId];
+                if (layer?.layerData) {
+                    layer.layerData._styleSignature = null;
+                }
+                await refreshSVLayerForDisplay(layerId, map, layers, addLegendEntry);
+            }
+        }
     });
 }
 
@@ -3386,6 +3641,35 @@ async function loadSVLayer(layerId, map, layers, colorScales, addLegendEntry, re
         if (expectedVersion !== svResolutionVersion) return;
         const toggle = document.getElementById(layerId);
         if (toggle && !toggle.checked) return;
+        activeSVLayers.add(layerId);
+        currentSVLayer = layerId;
+        if (isColorOnlyMode()) {
+            // In color-only mode, add the base layer to the map (refreshSVLayerForDisplay
+            // will swap it out for the appropriate color-only representation), then skip
+            // the normal circle/stripe/marker rendering entirely.
+            if (map.hasLayer(layers.vector[layerId])) map.removeLayer(layers.vector[layerId]);
+            layers.vector[layerId].addTo(map);
+            if (config.renderMode === 'proportional-circles' && layers.vector[layerId]?._svAdminOutlineLayer) {
+                layers.vector[layerId]._svAdminOutlineLayer.addTo(map);
+            }
+            keepRoadLayerOnTop(layers);
+            if (config.renderMode === 'proportional-circles') {
+                if (layerId === 'svAdmin1Layer') {
+                    populateDisplacementSubindicatorSelect();
+                }
+            } else if (config.renderMode === 'service-symbol') {
+                populateServiceSubindicatorSelect();
+            } else if (config.renderMode === 'stripe-pattern' || config.renderMode === 'service-pattern') {
+                if (layerId === 'svAdmin2Layer') {
+                    populateEconomicSubindicatorSelect();
+                }
+            }
+            if (typeof window.syncSVSubindicatorPanelsVisibility === 'function') {
+                window.syncSVSubindicatorPanelsVisibility();
+            }
+            refreshSVSubindicatorPanelAfterLoad(layerId);
+            await refreshSVLayerForDisplay(layerId, map, layers, addLegendEntry);
+        } else {
         if (map.hasLayer(layers.vector[layerId])) map.removeLayer(layers.vector[layerId]);
         
         layers.vector[layerId].addTo(map);
@@ -3496,11 +3780,7 @@ async function loadSVLayer(layerId, map, layers, colorScales, addLegendEntry, re
         }
         updateSVHoverTooltips(layers.vector[layerId], layerId, config);
         refreshSVSubindicatorPanelAfterLoad(layerId);
-
-        if (isColorOnlyMode()) {
-            await refreshSVLayerForDisplay(layerId, map, layers, addLegendEntry);
-        } else {
-            syncSVPermanentScoreLabels(map, layers);
+        syncSVPermanentScoreLabels(map, layers);
         }
         
     } catch (error) {
@@ -3543,6 +3823,7 @@ const SV_DISPLACEMENT_OPACITY_ZOOM_MAX = 14;
 const SV_DISPLACEMENT_MARKER_COLOR_LIGHT = '#fef08a';
 const SV_DISPLACEMENT_MARKER_COLOR_DARK = '#c2410c';
 const SV_DISPLACEMENT_LEGEND_RADIUS_LOW = 7;
+const SV_DISPLACEMENT_LEGEND_RADIUS_MEDIUM = 8.5;
 const SV_DISPLACEMENT_LEGEND_RADIUS_HIGH = 10;
 
 function getSVDisplacementCircleFillOpacity(map) {
@@ -3754,7 +4035,7 @@ async function loadSVServiceSymbolLayer(config) {
     const numericValues = pointFeatures
         .map(feature => Number(feature.properties?.[config.svAttribute]))
         .filter(value => Number.isFinite(value));
-    const breaks = resolveClassificationBreaks(numericValues, SOCIO_STRIPE_CLASS_COUNT, getClassificationMode());
+    const breaks = resolveClassificationBreaks(numericValues, SERVICE_SYMBOL_CLASS_COUNT, getClassificationMode());
     const symbolColors = config.serviceSymbolColors || ['#22c55e', '#f59e0b', '#dc2626'];
     const resolution = getActiveAdminResolution();
     const markerSize = getSVServiceMarkerSize(null, resolution);
@@ -3999,7 +4280,7 @@ function refreshSVServiceSymbolLayer(map, layers, addLegendEntry, options = {}) 
     const numericValues = pointFeatures
         .map(feature => Number(feature.properties?.[attr]))
         .filter(value => Number.isFinite(value));
-    const breaks = resolveClassificationBreaks(numericValues, SOCIO_STRIPE_CLASS_COUNT, getClassificationMode());
+    const breaks = resolveClassificationBreaks(numericValues, SERVICE_SYMBOL_CLASS_COUNT, getClassificationMode());
     const symbolColors = options.singleColorMode
         ? SV_SANDBOX_SERVICE_SYMBOL_COLORS
         : (config.serviceSymbolColors || ['#22c55e', '#f59e0b', '#dc2626']);
@@ -4292,6 +4573,16 @@ function refreshSVDisplacementCircles(layerId, layers, config, map) {
                 fillOpacity
             },
             {
+                label: 'Medium intensity',
+                radius: SV_DISPLACEMENT_LEGEND_RADIUS_MEDIUM,
+                color: lerpHexColor(
+                    SV_DISPLACEMENT_MARKER_COLOR_LIGHT,
+                    SV_DISPLACEMENT_MARKER_COLOR_DARK,
+                    0.5
+                ),
+                fillOpacity
+            },
+            {
                 label: 'Higher intensity',
                 radius: SV_DISPLACEMENT_LEGEND_RADIUS_HIGH,
                 color: SV_DISPLACEMENT_MARKER_COLOR_DARK,
@@ -4455,8 +4746,10 @@ function setupSVColorRampSelector(map, layers, addLegendEntry, updateLegend) {
     });
 }
 
-/** Number of intensity classes for socio-economic stripe fill (tertiles → 3 classes, 4 breakpoints). */
-const SOCIO_STRIPE_CLASS_COUNT = 3;
+/** Number of intensity classes for socio-economic stripe/pattern fill (quintiles → 5 classes, 6 breakpoints). */
+const SOCIO_STRIPE_CLASS_COUNT = 5;
+/** Service-symbol and sectarian-glyph layers keep 3 classes (matching their 3-color symbol scheme). */
+const SERVICE_SYMBOL_CLASS_COUNT = 3;
 
 function formatSocioIntensityValue(v) {
     if (!Number.isFinite(v)) return '—';
@@ -4486,27 +4779,44 @@ function getPatternClassIndex(value, breaks) {
 function socioStripeSwatchInlineStyle(specIndex, patternColor) {
     const spec = SOCIO_STRIPE_CLASS_SPECS[specIndex];
     if (!spec) return '';
+    const c = spec.color || patternColor;
+
+    if (spec.type === 'dot') {
+        const r = spec.dotRadius || 1.6;
+        const sp = spec.dotSpacing || 12;
+        const d = r * 2;
+        return `background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='${sp}' height='${sp}'%3E%3Ccircle cx='${sp / 2}' cy='${sp / 2}' r='${r}' fill='${encodeURIComponent(c)}'/%3E%3C/svg%3E") repeat #eef2f7;background-size:${sp}px ${sp}px;`;
+    }
+    if (spec.type === 'crosshatch') {
+        const w = spec.weight || 1.4;
+        const sp = Math.round((spec.spaceWeight || 3.5) + w + 1);
+        return `background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='${sp}' height='${sp}'%3E%3Cline x1='0' y1='0' x2='${sp}' y2='${sp}' stroke='${encodeURIComponent(c)}' stroke-width='${w}'/%3E%3Cline x1='${sp}' y1='0' x2='0' y2='${sp}' stroke='${encodeURIComponent(c)}' stroke-width='${w}'/%3E%3C/svg%3E") repeat #eef2f7;background-size:${sp}px ${sp}px;`;
+    }
+
     const gapPx = Math.max(2, Math.min(18, Math.round(spec.spaceWeight * 0.45)));
     const barPx = Math.max(1, Math.min(4, Math.round(spec.weight * 1.2)));
     const period = barPx + gapPx;
-    const stripeColor = spec.color || patternColor;
-    return `background:repeating-linear-gradient(${spec.angle}deg, ${stripeColor} 0, ${stripeColor} ${barPx}px, #eef2f7 ${barPx}px, #eef2f7 ${period}px);`;
+    return `background:repeating-linear-gradient(${spec.angle}deg, ${c} 0, ${c} ${barPx}px, #eef2f7 ${barPx}px, #eef2f7 ${period}px);`;
 }
 
 function buildSocioStripeLegendItems(breaks, patternColor, invert = false) {
-    if (!breaks || breaks.length < 4) {
-        return [
-            { label: 'Low intensity', color: patternColor, swatchStyle: socioStripeSwatchInlineStyle(invert ? 2 : 0, patternColor) },
-            { label: 'Medium intensity', color: patternColor, swatchStyle: socioStripeSwatchInlineStyle(1, patternColor) },
-            { label: 'High intensity', color: patternColor, swatchStyle: socioStripeSwatchInlineStyle(invert ? 0 : 2, patternColor) }
-        ];
+    const terms5 = ['Very low', 'Low', 'Medium', 'High', 'Very high'];
+    const terms3 = ['Low', 'Medium', 'High'];
+    const n = SOCIO_STRIPE_CLASS_COUNT;
+    const terms = n >= 5 ? terms5 : terms3;
+
+    if (!breaks || breaks.length < n + 1) {
+        return terms.map((label, idx) => ({
+            label: `${label} intensity`,
+            color: patternColor,
+            swatchStyle: socioStripeSwatchInlineStyle(invert ? (n - 1 - idx) : idx, patternColor)
+        }));
     }
-    const terms = ['Low', 'Medium', 'High'];
     const rangeLabels = formatClassLegendRanges(breaks);
     return rangeLabels.map((range, idx) => ({
         label: `${terms[idx] || 'Class'} (${range})`,
         color: patternColor,
-        swatchStyle: socioStripeSwatchInlineStyle(invert ? (SOCIO_STRIPE_CLASS_COUNT - 1 - idx) : idx, patternColor)
+        swatchStyle: socioStripeSwatchInlineStyle(invert ? (n - 1 - idx) : idx, patternColor)
     }));
 }
 
@@ -4516,9 +4826,11 @@ function buildSocioStripeLegendItems(breaks, patternColor, invert = false) {
  * so stripe + gap fit inside the pattern and density differences are visible.
  */
 const SOCIO_STRIPE_CLASS_SPECS = [
-    { angle: 28, weight: 1.4, spaceWeight: 9, patternOpacity: 1.0, fillOpacity: 1.0, color: '#9ca3af' },
-    { angle: 48, weight: 1.4, spaceWeight: 3.5, patternOpacity: 1.0, fillOpacity: 1.0, color: '#4b5563' },
-    { angle: 90, weight: 1.4, spaceWeight: 0.2, patternOpacity: 1.0, fillOpacity: 1.0, color: '#111827' }
+    { type: 'dot', dotRadius: 1.6, dotSpacing: 12, patternOpacity: 1.0, fillOpacity: 1.0, color: '#9ca3af' },
+    { angle: 45,  weight: 1.2, spaceWeight: 8,   patternOpacity: 1.0, fillOpacity: 1.0, color: '#7b8794' },
+    { angle: 45,  weight: 1.6, spaceWeight: 4,   patternOpacity: 1.0, fillOpacity: 1.0, color: '#4b5563' },
+    { angle: 135, weight: 2.0, spaceWeight: 2.5, patternOpacity: 1.0, fillOpacity: 1.0, color: '#2d3748' },
+    { type: 'crosshatch', angle: 45, weight: 1.4, spaceWeight: 3.5, patternOpacity: 1.0, fillOpacity: 1.0, color: '#111827' }
 ];
 
 // Distinct pattern geometry for Service Stress (separate from socio-economic stripes).
@@ -4534,12 +4846,67 @@ function getSVPatternZoomScale(map) {
     return Math.max(0.7, Math.min(2.6, Math.pow(2, (zoom - 10) * 0.2)));
 }
 
+function createSVGPattern(map, svgContent, width, height) {
+    const svgNs = 'http://www.w3.org/2000/svg';
+    const defs = map._renderer?._container?.querySelector('defs')
+        || map.getPane('overlayPane')?.querySelector('svg defs');
+    const patternId = 'sv-pat-' + (++createSVGPattern._counter);
+    const patternEl = document.createElementNS(svgNs, 'pattern');
+    patternEl.setAttribute('id', patternId);
+    patternEl.setAttribute('patternUnits', 'userSpaceOnUse');
+    patternEl.setAttribute('width', width);
+    patternEl.setAttribute('height', height);
+    patternEl.innerHTML = svgContent;
+
+    let svgEl;
+    if (defs) {
+        svgEl = defs.closest('svg');
+        defs.appendChild(patternEl);
+    } else {
+        svgEl = document.createElementNS(svgNs, 'svg');
+        svgEl.setAttribute('width', '0');
+        svgEl.setAttribute('height', '0');
+        svgEl.style.position = 'absolute';
+        const d = document.createElementNS(svgNs, 'defs');
+        d.appendChild(patternEl);
+        svgEl.appendChild(d);
+        document.body.appendChild(svgEl);
+    }
+
+    return {
+        patternId,
+        addTo() { return this; },
+        remove() { try { patternEl.remove(); if (svgEl && !defs) svgEl.remove(); } catch (_) {} }
+    };
+}
+createSVGPattern._counter = 0;
+
 function createStripePatterns(map, patternColor, opacity, specs = SOCIO_STRIPE_CLASS_SPECS) {
     const StripePatternCtor = L.StripePattern || L?.pattern?.StripePattern;
     const zoomScale = getSVPatternZoomScale(map);
     const constantStripeThickness = 1.4;
 
     return specs.map(spec => {
+        if (spec.type === 'dot') {
+            const r = spec.dotRadius || 1.6;
+            const sp = Math.max(4, (spec.dotSpacing || 12) / zoomScale);
+            const c = spec.color || patternColor;
+            const svg = `<circle cx="${sp / 2}" cy="${sp / 2}" r="${r}" fill="${c}"/>`;
+            const pat = createSVGPattern(map, svg, sp, sp);
+            return pat;
+        }
+
+        if (spec.type === 'crosshatch') {
+            const w = spec.weight || 1.4;
+            const gap = Math.max(0.5, (spec.spaceWeight || 3.5) / zoomScale);
+            const size = Math.max(8, Math.ceil(w + gap + 1));
+            const c = spec.color || patternColor;
+            const svg = `<line x1="0" y1="0" x2="${size}" y2="${size}" stroke="${c}" stroke-width="${w}"/>`
+                + `<line x1="${size}" y1="0" x2="0" y2="${size}" stroke="${c}" stroke-width="${w}"/>`;
+            const pat = createSVGPattern(map, svg, size, size);
+            return pat;
+        }
+
         const isHighDensityClass = spec.spaceWeight <= 0.5;
         const stripeThickness = constantStripeThickness;
         const minGap = isHighDensityClass ? 0.05 : 0.2;
@@ -4627,8 +4994,9 @@ function applySVStripePatternStyle(layerId, layer, config, opacity, map, addLege
             if (Number.isFinite(value)) values.push(value);
         });
 
-        const breaks = resolveClassificationBreaks(values, SOCIO_STRIPE_CLASS_COUNT, classMode);
         const isServicePattern = config.renderMode === 'service-pattern';
+        const classCount = isServicePattern ? SERVICE_SYMBOL_CLASS_COUNT : SOCIO_STRIPE_CLASS_COUNT;
+        const breaks = resolveClassificationBreaks(values, classCount, classMode);
         const patternSpecs = isServicePattern ? SERVICE_PATTERN_CLASS_SPECS : SOCIO_STRIPE_CLASS_SPECS;
         const patterns = createStripePatterns(targetMap, config.patternColor || '#2b83ba', opacity, patternSpecs);
         cache = {
@@ -4667,12 +5035,24 @@ function applySVStripePatternStyle(layerId, layer, config, opacity, map, addLege
             stripeAttr
         );
         const pattern = cache.patterns[classIndex] || cache.patterns[cache.patterns.length - 1];
-        featureLayer.setStyle({
-            ...outlineStyle,
-            fillColor: 'transparent',
-            fillPattern: pattern,
-            fillOpacity: 1
-        });
+        if (pattern?.patternId) {
+            featureLayer.setStyle({
+                ...outlineStyle,
+                fillColor: `url(#${pattern.patternId})`,
+                fillPattern: null,
+                fillOpacity: 1,
+                fill: true
+            });
+            const path = featureLayer._path || featureLayer.getElement?.();
+            if (path) path.setAttribute('fill', `url(#${pattern.patternId})`);
+        } else {
+            featureLayer.setStyle({
+                ...outlineStyle,
+                fillColor: 'transparent',
+                fillPattern: pattern,
+                fillOpacity: 1
+            });
+        }
     });
 
     const pushLegend = addLegendEntry || window.addLegendEntry;
@@ -5809,7 +6189,7 @@ function getLayerDisplayName(layerId, config) {
         'svCustomOverallLayer': 'Custom Overall Index',
         'svAdmin1Layer': 'Displacement Pressure',
         'svAdmin2Layer': 'Socioeconomic Vulnerability',
-        'svAdmin3Layer': 'Tension and Conflict Risk',
+        'svAdmin3Layer': 'Tensions and Conflict Risk',
         'svAdmin4Layer': 'Service & Infrastructure Vulnerability',
         'svAdmin5Layer': 'Demographic Tension / Stress',
         'svClimateLayer': 'Climate and Environmental Risk',
@@ -5987,16 +6367,24 @@ function clearPolygonSelection(layerId, layers) {
 function getSelectedFeatureName(properties) {
     if (!properties) return 'Selected polygon';
 
+    // Prefer English admin names for the active resolution; Arabic adm*_name1 is fallback only.
+    const resolution = getActiveAdminResolution();
+    const byResolution = {
+        cadastre: [
+            'adm3_name', 'ADM3_NAME', 'ADM3_Name', 'adm3_name1',
+            'adm2_name', 'ADM2_NAME', 'adm1_name', 'ADM1_NAME'
+        ],
+        district: [
+            'adm2_name', 'ADM2_NAME', 'ADM2_Name', 'adm2_name1',
+            'adm1_name', 'ADM1_NAME', 'adm3_name', 'ADM3_NAME'
+        ],
+        governorate: [
+            'adm1_name', 'ADM1_NAME', 'ADM1_Name', 'adm1_name1',
+            'adm2_name', 'ADM2_NAME', 'adm3_name', 'ADM3_NAME'
+        ]
+    };
     const nameFields = [
-        'ADM1_NAME',
-        'adm1_name',
-        'adm1_name1',
-        'ADM3_NAME',
-        'adm3_name',
-        'adm3_name1',
-        'ADM2_NAME',
-        'adm2_name',
-        'adm2_name1',
+        ...(byResolution[resolution] || byResolution.district),
         'Districts',
         'NAME_2',
         'District',
@@ -6008,8 +6396,9 @@ function getSelectedFeatureName(properties) {
         'NAME'
     ];
     for (const field of nameFields) {
-        if (properties[field]) {
-            return String(properties[field]).trim();
+        const value = properties[field];
+        if (value !== undefined && value !== null && String(value).trim() !== '') {
+            return String(value).trim();
         }
     }
     return 'Selected polygon';
@@ -6411,8 +6800,8 @@ function getSelectionAttributeLabel(layerId, config, attributeName) {
     if (layerId === 'svAdmin1Layer') {
         const opt = getDisplacementSubindicatorOptions().find(o => o.value === attributeName);
         if (opt) return opt.label;
-        if (attributeName === DISPLACEMENT_RATIO_FIELD) return 'Displacement ratio';
-        if (attributeName === DISPLACEMENT_SCORE_FIELD) return 'Displacement pressure score';
+        if (attributeName === DISPLACEMENT_RATIO_FIELD) return 'Displacement Ratio';
+        if (attributeName === DISPLACEMENT_SCORE_FIELD) return 'Displacement Pressure Score';
     }
     if (layerId === 'populationLayer') {
         const opt = getPopulationSubindicatorOptions().find(o => o.value === attributeName);
@@ -6440,7 +6829,12 @@ function getSelectionAttributeLabel(layerId, config, attributeName) {
 function getFeatureLookupKey(properties) {
     if (!properties) return null;
 
-    const candidateFields = ['ADM1_NAME', 'adm1_name', 'ADM3_NAME', 'adm3_name', 'ADM2_NAME', 'adm2_name', 'NAME_2', 'NAME_1', 'NAME_3', 'name', 'Name'];
+    const candidateFields = [
+        'adm3_name', 'ADM3_NAME',
+        'adm2_name', 'ADM2_NAME',
+        'adm1_name', 'ADM1_NAME',
+        'NAME_3', 'NAME_2', 'NAME_1', 'name', 'Name'
+    ];
     for (const field of candidateFields) {
         if (properties[field] !== undefined && properties[field] !== null) {
             const normalized = String(properties[field]).trim().toLowerCase();
@@ -6457,7 +6851,7 @@ async function getSVLayerLookup(layerId, layers) {
     }
 
     const config = layerConfig[layerId];
-    if (!config) return null;
+    if (!config?.url) return null;
 
     let sourceFeatures = [];
     const loadedLayer = layers?.vector?.[layerId];
@@ -6484,6 +6878,62 @@ async function getSVLayerLookup(layerId, layers) {
 
     svPillarLookupCache.set(layerId, lookup);
     return lookup;
+}
+
+function getArabicNameFromProperties(properties) {
+    if (!properties) return null;
+    for (const field of ARABIC_NAME_FIELDS) {
+        const value = properties[field];
+        if (value !== undefined && value !== null && String(value).trim() !== '') {
+            return String(value).trim();
+        }
+    }
+    return null;
+}
+
+async function getSVThemeScoresForFeature(properties, layers) {
+    const featureKey = getFeatureLookupKey(properties);
+    if (!featureKey) {
+        return {
+            themes: [],
+            arabicName: getArabicNameFromProperties(properties)
+        };
+    }
+
+    const resolution = getActiveAdminResolution();
+    const themes = [];
+    let arabicName = getArabicNameFromProperties(properties);
+
+    for (const theme of SV_THEME_SCORE_DEFINITIONS) {
+        const resolutionLayer = SV_RESOLUTION_CONFIG[resolution]?.[theme.layerId];
+        if (!resolutionLayer?.available || !resolutionLayer?.url) {
+            continue;
+        }
+
+        const lookup = await getSVLayerLookup(theme.layerId, layers);
+        const matchedProps = lookup?.get(featureKey);
+        if (!matchedProps) continue;
+
+        if (!arabicName) {
+            arabicName = getArabicNameFromProperties(matchedProps);
+        }
+
+        const pillarConfig = layerConfig[theme.layerId];
+        const attributeKey = pillarConfig?.svAttribute || 'composite_score';
+        const rawValue = matchedProps[attributeKey];
+        const value = typeof rawValue === 'number' ? rawValue : Number(rawValue);
+        if (!Number.isFinite(value)) continue;
+
+        themes.push({
+            layerId: theme.layerId,
+            label: theme.label,
+            color: theme.color,
+            value,
+            attribute: attributeKey
+        });
+    }
+
+    return { themes, arabicName };
 }
 
 async function getSVPillarBreakdown(properties, layers) {

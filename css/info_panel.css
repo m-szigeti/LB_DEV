@@ -355,12 +355,27 @@
 }
 
 .layer-inputs-list li {
-    margin: 3px 0;
+    margin: 8px 0;
     line-height: 1.4;
 }
 
 .layer-inputs-list ul ul {
     margin-top: 6px;
+}
+
+.layer-indicator-definitions li strong {
+    display: block;
+    color: #1f2937;
+    font-size: 13px;
+    margin-bottom: 2px;
+}
+
+.layer-indicator-definition {
+    margin: 0;
+    font-size: 12px;
+    color: #6b7280;
+    line-height: 1.45;
+    font-weight: 400;
 }
 
 .layer-inputs-nested-intro {
@@ -753,8 +768,228 @@
     white-space: nowrap;
 }
 
+.analysis-selection-chip-more {
+    background: #f1f5f9;
+    color: #475569;
+    border-color: #cbd5e1;
+}
+
 .analysis-area-charts {
     margin-bottom: 16px;
+}
+
+/* —— AOI summary (core Analysis feature; sandbox-independent) —— */
+.aoi-panel,
+.aoi-empty {
+    margin-top: 4px;
+}
+
+.aoi-header {
+    margin-bottom: 12px;
+}
+
+.aoi-title {
+    margin: 0 0 4px;
+    font-size: 14px;
+    font-weight: 700;
+    color: #212529;
+}
+
+.aoi-layer-block {
+    margin-bottom: 16px;
+    padding: 12px;
+    background: #fff;
+    border: 1px solid #e9ecef;
+    border-radius: 6px;
+}
+
+.aoi-layer-title {
+    margin: 0 0 2px;
+    font-size: 13px;
+    font-weight: 700;
+    color: #1e293b;
+}
+
+.aoi-layer-attribute {
+    margin: 0 0 10px;
+    font-size: 12px;
+    color: #64748b;
+}
+
+.aoi-metric-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.aoi-metric-card {
+    padding: 8px 10px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+}
+
+.aoi-metric-label {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    color: #64748b;
+    margin-bottom: 4px;
+}
+
+.aoi-metric-value {
+    font-size: 15px;
+    font-weight: 700;
+    color: #0f172a;
+    line-height: 1.2;
+}
+
+.aoi-metric-note {
+    margin-top: 2px;
+    font-size: 10px;
+    color: #94a3b8;
+}
+
+.aoi-section {
+    margin-top: 10px;
+}
+
+.aoi-section-title {
+    font-size: 11px;
+    font-weight: 700;
+    color: #475569;
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+}
+
+.aoi-class-row {
+    display: grid;
+    grid-template-columns: 64px 1fr 72px;
+    gap: 6px;
+    align-items: center;
+    margin-bottom: 4px;
+    font-size: 11px;
+}
+
+.aoi-class-label {
+    color: #334155;
+    font-weight: 600;
+}
+
+.aoi-class-bar-track {
+    height: 8px;
+    background: #e2e8f0;
+    border-radius: 999px;
+    overflow: hidden;
+}
+
+.aoi-class-bar-fill {
+    height: 100%;
+    background: #7c3aed;
+    border-radius: 999px;
+}
+
+.aoi-pillar-fill {
+    background: #64748b;
+}
+
+.aoi-class-count {
+    text-align: right;
+    color: #64748b;
+    font-variant-numeric: tabular-nums;
+}
+
+.aoi-extremes {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+
+.aoi-extremes-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.aoi-extremes-list li {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    font-size: 11px;
+    padding: 3px 0;
+    border-bottom: 1px solid #f1f5f9;
+    color: #334155;
+}
+
+.aoi-footnote {
+    margin: 8px 0 0;
+    font-size: 11px;
+    color: #94a3b8;
+    line-height: 1.35;
+}
+
+.aoi-export-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 8px 0 4px;
+}
+
+.aoi-export-btn {
+    border: 1px solid #c4b5fd;
+    background: #ede9fe;
+    color: #5b21b6;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 5px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.aoi-export-btn:hover:not(:disabled) {
+    background: #ddd6fe;
+}
+
+.aoi-export-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.aoi-export-btn-muted {
+    background: #f8fafc;
+    border-color: #cbd5e1;
+    color: #475569;
+}
+
+.aoi-district-tools {
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px solid #e2e8f0;
+}
+
+.aoi-district-label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: #334155;
+    margin-bottom: 6px;
+}
+
+.aoi-district-row {
+    display: flex;
+    gap: 6px;
+}
+
+.aoi-district-select {
+    flex: 1;
+    font-size: 12px;
+    padding: 5px 8px;
+    border: 1px solid #cbd5e1;
+    border-radius: 4px;
+    background: #fff;
 }
 
 .analysis-area-unit-list {

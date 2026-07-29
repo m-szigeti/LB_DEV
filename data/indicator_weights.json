@@ -52,7 +52,7 @@
       "indicators": [
         {
           "field": "Absolute Vulnerability",
-          "label": "Absolute Vulnerability",
+          "label": "Poverty Level",
           "defaultWeight": 0.352,
           "inverted": false
         },
@@ -108,7 +108,7 @@
         },
         {
           "field": "Solid waste pressure (displacement)",
-          "label": "Solid waste pressure (displacement)",
+          "label": "Solid waste pressure (kg)",
           "defaultWeight": 0.05421,
           "inverted": false
         },
@@ -182,7 +182,7 @@
     },
     "6": {
       "layerId": "svClimateLayer",
-      "themeName": "Climate Change and Environmental Risk",
+      "themeName": "Climate and Environmental Risk",
       "compositeField": "composite_score",
       "mode": "theme-subindicators",
       "indicators": [
@@ -214,13 +214,13 @@
       "indicators": [
         {
           "field": "Faith in elections",
-          "label": "Faith in elections",
+          "label": "Lack of faith in elections",
           "defaultWeight": 0.072088,
           "inverted": false
         },
         {
           "field": "Faith in politics",
-          "label": "Faith in politics",
+          "label": "Lack of faith in politics",
           "defaultWeight": 0.079963,
           "inverted": false
         },
@@ -250,37 +250,37 @@
         },
         {
           "field": "Municipal elections turnout",
-          "label": "Municipal elections turnout",
+          "label": "Abstantion municipal elections turnout",
           "defaultWeight": 0.067924,
           "inverted": false
         },
         {
           "field": "State Citizen Incidents ",
-          "label": "State Citizen Incidents",
+          "label": "Number of state Citizen Incidents",
           "defaultWeight": 0.047006,
           "inverted": false
         },
         {
           "field": "Trust in LAF",
-          "label": "Trust in LAF",
+          "label": "Lack in trust in LAF",
           "defaultWeight": 0.048372,
           "inverted": false
         },
         {
           "field": "Trust in Parliament",
-          "label": "Trust in Parliament",
+          "label": "Distrust in Parliament",
           "defaultWeight": 0.102277,
           "inverted": false
         },
         {
           "field": "Trust in security forces",
-          "label": "Trust in security forces",
+          "label": "Distrust in security forces",
           "defaultWeight": 0.102189,
           "inverted": false
         },
         {
           "field": "Trust in the court system",
-          "label": "Trust in the court system",
+          "label": "Distrust in the court system",
           "defaultWeight": 0.105028,
           "inverted": false
         }
@@ -300,7 +300,7 @@
         },
         {
           "field": "Female unemployment rate",
-          "label": "Female unemployment rate",
+          "label": "Unemployment rate (female)",
           "defaultWeight": 0.098971,
           "inverted": false
         },
@@ -318,7 +318,7 @@
         },
         {
           "field": "Safety at night (female)",
-          "label": "Safety at night (female)",
+          "label": "lack of safety at night (female)",
           "defaultWeight": 0.189649,
           "inverted": false
         },
@@ -330,7 +330,7 @@
         },
         {
           "field": "Trust in the court system",
-          "label": "Trust in the court system",
+          "label": "Distrust in the court system (female)",
           "defaultWeight": 0.095657,
           "inverted": false
         }
@@ -475,7 +475,7 @@
       "indicators": [
         {
           "field": "Absolute Vulnerability",
-          "label": "Absolute Vulnerability",
+          "label": "Poverty Level",
           "defaultWeight": 0.446423,
           "inverted": false
         },
@@ -531,7 +531,7 @@
         },
         {
           "field": "Solid waste pressure (displacement)",
-          "label": "Solid waste pressure (displacement)",
+          "label": "Solid waste pressure (kg)",
           "defaultWeight": 0.130769,
           "inverted": false
         },
@@ -589,13 +589,13 @@
       "indicators": [
         {
           "field": "Faith in elections ",
-          "label": "Faith in elections",
+          "label": "Lack of faith in elections",
           "defaultWeight": 0.074562,
           "inverted": false
         },
         {
           "field": "Faith in politics",
-          "label": "Faith in politics",
+          "label": "Lack of faith in politics",
           "defaultWeight": 0.126381,
           "inverted": false
         },
@@ -607,37 +607,37 @@
         },
         {
           "field": "Municipal elections turnout",
-          "label": "Municipal elections turnout",
+          "label": "Abstantion municipal elections turnout",
           "defaultWeight": 0.130306,
           "inverted": false
         },
         {
           "field": "State Citizen Incidents ",
-          "label": "State Citizen Incidents",
+          "label": "Number of state Citizen Incidents",
           "defaultWeight": 0.086262,
           "inverted": false
         },
         {
           "field": "Trust in LAF",
-          "label": "Trust in LAF",
+          "label": "Lack in trust in LAF",
           "defaultWeight": 0.106364,
           "inverted": false
         },
         {
           "field": "Trust in Parliament",
-          "label": "Trust in Parliament",
+          "label": "Distrust in Parliament",
           "defaultWeight": 0.126199,
           "inverted": false
         },
         {
           "field": "Trust in security forces",
-          "label": "Trust in security forces",
+          "label": "Distrust in security forces",
           "defaultWeight": 0.145672,
           "inverted": false
         },
         {
           "field": "Trust in the court system",
-          "label": "Trust in the court system",
+          "label": "Distrust in the court system",
           "defaultWeight": 0.138175,
           "inverted": false
         }
@@ -657,7 +657,7 @@
         },
         {
           "field": "Female unemployment rate",
-          "label": "Female unemployment rate",
+          "label": "Unemployment rate (female)",
           "defaultWeight": 0.105853,
           "inverted": false
         },
@@ -675,7 +675,7 @@
         },
         {
           "field": "Safety at night (female)",
-          "label": "Safety at night (female)",
+          "label": "lack of safety at night (female)",
           "defaultWeight": 0.107168,
           "inverted": false
         },
@@ -687,7 +687,7 @@
         },
         {
           "field": "Trust in the court system",
-          "label": "Trust in the court system",
+          "label": "Distrust in the court system (female)",
           "defaultWeight": 0.188925,
           "inverted": false
         }
@@ -826,13 +826,13 @@
     },
     "3": {
       "layerId": "svAdmin2Layer",
-      "themeName": "Socioeconomic Vulnerability v2",
+      "themeName": "Socioeconomic Vulnerability",
       "compositeField": "composite_score",
       "mode": "theme-subindicators",
       "indicators": [
         {
           "field": "Absolute Vulnerability",
-          "label": "Absolute Vulnerability",
+          "label": "Poverty Level",
           "defaultWeight": 0.389431,
           "inverted": false
         },
@@ -852,7 +852,7 @@
     },
     "6": {
       "layerId": "svClimateLayer",
-      "themeName": "Climate Change and Environmental Risk",
+      "themeName": "Climate and Environmental Risk",
       "compositeField": "composite_score",
       "mode": "theme-subindicators",
       "indicators": [

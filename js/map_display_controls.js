@@ -28,7 +28,8 @@ const state = {
     /** @type {null | {
      *   refreshActiveLayersForDisplay: () => void | Promise<void>,
      *   rebuildActiveLayerStyles: () => void | Promise<void>,
-     *   syncLabels: () => void | Promise<void>
+     *   syncLabels: () => void | Promise<void>,
+     *   enforceColorOnlySingleLayer?: () => void
      * }} */
     context: null
 };
@@ -52,6 +53,9 @@ export function getClassificationModeLabel(mode = getClassificationMode()) {
 export function setColorOnlyMode(enabled) {
     state.colorOnly = Boolean(enabled);
     syncTrayButtons();
+    if (state.colorOnly && typeof state.context?.enforceColorOnlySingleLayer === 'function') {
+        state.context.enforceColorOnlySingleLayer();
+    }
     return state.context?.refreshActiveLayersForDisplay?.();
 }
 
@@ -103,7 +107,8 @@ function syncTrayButtons() {
  * @param {{
  *   refreshActiveLayersForDisplay: () => void | Promise<void>,
  *   rebuildActiveLayerStyles: () => void | Promise<void>,
- *   syncLabels: () => void | Promise<void>
+ *   syncLabels: () => void | Promise<void>,
+ *   enforceColorOnlySingleLayer?: () => void
  * }} appContext
  */
 export function initMapDisplayControls(appContext) {

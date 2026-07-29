@@ -86,8 +86,10 @@ def join_overall_to_geojson(level: str) -> dict:
     matched_csv_keys: set[str] = set()
     unmatched_geo_features: list[dict] = []
 
+    # Keep all source GeoJSON properties (e.g. CAD adm3_name / adm3_name1) and
+    # only add/overwrite the overall score — same pattern as theme geojson_join.
     for feature in features:
-        props = feature.get("properties", {})
+        props = feature.setdefault("properties", {})
         raw_key = props.get(geo_key)
         key = normalize_join_value(raw_key)
         if not key:
@@ -96,7 +98,6 @@ def join_overall_to_geojson(level: str) -> dict:
                 "geojson_key_value": raw_key,
                 "reason": "missing_join_key_in_geojson",
             })
-            feature["properties"] = {geo_key: raw_key}
             continue
 
         score = score_lookup.get(key)
@@ -107,13 +108,9 @@ def join_overall_to_geojson(level: str) -> dict:
                 "normalized_key": key,
                 "reason": "no_matching_csv_row",
             })
-            feature["properties"] = {geo_key: raw_key}
             continue
 
-        feature["properties"] = {
-            geo_key: raw_key,
-            OVERALL_GEOJSON_SCORE_FIELD: score,
-        }
+        props[OVERALL_GEOJSON_SCORE_FIELD] = score
         matched_csv_keys.add(key)
 
     unmatched_csv_rows = []

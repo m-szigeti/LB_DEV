@@ -20,6 +20,11 @@ import { themesForResolution, getThemeByLayerId } from './custom_overall_catalog
 import { getColorRamp } from './color_ramp_selector.js';
 import { getValueClassIndex, resolveClassificationBreaks } from './vector_layers.js';
 import { getClassificationMode } from './map_display_controls.js';
+import {
+    clearAnalysisSelection,
+    setAnalysisSelectionActive
+} from './analysis_selection.js';
+import { forceAoiStyleRecovery } from './aoi_spotlight.js';
 
 /** Flip to false to hide the feature without deleting files. */
 export const CUSTOM_OVERALL_BUILDER_ENABLED = true;
@@ -53,6 +58,7 @@ const DEFAULT_JOIN_KEYS = [
     'ADM1_NAME',
     'adm3_name',
     'ADM3_NAME',
+    'adm3_pcode',
     'ACS_CODE',
     'ACS Code'
 ];
@@ -139,6 +145,11 @@ function ensureModalExists() {
 
 async function openModal() {
     if (!context) return;
+    // Avoid AOI selection mode / mutated styles interfering with builder UX.
+    clearAnalysisSelection();
+    setAnalysisSelectionActive(false);
+    await forceAoiStyleRecovery();
+
     if (context.isWeightSandboxLocked?.()) {
         showModalError('Finish or delete the experimental weight sandbox before building a custom overall.');
         const modal = document.getElementById('customOverallModal');
