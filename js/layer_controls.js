@@ -4776,48 +4776,116 @@ function getPatternClassIndex(value, breaks) {
     return getValueClassIndex(value, breaks, breaks.length - 1) ?? 0;
 }
 
+/**
+ * Build an inline SVG legend swatch that mirrors the map pattern for a class.
+ */
+function socioStripeSwatchHtml(specIndex, patternColor) {
+    const spec = SOCIO_STRIPE_CLASS_SPECS[specIndex];
+    if (!spec) return '';
+    const c = spec.color || patternColor;
+    const w = 40;
+    const h = 24;
+
+    if (spec.type === 'dot') {
+        const r = spec.dotRadius || 1.6;
+        const spacing = Math.max(8, Math.round(spec.dotSpacing || 12));
+        let circles = '';
+        for (let y = spacing / 2; y < h + spacing; y += spacing) {
+            for (let x = spacing / 2; x < w + spacing; x += spacing) {
+                circles += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${r}" fill="${c}"/>`;
+            }
+        }
+        return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" style="display:block;background:#eef2f7;border-radius:3px;">${circles}</svg>`;
+    }
+
+    if (spec.type === 'crosshatch') {
+        const stroke = spec.weight || 1.4;
+        const spacing = Math.max(6, Math.round((spec.spaceWeight || 3.5) + stroke + 1));
+        let lines = '';
+        for (let i = -h; i < w + h; i += spacing) {
+            lines += `<line x1="${i}" y1="0" x2="${i + h}" y2="${h}" stroke="${c}" stroke-width="${stroke}"/>`;
+            lines += `<line x1="${i + h}" y1="0" x2="${i}" y2="${h}" stroke="${c}" stroke-width="${stroke}"/>`;
+        }
+        return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" style="display:block;background:#eef2f7;border-radius:3px;">${lines}</svg>`;
+    }
+
+    // Stripe: same geometry language as Leaflet StripePattern (constant stroke, spaceWeight gap, angle).
+    const stroke = 1.4;
+    const gap = Math.max(3, Math.round(spec.spaceWeight || 4));
+    const angle = Number.isFinite(spec.angle) ? spec.angle : 45;
+    const period = stroke + gap;
+    let lines = '';
+    for (let y = -h; y < h * 2; y += period) {
+        lines += `<line x1="${-w}" y1="${y}" x2="${w * 2}" y2="${y}" stroke="${c}" stroke-width="${stroke}"/>`;
+    }
+    return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" style="display:block;background:#eef2f7;border-radius:3px;">`
+        + `<g transform="rotate(${angle} ${w / 2} ${h / 2})">${lines}</g></svg>`;
+}
+
+/**
+ * Build a legend swatch CSS background that mirrors the map pattern for a class.
+ * Fully URI-encodes the SVG so quotes are safe inside HTML style="..." attributes.
+ */
 function socioStripeSwatchInlineStyle(specIndex, patternColor) {
     const spec = SOCIO_STRIPE_CLASS_SPECS[specIndex];
     if (!spec) return '';
     const c = spec.color || patternColor;
 
+    let svg;
+    let tile;
+
     if (spec.type === 'dot') {
         const r = spec.dotRadius || 1.6;
-        const sp = spec.dotSpacing || 12;
-        const d = r * 2;
-        return `background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='${sp}' height='${sp}'%3E%3Ccircle cx='${sp / 2}' cy='${sp / 2}' r='${r}' fill='${encodeURIComponent(c)}'/%3E%3C/svg%3E") repeat #eef2f7;background-size:${sp}px ${sp}px;`;
-    }
-    if (spec.type === 'crosshatch') {
+        tile = Math.max(8, Math.round(spec.dotSpacing || 12));
+        svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${tile}" height="${tile}">`
+            + `<circle cx="${tile / 2}" cy="${tile / 2}" r="${r}" fill="${c}"/>`
+            + `</svg>`;
+    } else if (spec.type === 'crosshatch') {
         const w = spec.weight || 1.4;
-        const sp = Math.round((spec.spaceWeight || 3.5) + w + 1);
-        return `background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='${sp}' height='${sp}'%3E%3Cline x1='0' y1='0' x2='${sp}' y2='${sp}' stroke='${encodeURIComponent(c)}' stroke-width='${w}'/%3E%3Cline x1='${sp}' y1='0' x2='0' y2='${sp}' stroke='${encodeURIComponent(c)}' stroke-width='${w}'/%3E%3C/svg%3E") repeat #eef2f7;background-size:${sp}px ${sp}px;`;
+        tile = Math.max(10, Math.round((spec.spaceWeight || 3.5) + w + 2));
+        svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${tile}" height="${tile}">`
+            + `<line x1="0" y1="0" x2="${tile}" y2="${tile}" stroke="${c}" stroke-width="${w}"/>`
+            + `<line x1="${tile}" y1="0" x2="0" y2="${tile}" stroke="${c}" stroke-width="${w}"/>`
+            + `</svg>`;
+    } else {
+        // Match Leaflet StripePattern: fixed stroke weight, spacing from spaceWeight, rotated by angle.
+        const stroke = 1.4;
+        const gap = Math.max(3, Math.round(spec.spaceWeight || 4));
+        tile = Math.max(10, Math.ceil(stroke + gap));
+        const angle = Number.isFinite(spec.angle) ? spec.angle : 45;
+        svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${tile}" height="${tile}">`
+            + `<g transform="rotate(${angle} ${tile / 2} ${tile / 2})">`
+            + `<line x1="-2" y1="${tile / 2}" x2="${tile + 2}" y2="${tile / 2}" stroke="${c}" stroke-width="${stroke}"/>`
+            + `</g></svg>`;
     }
 
-    const gapPx = Math.max(2, Math.min(18, Math.round(spec.spaceWeight * 0.45)));
-    const barPx = Math.max(1, Math.min(4, Math.round(spec.weight * 1.2)));
-    const period = barPx + gapPx;
-    return `background:repeating-linear-gradient(${spec.angle}deg, ${c} 0, ${c} ${barPx}px, #eef2f7 ${barPx}px, #eef2f7 ${period}px);`;
+    // encodeURIComponent removes all raw quotes; wrap with single quotes for the HTML style attr.
+    return `background-color:#eef2f7;background-image:url('data:image/svg+xml,${encodeURIComponent(svg)}');background-repeat:repeat;background-size:${tile}px ${tile}px;`;
 }
 
 function buildSocioStripeLegendItems(breaks, patternColor, invert = false) {
-    const terms5 = ['Very low', 'Low', 'Medium', 'High', 'Very high'];
+    const terms5 = ['Negligible', 'Low', 'Moderate', 'High', 'Critical'];
     const terms3 = ['Low', 'Medium', 'High'];
     const n = SOCIO_STRIPE_CLASS_COUNT;
     const terms = n >= 5 ? terms5 : terms3;
 
-    if (!breaks || breaks.length < n + 1) {
-        return terms.map((label, idx) => ({
-            label: `${label} intensity`,
+    const makeItem = (label, idx) => {
+        const specIdx = invert ? (n - 1 - idx) : idx;
+        return {
+            label,
             color: patternColor,
-            swatchStyle: socioStripeSwatchInlineStyle(invert ? (n - 1 - idx) : idx, patternColor)
-        }));
+            swatchHtml: socioStripeSwatchHtml(specIdx, patternColor),
+            swatchStyle: socioStripeSwatchInlineStyle(specIdx, patternColor)
+        };
+    };
+
+    if (!breaks || breaks.length < n + 1) {
+        return terms.map((label, idx) => makeItem(`${label} intensity`, idx));
     }
     const rangeLabels = formatClassLegendRanges(breaks);
-    return rangeLabels.map((range, idx) => ({
-        label: `${terms[idx] || 'Class'} (${range})`,
-        color: patternColor,
-        swatchStyle: socioStripeSwatchInlineStyle(invert ? (n - 1 - idx) : idx, patternColor)
-    }));
+    return rangeLabels.map((range, idx) =>
+        makeItem(`${terms[idx] || 'Class'} (${range})`, idx)
+    );
 }
 
 /**

@@ -173,7 +173,9 @@ function renderServiceSymbolEntry(entry) {
 function renderStripeIntensityEntry(entry) {
     const itemsHtml = entry.items
         .map(item => {
-            const swatch = item.swatchStyle
+            const swatch = item.swatchHtml
+                ? `<div style="flex-shrink:0; width:40px; height:24px; border:1px solid #c5cdd5; border-radius:4px; overflow:hidden;">${item.swatchHtml}</div>`
+                : item.swatchStyle
                 ? `<div style="flex-shrink:0; width:40px; height:24px; border:1px solid #c5cdd5; border-radius:4px; ${item.swatchStyle}"></div>`
                 : `<div style="background:${item.color}; width:16px; height:16px; margin-right:6px; border-radius: 2px; border: 1px solid rgba(0,0,0,0.2);"></div>`;
             return `
@@ -191,7 +193,7 @@ function renderStripeIntensityEntry(entry) {
             <div class="color-scheme">
                 <div class="color-boxes">${itemsHtml}</div>
                 <p style="margin: 8px 0 0 0; font-size: 10px; color: #666; line-height: 1.3;">
-                    Angles differ by class; <strong>closer stripes</strong> = higher intensity. Ranges are data tertiles.
+                    Patterns densify with intensity (dots → stripes → cross-hatch). Ranges are data quintiles.
                 </p>
             </div>
         </div>
