@@ -748,7 +748,8 @@ function drawChoroplethPanel(ctx, geojson, field, breaks, colors, project, origi
 function drawLegend(ctx, colors, x, y) {
     const box = 14;
     const gap = 8;
-    const labels = ['Higher vulnerability', 'Medium', 'Lower vulnerability'];
+    // Ramp is low → high (white → dark), matching the live map choropleth.
+    const labels = ['Lower vulnerability', 'Medium', 'Higher vulnerability'];
     ctx.font = '12px "Segoe UI", system-ui, sans-serif';
     colors.forEach((color, index) => {
         const left = x + index * 170;
@@ -761,26 +762,58 @@ function drawLegend(ctx, colors, x, y) {
     });
 }
 
+/**
+ * Class breaks for one export panel — same recipe as the live map choropleth
+ * (prefer the styled layer's colorSpec when it matches this GeoJSON + field).
+ */
+function resolvePanelBreaks(geojson, field, colorRamp, liveLayerId) {
+    const liveLayer = context?.layers?.vector?.[liveLayerId];
+    const liveBreaks = liveLayer?.layerData?.colorSpec?.breaks;
+    const liveProperty = liveLayer?.layerData?.selectedProperty;
+    const liveRaw = liveLayer?.layerData?.raw;
+    if (
+        Array.isArray(liveBreaks) &&
+        liveBreaks.length >= 2 &&
+        liveProperty === field &&
+        liveRaw === geojson
+    ) {
+        return liveBreaks;
+    }
+
+    const values = collectNumericScores(geojson, field);
+    if (!values.length) return null;
+    return resolveClassificationBreaks(
+        values,
+        colorRamp.colors.length,
+        getClassificationMode()
+    );
+}
+
 function renderSideBySideChoroplethComparison(officialGeo, customGeo) {
     const colorRamp = getColorRamp(EXPORT_COLOR_RAMP_ID);
     if (!colorRamp?.colors?.length) {
         throw new Error('Color ramp for export is unavailable.');
     }
 
-    // One shared classification for both panels, anchored to the official Overall
-    // distribution so the left panel matches the live Overall map. Identical
-    // scores on both sides therefore get identical colors.
-    const officialValues = collectNumericScores(officialGeo, OFFICIAL_OVERALL_SCORE_FIELD);
-    const customValues = collectNumericScores(customGeo, CUSTOM_OVERALL_SCORE_FIELD);
-    if (![...officialValues, ...customValues].length) {
+    // Per-panel class breaks — same as each layer on the live map. Shared
+    // official-only breaks made the custom panel diverge from the map view.
+    // Identical score sets still produce identical colors (same breaks).
+    const officialBreaks = resolvePanelBreaks(
+        officialGeo,
+        OFFICIAL_OVERALL_SCORE_FIELD,
+        colorRamp,
+        'svOverallTensionLayer'
+    );
+    const customBreaks = resolvePanelBreaks(
+        customGeo,
+        CUSTOM_OVERALL_SCORE_FIELD,
+        colorRamp,
+        CUSTOM_OVERALL_LAYER_ID
+    );
+    if (!officialBreaks && !customBreaks) {
         throw new Error('No score values available to export.');
     }
-    const breakSource = officialValues.length ? officialValues : customValues;
-    const breaks = resolveClassificationBreaks(
-        breakSource,
-        colorRamp.colors.length,
-        getClassificationMode()
-    );
+
     const bounds = collectGeoBounds([officialGeo, customGeo]);
     const project = makeProjector(bounds, EXPORT_PANEL_WIDTH, EXPORT_PANEL_HEIGHT);
 
@@ -809,7 +842,7 @@ function renderSideBySideChoroplethComparison(officialGeo, customGeo) {
         ctx,
         officialGeo,
         OFFICIAL_OVERALL_SCORE_FIELD,
-        breaks,
+        officialBreaks || customBreaks,
         colorRamp.colors,
         project,
         gap,
@@ -821,7 +854,7 @@ function renderSideBySideChoroplethComparison(officialGeo, customGeo) {
         ctx,
         customGeo,
         CUSTOM_OVERALL_SCORE_FIELD,
-        breaks,
+        customBreaks || officialBreaks,
         colorRamp.colors,
         project,
         gap * 2 + EXPORT_PANEL_WIDTH,
@@ -834,7 +867,7 @@ function renderSideBySideChoroplethComparison(officialGeo, customGeo) {
     const stamp = new Date().toLocaleString();
     ctx.fillStyle = '#94a3b8';
     ctx.font = '12px "Segoe UI", system-ui, sans-serif';
-    ctx.fillText(`Shared class breaks (official Overall) · ${stamp}`, gap + 420, height - 18);
+    ctx.fillText(`Class breaks match live map (per panel) · ${stamp}`, gap + 420, height - 18);
 
     return canvas;
 }
