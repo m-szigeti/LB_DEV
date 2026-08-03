@@ -242,8 +242,8 @@
 }
 
 .info-panel-tab-panel[data-panel="layers"] {
-    display: flex;
-    flex-direction: column;
+    display: block;
+    overflow-y: auto;
 }
 
 .info-panel-tab-panel[hidden] {
@@ -256,10 +256,8 @@
 }
 
 .info-panel-tab-panel[data-panel="layers"] .info-panel-section {
-    display: flex;
-    flex: 1;
+    display: block;
     min-height: 0;
-    flex-direction: column;
 }
 
 .info-panel-section:last-child {
@@ -290,9 +288,7 @@
 
 /* Layer Items */
 .layers-list {
-    flex: 1;
-    min-height: 0;
-    overflow-y: auto;
+    margin-bottom: 12px;
 }
 
 .layer-item {
@@ -547,7 +543,13 @@
     margin-bottom: 0;
 }
 
-#analysis-selected-charts .selected-feature-pillar-chart {
+.active-layer-rankings {
+    margin-top: 8px;
+    padding-top: 12px;
+    border-top: 1px solid #e9ecef;
+}
+
+.active-layer-rankings .selected-feature-pillar-chart {
     margin-bottom: 16px;
 }
 

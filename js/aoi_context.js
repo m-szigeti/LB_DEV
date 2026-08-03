@@ -7,6 +7,7 @@
 
 import {
     AOI_CLASS_LABELS,
+    averagePillars,
     buildLayerAoiSummary,
     getAoiClassIndex
 } from './aoi_summary.js';
@@ -301,6 +302,20 @@ export async function buildAoiSummaries() {
     const infoLayers = Array.from(providers.getActiveInfoLayers?.() || []);
     const summaries = [];
 
+    // Theme contributions once for the whole AOI (all 8 themes where available).
+    const themeSets = [];
+    if (providers.getPillarBreakdown) {
+        for (const item of items) {
+            try {
+                const pillars = await providers.getPillarBreakdown(item.properties || {});
+                if (pillars?.length) themeSets.push(pillars);
+            } catch (error) {
+                console.warn('AOI theme contribution failed', error);
+            }
+        }
+    }
+    const themeContributions = averagePillars(themeSets);
+
     for (const infoLayer of infoLayers) {
         const attribute = providers.getScoreAttribute?.(infoLayer);
         if (!attribute) continue;
@@ -318,7 +333,6 @@ export async function buildAoiSummaries() {
                 : AOI_CLASS_LABELS;
 
         const entries = [];
-        const pillarSets = [];
 
         for (const item of items) {
             const matched = index.get(item.key);
@@ -339,15 +353,6 @@ export async function buildAoiSummaries() {
                 classIndex,
                 district: getDistrictName(properties)
             });
-
-            if (providers.isOverallLayer?.(infoLayer.id) && providers.getPillarBreakdown) {
-                try {
-                    const pillars = await providers.getPillarBreakdown(properties);
-                    if (pillars?.length) pillarSets.push(pillars);
-                } catch (error) {
-                    console.warn('AOI pillar breakdown failed', error);
-                }
-            }
         }
 
         summaries.push(
@@ -361,7 +366,7 @@ export async function buildAoiSummaries() {
                 entries,
                 breaks,
                 classLabels,
-                pillarSets
+                pillarSets: []
             })
         );
     }
@@ -370,6 +375,7 @@ export async function buildAoiSummaries() {
         resolutionLabel,
         selectionCount: items.length,
         summaries,
+        themeContributions,
         districtsInSelection: [
             ...new Set(
                 items

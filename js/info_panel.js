@@ -181,17 +181,20 @@ export class InfoPanel {
                         <div class="layers-list" id="layers-list">
                             <p class="no-layers-message">No layers currently active</p>
                         </div>
+                        <div class="active-layer-rankings" id="active-layer-rankings">
+                            <p class="no-results-message">Enable a map layer to see unit ranking charts here.</p>
+                        </div>
                     </div>
                 </section>
 
                 <section class="info-panel-tab-panel" data-panel="analysis" role="tabpanel" hidden>
                     <div class="info-panel-section analysis-section">
                         <div class="section-header">
-                            <h4>Analysis & Reports</h4>
+                            <h4>Area of interest</h4>
                         </div>
                         <div class="analysis-area-selection" id="analysis-area-selection">
                             <div class="analysis-area-selection-header">
-                                <h5>Area of interest (AOI)</h5>
+                                <h5>Select polygons (AOI)</h5>
                                 <p class="analysis-area-hint" id="analysis-area-resolution-hint">
                                     Select map units to build an AOI. Metrics, class shares, and exports update from the selection.
                                 </p>
@@ -214,25 +217,6 @@ export class InfoPanel {
                         </div>
                         <div class="analysis-area-charts" id="analysis-area-charts">
                             <p class="no-results-message">Enable selection mode and click map units to build an AOI.</p>
-                        </div>
-                        <div class="analysis-selected-charts" id="analysis-selected-charts">
-                            <p class="no-results-message">No selected polygon charts yet</p>
-                        </div>
-                        <div class="analysis-content">
-                            <div class="analysis-tool">
-                                <h5>Create Summary Report</h5>
-                                <p>Generate correlation analysis between social vulnerability and subnational statistics with visualizations</p>
-                                <button class="run-analysis-btn" data-analysis="summary">Generate Report</button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="info-panel-section results-section">
-                        <div class="section-header">
-                            <h4>Report Results</h4>
-                        </div>
-                        <div class="results-content">
-                            <p class="no-results-message">No reports generated yet</p>
                         </div>
                     </div>
                 </section>
@@ -915,22 +899,19 @@ setupEventListeners() {
     }
 
     updateAnalysisSelectedCharts() {
-        const container = document.getElementById('analysis-selected-charts');
+        const container = document.getElementById('active-layer-rankings');
         if (!container) {
             return;
         }
 
-        const selectionCount = getAnalysisSelectionCount();
         const blocks = [];
 
-        if (selectionCount === 0) {
-            Array.from(this.activeLayers.values()).forEach(layer => {
-                const rankings = this.getLayerRankings(layer);
-                if (rankings) {
-                    blocks.push(this.renderAnalysisLayerRankingsBlock(layer, rankings));
-                }
-            });
-        }
+        Array.from(this.activeLayers.values()).forEach(layer => {
+            const rankings = this.getLayerRankings(layer);
+            if (rankings) {
+                blocks.push(this.renderAnalysisLayerRankingsBlock(layer, rankings));
+            }
+        });
 
         Array.from(this.activeLayers.values()).forEach(layer => {
             if (!Array.isArray(layer?.selectedFeature?.pillarBreakdown) || !layer.selectedFeature.pillarBreakdown.length) {
@@ -950,20 +931,9 @@ setupEventListeners() {
         });
 
         if (blocks.length === 0) {
-            if (selectionCount > 0) {
-                container.innerHTML =
-                    '<p class="no-results-message">Full-layer unit rankings are hidden while you have an area selection — see the charts above. Turn off selection mode and click a single polygon for pillar breakdown (Overall Vulnerability Index).</p>';
-            } else {
-                container.innerHTML =
-                    '<p class="no-results-message">Enable a map layer to see unit ranking charts here. Click a map unit for pillar breakdown (Overall Vulnerability Index).</p>';
-            }
+            container.innerHTML =
+                '<p class="no-results-message">Enable a map layer to see unit ranking charts here. Click a map unit for pillar breakdown (Overall Vulnerability Index).</p>';
             return;
-        }
-
-        if (selectionCount > 0) {
-            blocks.unshift(
-                '<p class="analysis-full-layer-note">Pillar breakdown below uses single-polygon selection (turn off area selection mode).</p>'
-            );
         }
 
         container.innerHTML = blocks.join('');

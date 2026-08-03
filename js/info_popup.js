@@ -387,14 +387,17 @@ function generateThemeBarsSection(themes) {
         return '';
     }
 
+    // Highest intensity first so the dominant themes stand out.
+    const sorted = [...themes].sort((a, b) => Number(b.value) - Number(a.value));
+
     // 0–1 composite scores use an absolute scale; larger metrics (e.g. Displacement Ratio)
     // are scaled relative to the largest outlier so bars stay readable.
     const outlierMax = Math.max(
         0.001,
-        ...themes.filter(theme => theme.value > 1.0001).map(theme => theme.value)
+        ...sorted.filter(theme => theme.value > 1.0001).map(theme => theme.value)
     );
 
-    const rows = themes
+    const rows = sorted
         .map(theme => {
             const width = theme.value <= 1.0001
                 ? Math.round(Math.max(0, Math.min(1, theme.value)) * 100)
@@ -414,6 +417,7 @@ function generateThemeBarsSection(themes) {
     return `
         <div class="info-section info-theme-section">
             <h4>Theme scores</h4>
+            <p class="info-theme-hint">Each bar is that theme&rsquo;s own composite score for this unit (usually 0–1). Higher = higher vulnerability on that theme. Scores are independent and do <strong>not</strong> add up to 1.</p>
             <div class="info-theme-bars">${rows}</div>
         </div>
     `;

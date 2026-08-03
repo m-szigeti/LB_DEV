@@ -123,27 +123,34 @@ function renderPillars(summary) {
     const rows = pillars
         .map(p => {
             const width = Math.round((Math.max(0, p.value) / max) * 100);
+            const share = formatAoiPercent(p.proportion);
             return `
                 <div class="aoi-class-row">
                     <div class="aoi-class-label">${escapeHtml(p.label)}</div>
                     <div class="aoi-class-bar-track">
                         <div class="aoi-class-bar-fill aoi-pillar-fill" style="width:${width}%;background:${escapeHtml(p.color)}"></div>
                     </div>
-                    <div class="aoi-class-count">${escapeHtml(formatAoiNumber(p.value))}</div>
+                    <div class="aoi-class-count">${escapeHtml(formatAoiNumber(p.value))} · ${escapeHtml(share)}</div>
                 </div>
             `;
         })
         .join('');
     const worst = summary.pillars.worst
-        ? `<p class="aoi-footnote">Highest average pillar: <strong>${escapeHtml(summary.pillars.worst.label)}</strong></p>`
+        ? `<p class="aoi-footnote">Highest average theme score: <strong>${escapeHtml(summary.pillars.worst.label)}</strong></p>`
         : '';
     return `
         <div class="aoi-section">
-            <div class="aoi-section-title">Pillar averages across AOI</div>
+            <div class="aoi-section-title">Theme contribution across AOI</div>
+            <p class="aoi-footnote">Average theme scores for selected units. Share is each theme&rsquo;s relative contribution among the themes shown.</p>
             ${rows}
             ${worst}
         </div>
     `;
+}
+
+function renderThemeContributions(themeContributions) {
+    if (!themeContributions?.pillars?.length) return '';
+    return renderPillars({ pillars: themeContributions });
 }
 
 function renderExtremes(summary) {
@@ -178,7 +185,6 @@ function renderLayerSummary(summary) {
             <p class="aoi-layer-attribute">${escapeHtml(summary.attributeLabel)} · ${summary.scoredCount}/${summary.unitCount} scored</p>
             ${renderMetricCards(summary)}
             ${renderClassBars(summary)}
-            ${renderPillars(summary)}
             ${renderExtremes(summary)}
             <p class="aoi-footnote">Means summarise unit scores at the current resolution; they are not a new composite index.</p>
         </div>
@@ -240,7 +246,12 @@ export async function renderAoiPanelHtml() {
                     <p class="aoi-layer-attribute">${bundle.selectionCount} unit${bundle.selectionCount === 1 ? '' : 's'} selected</p>
                     ${districtNote}
                 </div>
-                <p class="no-results-message">Turn on a composite or theme layer with scores to compute AOI metrics.</p>
+                ${renderThemeContributions(bundle.themeContributions)}
+                ${
+                    bundle.themeContributions?.pillars?.length
+                        ? ''
+                        : '<p class="no-results-message">Turn on a composite or theme layer with scores to compute AOI metrics.</p>'
+                }
                 <div class="aoi-export-row">
                     <button type="button" class="aoi-export-btn" data-aoi-action="clear">Clear AOI</button>
                 </div>
@@ -261,6 +272,7 @@ export async function renderAoiPanelHtml() {
                     <button type="button" class="aoi-export-btn aoi-export-btn-muted" data-aoi-action="clear">Clear AOI</button>
                 </div>
             </div>
+            ${renderThemeContributions(bundle.themeContributions)}
             ${bundle.summaries.map(renderLayerSummary).join('')}
             ${renderDistrictSelectControls(resolution)}
         </div>
@@ -297,10 +309,29 @@ export async function bindAoiPanelInteractions(root, { onChanged } = {}) {
                 const csv = bundle.summaries.map(s => buildAoiCsv(s)).join('\n\n');
                 downloadTextFile(`aoi-summary-${stamp}.csv`, csv, 'text/csv;charset=utf-8');
             } else if (action === 'export-briefing') {
-                const text = bundle.summaries
-                    .map(s =>
+                const themeBlock = bundle.themeContributions?.pillars?.length
+                    ? buildAoiBriefing(
+                          {
+                              resolutionLabel: bundle.resolutionLabel,
+                              unitCount: bundle.selectionCount,
+                              layerName: 'Theme contribution',
+                              attributeLabel: 'all themes',
+                              stats: { mean: null, median: null, min: null, max: null },
+                              weighted: { weightedMean: null, weightedCount: 0 },
+                              distribution: null,
+                              pillars: bundle.themeContributions,
+                              extremes: null
+                          },
+                          { title: 'AOI theme contribution' }
+                      )
+                    : '';
+                const text = [
+                    themeBlock,
+                    ...bundle.summaries.map(s =>
                         buildAoiBriefing(s, { title: `AOI briefing — ${s.layerName}` })
                     )
+                ]
+                    .filter(Boolean)
                     .join('\n\n---\n\n');
                 downloadTextFile(`aoi-briefing-${stamp}.txt`, text);
             }

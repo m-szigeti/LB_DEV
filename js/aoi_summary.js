@@ -296,12 +296,14 @@ export function buildAoiBriefing(summary, meta = {}) {
     });
     if (summary.pillars?.pillars?.length) {
         lines.push('');
-        lines.push('Pillar averages (unweighted across AOI)');
+        lines.push('Theme contribution across AOI (average score · relative share)');
         summary.pillars.pillars.forEach(p => {
-            lines.push(`- ${p.label}: ${formatAoiNumber(p.value)}`);
+            lines.push(
+                `- ${p.label}: ${formatAoiNumber(p.value)} (${formatAoiPercent(p.proportion)})`
+            );
         });
         if (summary.pillars.worst) {
-            lines.push(`Highest pillar: ${summary.pillars.worst.label}`);
+            lines.push(`Highest average theme score: ${summary.pillars.worst.label}`);
         }
     }
     if (summary.extremes?.highest?.length) {

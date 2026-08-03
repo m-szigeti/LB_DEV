@@ -34,7 +34,7 @@ export const WELCOME_TAB_HTML = `
                 <div style="position:relative; border:1px solid #d8d8d8; border-radius:8px; background:#f7f7f7; padding:10px 12px 10px 46px; margin-bottom:8px;">
                     <span style="position:absolute; left:9px; top:12px; width:18px; height:18px; border-radius:50%; background:#dce9fa; color:#3f79c5; font-size:11px; line-height:18px; text-align:center; font-weight:700;">3</span>
                     <div style="font-size:14px; font-weight:700; color:#343434;">Click a polygon</div>
-                    <div style="font-size:12px; color:#555; margin-top:4px;">A popup shows the area&rsquo;s <strong>score and label</strong>, its Arabic name, population, and horizontal bar charts comparing all theme scores for that unit. The <strong>Analysis</strong> tab in this panel gives a detailed breakdown and ranking.</div>
+                    <div style="font-size:12px; color:#555; margin-top:4px;">A popup shows the area&rsquo;s <strong>score and label</strong>, its Arabic name, population, and horizontal bar charts comparing all theme scores for that unit. Open <strong>Active Layers</strong> for top/bottom unit rankings, or <strong>Analysis</strong> to build an area of interest.</div>
                 </div>
 
                 <div style="position:relative; border:1px solid #d8d8d8; border-radius:8px; background:#f7f7f7; padding:10px 12px 10px 46px; margin-bottom:8px;">

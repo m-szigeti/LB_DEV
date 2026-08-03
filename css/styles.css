@@ -1402,7 +1402,14 @@ body.analysis-selection-mode #map {
 }
 
 .info-theme-section h4 {
-    margin-bottom: 12px;
+    margin-bottom: 6px;
+}
+
+.info-theme-hint {
+    margin: 0 0 10px;
+    font-size: 11px;
+    line-height: 1.4;
+    color: #6c757d;
 }
 
 .info-theme-bars {

@@ -6801,7 +6801,12 @@ async function updateSelectedPolygonInfoPanel(layerId, properties, config, layer
         selectedFeature.value = properties[attributeName];
     }
 
-    if (layers && SV_PILLAR_DEFINITIONS.some(pillar => pillar.layerId === layerId)) {
+    if (
+        layers &&
+        (layerId === SV_OVERALL_LAYER_ID ||
+            layerId === CUSTOM_OVERALL_LAYER_ID ||
+            SV_THEME_SCORE_DEFINITIONS.some(theme => theme.layerId === layerId))
+    ) {
         const pillarBreakdown = await getSVPillarBreakdown(properties, layers);
         if (pillarBreakdown) {
             selectedFeature.pillarBreakdown = pillarBreakdown;
@@ -7008,19 +7013,35 @@ async function getSVPillarBreakdown(properties, layers) {
     const featureKey = getFeatureLookupKey(properties);
     if (!featureKey) return null;
 
+    const resolution = getActiveAdminResolution();
     const pillars = [];
-    for (const pillar of SV_PILLAR_DEFINITIONS) {
-        const lookup = await getSVLayerLookup(pillar.layerId, layers);
+
+    for (const theme of SV_THEME_SCORE_DEFINITIONS) {
+        const resolutionLayer = SV_RESOLUTION_CONFIG[resolution]?.[theme.layerId];
+        if (!resolutionLayer?.available || !resolutionLayer?.url) {
+            continue;
+        }
+
+        const lookup = await getSVLayerLookup(theme.layerId, layers);
         const matchedProps = lookup?.get(featureKey);
-        const pillarConfig = layerConfig[pillar.layerId];
-        const attributeKey = pillarConfig?.svAttribute || pillar.attribute;
+        const pillarConfig = layerConfig[theme.layerId];
+        const attributeKey =
+            resolutionLayer.svAttribute ||
+            pillarConfig?.svAttribute ||
+            theme.attribute ||
+            'composite_score';
         const rawValue = matchedProps?.[attributeKey];
         const value = typeof rawValue === 'number' ? rawValue : Number(rawValue);
         pillars.push({
-            label: pillar.label,
-            color: pillar.color,
+            label: theme.label,
+            color: theme.color,
+            layerId: theme.layerId,
             value: Number.isFinite(value) ? value : 0
         });
+    }
+
+    if (!pillars.length) {
+        return null;
     }
 
     const total = pillars.reduce((sum, item) => sum + Math.max(0, item.value), 0);
