@@ -438,19 +438,14 @@ setupEventListeners() {
     setupAreaSelectionControls() {
         const toggleBtn = this.container.querySelector('#analysis-selection-toggle');
         const clearBtn = this.container.querySelector('#analysis-selection-clear');
+        const mapBtn = document.getElementById('map-aoi-select-btn');
 
         toggleBtn?.addEventListener('click', () => {
-            const next = !isAnalysisSelectionActive();
-            setAnalysisSelectionActive(next);
-            if (next) {
-                hideInfoPopup();
-            }
-            toggleBtn.setAttribute('aria-pressed', next ? 'true' : 'false');
-            toggleBtn.textContent = next ? 'Stop selecting on map' : 'Select polygons on map';
-            if (next) {
-                this.setActiveTab('analysis');
-            }
-            this.updateAnalysisAreaSelection();
+            this.toggleAoiSelectionMode({ openAnalysisTab: true });
+        });
+
+        mapBtn?.addEventListener('click', () => {
+            this.toggleAoiSelectionMode({ openAnalysisTab: true });
         });
 
         clearBtn?.addEventListener('click', () => {
@@ -461,6 +456,24 @@ setupEventListeners() {
         });
 
         this.updateAnalysisAreaSelection();
+    }
+
+    /**
+     * Toggle polygon AOI selection mode. When turning on, optionally open Analysis tab.
+     * @param {{ openAnalysisTab?: boolean }} [options]
+     * @returns {boolean} Whether selection mode is active after the toggle
+     */
+    toggleAoiSelectionMode({ openAnalysisTab = true } = {}) {
+        const next = !isAnalysisSelectionActive();
+        setAnalysisSelectionActive(next);
+        if (next) {
+            hideInfoPopup();
+            if (openAnalysisTab) {
+                this.setActiveTab('analysis');
+            }
+        }
+        this.updateAnalysisAreaSelection();
+        return next;
     }
 
     updateAnalysisAreaSelection() {
@@ -487,6 +500,16 @@ setupEventListeners() {
             toggleBtn.setAttribute('aria-pressed', active ? 'true' : 'false');
             toggleBtn.textContent = active ? 'Stop selecting on map' : 'Select polygons on map';
             toggleBtn.classList.toggle('is-active', active);
+        }
+
+        const mapBtn = document.getElementById('map-aoi-select-btn');
+        if (mapBtn) {
+            mapBtn.setAttribute('aria-pressed', active ? 'true' : 'false');
+            mapBtn.classList.toggle('is-active', active);
+            mapBtn.textContent = active ? 'Stop AOI' : 'Select AOI';
+            mapBtn.title = active
+                ? 'Stop selecting polygons on the map'
+                : 'Select polygons for area of interest analysis';
         }
 
         if (status) {
