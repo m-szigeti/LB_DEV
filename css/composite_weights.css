@@ -73,9 +73,6 @@
     flex-direction: column;
     gap: 6px;
     margin-bottom: 8px;
-    max-height: 140px;
-    overflow-y: auto;
-    padding-right: 2px;
 }
 
 .composite-sandbox-slider-row {
