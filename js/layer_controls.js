@@ -34,6 +34,11 @@ import {
     clearAnalysisSelection,
     setAnalysisSelectionActive
 } from './analysis_selection.js';
+import {
+    INTERVENTION_MAPPING_LAYER_ID,
+    INTERVENTION_GEOJSON_URL,
+    loadInterventionMappingLayer
+} from './intervention_mapping.js';
 import { CUSTOM_COMPOSITE_FIELD } from './composite_score.js';
 import {
     usesCustomComposite
@@ -460,6 +465,11 @@ const layerConfig = {
             maxClusterRadius: 50,
             iconCreateFunction: createEscalationClusterIcon
         }
+    },
+    interventionMappingLayer: {
+        type: 'point',
+        url: INTERVENTION_GEOJSON_URL,
+        layerType: 'intervention-mapping'
     },
     // Raster layers
     tiffLayer1: {
@@ -3148,7 +3158,7 @@ function setupSVRadioControls(map, layers, colorScales, addLegendEntry, removeLe
         getActiveInfoLayers: () => window.currentInfoPanel?.activeLayers?.values?.() ?? [],
         getScoreAttribute: infoLayer => {
             if (!infoLayer) return null;
-            if (['escalationLayer', 'roadStatusLayer', 'ttfHotspotsLayer'].includes(infoLayer.id)) {
+            if (['escalationLayer', 'roadStatusLayer', 'ttfHotspotsLayer', INTERVENTION_MAPPING_LAYER_ID].includes(infoLayer.id)) {
                 return null;
             }
             return (
@@ -6045,6 +6055,11 @@ async function loadLayer(layerId, map, layers, colorScales, addLegendEntry) {
                 keepRoadLayerOnTop(layers);
                 break;
             }
+            if (layerId === INTERVENTION_MAPPING_LAYER_ID) {
+                await loadInterventionMappingLayer(map, layers, addLegendEntry);
+                keepRoadLayerOnTop(layers);
+                break;
+            }
 
             if (!layers.point[layerId]) {
                 const pointOptions = { 
@@ -6139,6 +6154,9 @@ function removeLayer(layerId, map, layers, removeLegendEntry) {
             if (layers.point[layerId]) {
                 map.removeLayer(layers.point[layerId]);
                 removeLegendEntry(layerId);
+                if (layerId === INTERVENTION_MAPPING_LAYER_ID) {
+                    delete layers.point[layerId];
+                }
             }
             break;
             
@@ -6271,6 +6289,7 @@ function getLayerDisplayName(layerId, config) {
         'pointLayer': 'Household Survey Statistics',
         'pointLayer2': 'Cities',
         'escalationLayer': 'Collective Shelters',
+        'interventionMappingLayer': 'UNDP Intervention Mapping',
         'tiffLayer1': 'Cell Tower Density',
         'tiffLayer2': 'Population Density',
         'tiffLayer3': 'Social Vulnerability',

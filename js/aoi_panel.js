@@ -117,7 +117,9 @@ function renderClassBars(summary) {
 }
 
 function renderPillars(summary) {
-    const pillars = summary.pillars?.pillars || [];
+    const pillars = [...(summary.pillars?.pillars || [])].sort(
+        (a, b) => Number(b.value) - Number(a.value)
+    );
     if (!pillars.length) return '';
     const max = Math.max(0.001, ...pillars.map(p => p.value));
     const rows = pillars

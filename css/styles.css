@@ -1042,11 +1042,328 @@ body.analysis-selection-mode #map {
     justify-content: center;
     background: #c2baab;
     color: #212529;
-    border: 2px solid #fff;
     border-radius: 999px;
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 700;
-    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.24);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+    border: 2px solid #fff;
+}
+
+.intervention-marker-wrapper,
+.intervention-cluster-wrapper {
+    background: transparent;
+    border: none;
+}
+
+.intervention-marker {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 2px solid #fff;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    line-height: 1;
+}
+
+.intervention-cluster-marker {
+    border-radius: 50%;
+    border: 3px solid #fff;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+}
+
+.intervention-cluster-count {
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.intervention-popup .leaflet-popup-content-wrapper {
+    border-radius: 12px;
+    padding: 0;
+    overflow: hidden;
+    box-shadow: 0 10px 28px rgba(15, 23, 42, 0.18);
+    border: 1px solid #e5e7eb;
+}
+
+.intervention-popup .leaflet-popup-content {
+    margin: 0;
+    min-width: 280px;
+}
+
+.intervention-popup .leaflet-popup-tip {
+    box-shadow: none;
+}
+
+.intervention-popup a.leaflet-popup-close-button {
+    top: 10px;
+    right: 10px;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border-radius: 999px;
+    background: #ffffff;
+    border: 1px solid #dbe3ee;
+    color: #334155 !important;
+    font-size: 18px;
+    font-weight: 700;
+    line-height: 26px;
+    text-align: center;
+    text-decoration: none !important;
+    box-shadow: 0 1px 4px rgba(15, 23, 42, 0.12);
+    z-index: 6;
+}
+
+.intervention-popup a.leaflet-popup-close-button:hover {
+    background: #f8fafc;
+    color: #0f172a !important;
+}
+
+.intervention-popup-content {
+    max-height: 420px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    font-size: 12px;
+    line-height: 1.45;
+    color: #1f2937;
+    background: #fff;
+}
+
+.intervention-popup-header {
+    position: relative;
+    flex: 0 0 auto;
+    padding: 14px 44px 12px 14px;
+    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+    border-bottom: 1px solid #e5e7eb;
+    border-left: 4px solid var(--intervention-accent, #1565c0);
+}
+
+.intervention-cluster-header {
+    border-left-color: #334155;
+}
+
+.intervention-popup-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+    max-width: 100%;
+}
+
+.intervention-popup-badge-code {
+    flex: 0 0 auto;
+    min-width: 28px;
+    height: 28px;
+    padding: 0 8px;
+    border-radius: 999px;
+    background: var(--intervention-accent, #1565c0);
+    color: #fff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+}
+
+.intervention-popup-badge-neutral .intervention-popup-badge-code {
+    background: #334155;
+}
+
+.intervention-popup-badge-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: #475569;
+    line-height: 1.3;
+}
+
+.intervention-popup-title {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 700;
+    color: #0f172a;
+    line-height: 1.3;
+}
+
+.intervention-popup-subtitle {
+    margin: 6px 0 0;
+    font-size: 12px;
+    color: #64748b;
+    line-height: 1.4;
+}
+
+.intervention-popup-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 10px;
+}
+
+.intervention-popup-chip {
+    display: inline-flex;
+    align-items: center;
+    max-width: 100%;
+    padding: 3px 8px;
+    border-radius: 999px;
+    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
+    color: #334155;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1.3;
+}
+
+.intervention-popup-chip-status {
+    background: #ecfdf5;
+    border-color: #a7f3d0;
+    color: #047857;
+}
+
+.intervention-popup-body {
+    padding: 10px 14px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    overflow-y: auto;
+    min-height: 0;
+    flex: 1 1 auto;
+}
+
+.intervention-popup-section-title {
+    margin: 0 0 8px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #64748b;
+}
+
+.intervention-popup-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.intervention-popup-field {
+    display: grid;
+    gap: 2px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    background: #f8fafc;
+    border: 1px solid #eef2f7;
+}
+
+.intervention-popup-field-label {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    color: #94a3b8;
+}
+
+.intervention-popup-field-value {
+    font-size: 12px;
+    color: #1e293b;
+    word-break: break-word;
+}
+
+.intervention-cluster-popup {
+    background: #fff;
+    max-height: 420px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.intervention-cluster-hint {
+    margin: 8px 14px 0;
+    color: #64748b;
+    font-size: 11px;
+    line-height: 1.4;
+    flex: 0 0 auto;
+}
+
+.intervention-cluster-popup .intervention-cluster-hint:last-child {
+    margin-bottom: 12px;
+}
+
+.intervention-cluster-list {
+    list-style: none;
+    margin: 0;
+    padding: 12px 14px 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    overflow-y: auto;
+    min-height: 0;
+    flex: 1 1 auto;
+}
+
+.intervention-cluster-list li {
+    display: grid;
+    grid-template-columns: 12px minmax(0, 1fr) auto;
+    gap: 8px;
+    align-items: center;
+}
+
+.intervention-cluster-swatch {
+    width: 12px;
+    height: 12px;
+    border-radius: 3px;
+    border: 1px solid rgba(0, 0, 0, 0.12);
+}
+
+.intervention-cluster-cat-wrap {
+    min-width: 0;
+}
+
+.intervention-cluster-cat {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 12px;
+    font-weight: 600;
+    color: #1e293b;
+    margin-bottom: 4px;
+}
+
+.intervention-cluster-bar-track {
+    height: 6px;
+    border-radius: 999px;
+    background: #e2e8f0;
+    overflow: hidden;
+}
+
+.intervention-cluster-bar-fill {
+    height: 100%;
+    border-radius: 999px;
+    min-width: 2px;
+}
+
+.intervention-cluster-cat-count {
+    text-align: right;
+    line-height: 1.2;
+}
+
+.intervention-cluster-cat-count strong {
+    display: block;
+    font-size: 13px;
+    color: #0f172a;
+}
+
+.intervention-cluster-cat-count span {
+    font-size: 10px;
+    color: #64748b;
 }
 
 /* ===========================================
