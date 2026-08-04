@@ -31,6 +31,7 @@ import {
     isAnalysisSelectionActive,
     toggleAnalysisSelectionFeature,
     reapplyAnalysisSelectionStyles,
+    rematchAnalysisSelectionToLayer,
     clearAnalysisSelection,
     setAnalysisSelectionActive
 } from './analysis_selection.js';
@@ -725,6 +726,54 @@ function enforceColorOnlySingleLayer(map, layers, removeLegendEntry) {
     if (keep) {
         currentSVLayer = keep;
     }
+}
+
+/**
+ * Activate one SV layer alone for Isolate / color-only viewing.
+ * Turns the target checkbox on (loading the layer if needed) and turns others off.
+ */
+async function isolateSvLayer(layerId, map, layers, removeLegendEntry) {
+    if (!layerId || !SV_LAYER_IDS.includes(layerId)) return;
+
+    const target = document.getElementById(layerId);
+    if (!target || target.disabled) return;
+
+    // Turn off every other SV layer first so exclusivity stays clean.
+    SV_LAYER_IDS.forEach(id => {
+        if (id === layerId) return;
+        const checkbox = document.getElementById(id);
+        if (!checkbox?.checked) return;
+        checkbox.checked = false;
+        checkbox.dispatchEvent(new Event('change'));
+    });
+
+    currentSVLayer = layerId;
+    if (!target.checked) {
+        target.checked = true;
+        target.dispatchEvent(new Event('change'));
+        await waitUntil(() => activeSVLayers.has(layerId), 10000);
+    } else {
+        applySVLayerExclusivity(layerId);
+        enforceColorOnlySingleLayer(map, layers, removeLegendEntry);
+    }
+}
+
+function waitUntil(predicate, timeoutMs = 5000) {
+    return new Promise(resolve => {
+        const start = Date.now();
+        const tick = () => {
+            if (predicate()) {
+                resolve(true);
+                return;
+            }
+            if (Date.now() - start >= timeoutMs) {
+                resolve(false);
+                return;
+            }
+            window.setTimeout(tick, 50);
+        };
+        tick();
+    });
 }
 
 function uncheckSVLayerToggles(layerIds) {
@@ -2079,7 +2128,16 @@ function getChoroplethLegendLabels(layerId, labels) {
 }
 
 function buildOverallVulnerabilityLegendEntry(config, colorScheme, rawGeoJson, opacity = 1) {
-    const scheme = legendColorsForMapOpacity(colorScheme || [], opacity);
+    // Always start from the fixed overall ramp (not a possibly already-blended
+    // colorScheme from updateVectorLegend) so opacity is applied exactly once.
+    const ramp = getColorRamp(config?.fixedColorRamp || 'whiteToDarkBlue3');
+    const baseColors =
+        Array.isArray(ramp?.colors) && ramp.colors.length
+            ? ramp.colors
+            : Array.isArray(colorScheme)
+              ? colorScheme
+              : [];
+    const scheme = legendColorsForMapOpacity(baseColors, opacity);
     const labels = [...OVERALL_VULNERABILITY_LEGEND_LABELS];
     if (layerHasAcsCodeNoData(rawGeoJson)) {
         scheme.push(legendColorsForMapOpacity([ACS_CODE_NO_DATA_COLOR], opacity)[0]);
@@ -2581,7 +2639,7 @@ async function refreshSVLayerForDisplay(layerId, map, layers, addLegendEntry) {
                     pushOverallVulnerabilityLegend(
                         layerId,
                         config,
-                        colorScheme,
+                        fixedRamp.colors,
                         addLegendEntry,
                         rawGeoJson,
                         opacity
@@ -2630,7 +2688,7 @@ async function rebuildActiveSVLayerStyles(map, layers, addLegendEntry) {
 }
 
 function syncMapDisplayLabels(map, layers) {
-    // Compact score labels already include the place name. Boxed Map Controls
+    // Compact score labels already include the place name. Boxed Advanced Options
     // admin badges only create duplicates — turn them off while Show labels is on.
     if (isShowLabelsMode()) {
         setAdminLabelLayersEnabled(false, map, layers?.labels);
@@ -2699,19 +2757,26 @@ function createVectorLayerFromGeoJson(data, config = {}) {
     return vectorLayer;
 }
 
-async function showCustomOverallLayer(geojson, map, layers, addLegendEntry, removeLegendEntry) {
+async function showCustomOverallLayer(geojson, map, layers, addLegendEntry, removeLegendEntry, options = {}) {
     const layerId = CUSTOM_OVERALL_LAYER_ID;
     const config = layerConfig[layerId];
     if (!config || !geojson?.features?.length) return;
 
-    // AOI selection/spotlight must not leave mutated path styles or selection mode
-    // interfering with the new custom layer.
-    clearAnalysisSelection();
-    setAnalysisSelectionActive(false);
-    await forceAoiStyleRecovery();
+    const aoiMode = Boolean(options.preserveAoi || geojson?._customOverallMeta?.aoiMode);
+    // National custom overall clears AOI so selection styles do not fight the new layer.
+    // AOI custom index must keep the selection (and purple outlines).
+    if (!aoiMode) {
+        clearAnalysisSelection();
+        setAnalysisSelectionActive(false);
+        await forceAoiStyleRecovery();
+    }
 
     const row = document.getElementById('svCustomOverallRow');
     if (row) row.hidden = false;
+    const rowLabel = row?.querySelector('.sv-layer-toggle-text');
+    if (rowLabel) {
+        rowLabel.textContent = aoiMode ? 'AOI Custom Index' : 'Custom Overall Index';
+    }
 
     // Remove any previous instance
     if (layers.vector[layerId]) {
@@ -2745,15 +2810,26 @@ async function showCustomOverallLayer(geojson, map, layers, addLegendEntry, remo
     activeSVLayers.add(layerId);
     currentSVLayer = layerId;
 
+    if (aoiMode) {
+        rematchAnalysisSelectionToLayer(layers.vector[layerId], layerId);
+    }
+
+    const legendName =
+        options.legendName ||
+        (aoiMode ? 'AOI Custom Index' : config.legendName || 'Custom Overall Index');
+    const legendDescription = aoiMode
+        ? 'Custom composite recalculated over the selected AOI only; other units are muted'
+        : 'Experimental custom overall (selected themes / sub-indicators)';
+
     const opacitySlider = document.getElementById(config.opacityControl);
     const opacity = opacitySlider ? parseFloat(opacitySlider.value) : 0.6;
     const fixedRamp = getColorRamp(config.fixedColorRamp);
     if (fixedRamp) {
         const updateLegendForLayer = (layerName, colorScheme, description, labels) => {
             addLegendEntry?.(layerId, {
-                layerName: config.legendName || 'Custom Overall Index',
+                layerName: legendName,
                 colorScheme,
-                description: description || 'Experimental custom overall (selected themes / sub-indicators)',
+                description: description || legendDescription,
                 labels
             });
         };
@@ -2770,6 +2846,9 @@ async function showCustomOverallLayer(geojson, map, layers, addLegendEntry, remo
         );
         applySVPolygonOutlineStyle(layers.vector[layerId], config);
         reapplySelectedPolygonHighlight(layerId);
+        if (aoiMode) {
+            reapplyAnalysisSelectionStyles();
+        }
     }
     updateSVHoverTooltips(layers.vector[layerId], layerId, config);
 
@@ -2822,6 +2901,8 @@ function hideCustomOverallLayer(map, layers, removeLegendEntry) {
     hideCustomOverallVisibility(map, layers, removeLegendEntry, false);
     const row = document.getElementById('svCustomOverallRow');
     if (row) row.hidden = true;
+    const rowLabel = row?.querySelector('.sv-layer-toggle-text');
+    if (rowLabel) rowLabel.textContent = 'Custom Overall Index';
     const toggle = document.getElementById(CUSTOM_OVERALL_LAYER_ID);
     if (toggle) {
         toggle.checked = false;
@@ -3135,8 +3216,8 @@ function setupSVRadioControls(map, layers, colorScales, addLegendEntry, removeLe
                 getSourceLayerGeoJson(sourceLayerId, resolution, layers),
             getOverallGeoJson: resolution =>
                 getSourceLayerGeoJson(SV_OVERALL_LAYER_ID, resolution, layers),
-            showCustomOverallLayer: geojson =>
-                showCustomOverallLayer(geojson, map, layers, addLegendEntry, removeLegendEntry),
+            showCustomOverallLayer: (geojson, options) =>
+                showCustomOverallLayer(geojson, map, layers, addLegendEntry, removeLegendEntry, options),
             hideCustomOverallVisibility: () =>
                 hideCustomOverallVisibility(map, layers, removeLegendEntry),
             hideCustomOverallLayer: () =>
@@ -3148,7 +3229,9 @@ function setupSVRadioControls(map, layers, colorScales, addLegendEntry, removeLe
         refreshActiveLayersForDisplay: () => refreshActiveSVLayersForDisplay(map, layers, addLegendEntry),
         rebuildActiveLayerStyles: () => rebuildActiveSVLayerStyles(map, layers, addLegendEntry),
         syncLabels: () => syncMapDisplayLabels(map, layers),
-        enforceColorOnlySingleLayer: () => enforceColorOnlySingleLayer(map, layers, removeLegendEntry)
+        enforceColorOnlySingleLayer: () => enforceColorOnlySingleLayer(map, layers, removeLegendEntry),
+        isolateSvLayer: layerId => isolateSvLayer(layerId, map, layers, removeLegendEntry),
+        getCurrentSvLayerId: () => currentSVLayer
     });
 
     // AOI (area of interest) — core analysis feature; providers keep it sandbox-free.

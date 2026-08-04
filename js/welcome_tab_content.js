@@ -52,9 +52,10 @@ export const WELCOME_TAB_HTML = `
 
             <div style="font-size:12px; font-weight:700; color:#6d6d6d; letter-spacing:0.06em; margin:6px 0 8px; border-bottom:1px solid #d9d9d9; padding-bottom:5px;">DISPLAY OPTIONS</div>
             <div style="font-size:12px; color:#3e3e3e; line-height:1.55; margin-bottom:14px;">
-                <div style="margin-bottom:6px;"><strong>Show Color Only</strong> &mdash; Replaces circles, stripes, and symbols with a simple filled choropleth so you can compare one theme at a time using a unified color ramp.</div>
                 <div style="margin-bottom:6px;"><strong>Show Labels</strong> &mdash; Displays score labels directly on the map for the active layer.</div>
-                <div style="margin-bottom:6px;"><strong>Class Limits</strong> &mdash; Cycle between <em>Equal count</em>, <em>Equal interval</em>, and <em>Natural breaks</em> classification to change how score ranges are grouped.</div>
+                <div style="margin-bottom:6px;"><strong>Color</strong> (on each composite layer) &mdash; Shows that layer alone as a plain color choropleth. Click again to leave color mode.</div>
+                <div style="margin-bottom:6px;"><strong>Show Color Only</strong> (Advanced Options) &mdash; Global toggle for plain choropleth rendering on the active layer.</div>
+                <div style="margin-bottom:6px;"><strong>Class Limits</strong> (Advanced Options) &mdash; Cycle between <em>Equal count</em>, <em>Equal interval</em>, and <em>Natural breaks</em> classification to change how score ranges are grouped.</div>
                 <div><strong>Custom Overall Index</strong> &mdash; Build your own composite by choosing which themes to include and adjusting their weights.</div>
             </div>
 

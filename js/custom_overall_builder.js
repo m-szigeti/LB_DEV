@@ -22,6 +22,9 @@ import { getValueClassIndex, resolveClassificationBreaks } from './vector_layers
 import { getClassificationMode } from './map_display_controls.js';
 import {
     clearAnalysisSelection,
+    getAnalysisSelectionCount,
+    getAnalysisSelectionKeys,
+    getFeatureSelectionKey,
     setAnalysisSelectionActive
 } from './analysis_selection.js';
 import { forceAoiStyleRecovery } from './aoi_spotlight.js';
@@ -68,6 +71,10 @@ let weightsConfig = null;
 let activeGeoJson = null;
 let activeSelection = null;
 let computing = false;
+/** @type {'national' | 'aoi'} */
+let builderMode = 'national';
+/** @type {Set<string> | null} */
+let aoiKeysSnapshot = null;
 
 export function isCustomOverallActive() {
     return Boolean(activeGeoJson?.features?.length);
@@ -112,7 +119,7 @@ async function ensureWeightsConfig() {
 
 function bindUi() {
     document.getElementById('customOverallOpenBtn')?.addEventListener('click', () => {
-        void openModal();
+        void openModal({ mode: 'national' });
     });
     document.getElementById('customOverallDeleteBtn')?.addEventListener('click', () => {
         void deleteCustomOverall();
@@ -143,15 +150,45 @@ function ensureModalExists() {
     // Markup lives in index.html; nothing to create dynamically.
 }
 
-async function openModal() {
+/**
+ * Open the theme/indicator picker for an AOI-scoped custom index.
+ * Preserves the current AOI selection and normalizes scores over those units only.
+ */
+export async function openCustomOverallBuilderForAoi() {
+    if (!CUSTOM_OVERALL_BUILDER_ENABLED) {
+        window.alert('Custom overall builder is disabled.');
+        return;
+    }
+    if (getAnalysisSelectionCount() < 1) {
+        window.alert('Select at least one map unit in AOI mode first.');
+        return;
+    }
+    await openModal({ mode: 'aoi' });
+}
+
+async function openModal({ mode = 'national' } = {}) {
     if (!context) return;
-    // Avoid AOI selection mode / mutated styles interfering with builder UX.
-    clearAnalysisSelection();
-    setAnalysisSelectionActive(false);
-    await forceAoiStyleRecovery();
+    builderMode = mode === 'aoi' ? 'aoi' : 'national';
+
+    if (builderMode === 'national') {
+        // Avoid AOI selection mode / mutated styles interfering with national builder UX.
+        clearAnalysisSelection();
+        setAnalysisSelectionActive(false);
+        await forceAoiStyleRecovery();
+        aoiKeysSnapshot = null;
+    } else {
+        aoiKeysSnapshot = getAnalysisSelectionKeys();
+        if (!aoiKeysSnapshot.size) {
+            showModalError('Select at least one map unit for the AOI first.');
+            const modal = document.getElementById('customOverallModal');
+            if (modal) modal.hidden = false;
+            return;
+        }
+    }
 
     if (context.isWeightSandboxLocked?.()) {
         showModalError('Finish or delete the experimental weight sandbox before building a custom overall.');
+        syncModalChromeForMode();
         const modal = document.getElementById('customOverallModal');
         if (modal) modal.hidden = false;
         return;
@@ -161,9 +198,23 @@ async function openModal() {
     const resolution = context.getActiveResolution?.() || 'district';
     await renderThemeList(resolution);
     clearModalError();
+    syncModalChromeForMode();
     const modal = document.getElementById('customOverallModal');
     if (modal) modal.hidden = false;
     updateCreateEnabled();
+}
+
+function syncModalChromeForMode() {
+    const title = document.getElementById('customOverallModalTitle');
+    const createBtn = document.getElementById('customOverallModalCreate');
+
+    if (builderMode === 'aoi') {
+        if (title) title.textContent = 'Design custom index for AOI';
+        if (createBtn) createBtn.textContent = 'Create AOI index';
+    } else {
+        if (title) title.textContent = 'Build custom overall index';
+        if (createBtn) createBtn.textContent = 'Create custom overall';
+    }
 }
 
 function closeModal() {
@@ -178,10 +229,18 @@ async function renderThemeList(resolution) {
 
     const themes = themesForResolution(resolution);
     const resLabel = resolutionLabel(resolution);
+    const aoiCount = builderMode === 'aoi' ? aoiKeysSnapshot?.size || getAnalysisSelectionCount() : 0;
 
     const subtitle = document.getElementById('customOverallModalSubtitle');
     if (subtitle) {
-        subtitle.textContent = `Select themes and sub-indicators for ${resLabel}. Scoring follows the official recipe (median impute, min–max, Kendall τ weights, weighted sum).`;
+        if (builderMode === 'aoi') {
+            subtitle.textContent =
+                `Select themes and sub-indicators for ${aoiCount} selected ${resLabel.toLowerCase()} unit${aoiCount === 1 ? '' : 's'}. ` +
+                `Scores are recalculated over the AOI only (median impute, min–max, Kendall τ weights, weighted sum). Units outside the AOI stay gray.`;
+        } else {
+            subtitle.textContent =
+                `Select themes and sub-indicators for ${resLabel}. Scoring follows the official recipe (median impute, min–max, Kendall τ weights, weighted sum).`;
+        }
     }
 
     const blocks = [];
@@ -336,6 +395,15 @@ async function createCustomOverall() {
         return;
     }
 
+    const aoiKeys =
+        builderMode === 'aoi'
+            ? new Set(aoiKeysSnapshot?.size ? aoiKeysSnapshot : getAnalysisSelectionKeys())
+            : null;
+    if (builderMode === 'aoi' && (!aoiKeys || aoiKeys.size < 1)) {
+        showModalError('AOI selection is empty. Select map units first.');
+        return;
+    }
+
     computing = true;
     updateCreateEnabled();
     setModalBusy(true);
@@ -344,10 +412,13 @@ async function createCustomOverall() {
     try {
         await ensureWeightsConfig();
         const resolution = context.getActiveResolution?.() || 'district';
-        const geojson = await buildCustomOverallGeoJson(selection, resolution);
+        const geojson = await buildCustomOverallGeoJson(selection, resolution, { aoiKeys });
         activeGeoJson = geojson;
         activeSelection = selection;
-        await context.showCustomOverallLayer?.(geojson);
+        await context.showCustomOverallLayer?.(geojson, {
+            preserveAoi: Boolean(aoiKeys),
+            legendName: aoiKeys ? 'AOI Custom Index' : null
+        });
         closeModal();
     } catch (error) {
         console.error('Custom overall build failed:', error);
@@ -398,7 +469,8 @@ function syncBuilderChrome() {
     }
 }
 
-async function buildCustomOverallGeoJson(selection, resolution) {
+async function buildCustomOverallGeoJson(selection, resolution, options = {}) {
+    const aoiKeys = options.aoiKeys instanceof Set && options.aoiKeys.size ? options.aoiKeys : null;
     const overallGeo = await loadOverallBase(resolution);
     if (!overallGeo?.features?.length) {
         throw new Error('Overall vulnerability geometry is not available for this resolution.');
@@ -407,6 +479,27 @@ async function buildCustomOverallGeoJson(selection, resolution) {
     const joinKeys = getJoinKeys(resolution);
     const cloned = cloneGeoJson(overallGeo);
     const pillarDefs = [];
+
+    // Mark AOI membership up front so outside units stay null / gray on the map.
+    if (aoiKeys) {
+        let inAoiCount = 0;
+        cloned.features.forEach(feature => {
+            if (!feature.properties) feature.properties = {};
+            const inAoi = featureMatchesAoiKeys(feature.properties, aoiKeys);
+            feature.properties._aoi_outside = !inAoi;
+            if (inAoi) inAoiCount += 1;
+        });
+        if (!inAoiCount) {
+            throw new Error(
+                'None of the selected AOI units match the overall layer at this resolution. Try selecting again on the active map layer.'
+            );
+        }
+    } else {
+        cloned.features.forEach(feature => {
+            if (!feature.properties) feature.properties = {};
+            delete feature.properties._aoi_outside;
+        });
+    }
 
     for (const [layerId, fields] of Object.entries(selection)) {
         const theme = getThemeByLayerId(layerId);
@@ -417,7 +510,10 @@ async function buildCustomOverallGeoJson(selection, resolution) {
             throw new Error(`Could not load data for ${theme.title}.`);
         }
 
-        const scoreByKey = buildThemePillarScores(theme, fields, sourceGeo, joinKeys);
+        const scoreByKey = buildThemePillarScores(theme, fields, sourceGeo, joinKeys, {
+            aoiKeys,
+            aoiOnly: Boolean(aoiKeys)
+        });
         if (!scoreByKey.size) {
             console.warn(`Custom overall: no usable fields for ${theme.title}, skipping.`);
             continue;
@@ -426,6 +522,10 @@ async function buildCustomOverallGeoJson(selection, resolution) {
         const pillarField = `_custom_pillar_T${theme.themeNumber}`;
         cloned.features.forEach(feature => {
             if (!feature.properties) feature.properties = {};
+            if (aoiKeys && feature.properties._aoi_outside) {
+                feature.properties[pillarField] = null;
+                return;
+            }
             const key = pickJoinValue(feature.properties, joinKeys);
             const score = key ? scoreByKey.get(key) : undefined;
             feature.properties[pillarField] = Number.isFinite(score) ? score : null;
@@ -444,34 +544,64 @@ async function buildCustomOverallGeoJson(selection, resolution) {
     }
 
     // Official overall step: Kendall-weighted composite of the selected pillars.
-    const { scoresByIndex } = scoreFeaturesOfficialRecipe(cloned.features, pillarDefs);
-    cloned.features.forEach((feature, index) => {
+    // In AOI mode, normalize / weight only over selected units.
+    const scoreTargets = aoiKeys
+        ? cloned.features.filter(feature => !feature.properties?._aoi_outside)
+        : cloned.features;
+    const { scoresByIndex } = scoreFeaturesOfficialRecipe(scoreTargets, pillarDefs);
+    scoreTargets.forEach((feature, index) => {
         if (!feature.properties) feature.properties = {};
         const score = scoresByIndex[index];
         feature.properties[CUSTOM_OVERALL_SCORE_FIELD] = Number.isFinite(score) ? score : null;
     });
+    if (aoiKeys) {
+        cloned.features.forEach(feature => {
+            if (!feature.properties) feature.properties = {};
+            if (feature.properties._aoi_outside) {
+                feature.properties[CUSTOM_OVERALL_SCORE_FIELD] = null;
+            }
+        });
+    }
 
     cloned._customOverallMeta = {
         resolution,
         pillarCount: pillarDefs.length,
         selection,
-        recipe: 'official-kendall'
+        recipe: 'official-kendall',
+        aoiMode: Boolean(aoiKeys),
+        aoiUnitCount: aoiKeys ? scoreTargets.length : null
     };
     return cloned;
+}
+
+function featureMatchesAoiKeys(properties, aoiKeys) {
+    if (!aoiKeys?.size || !properties) return false;
+    const key = getFeatureSelectionKey(properties);
+    return Boolean(key && aoiKeys.has(key));
 }
 
 /**
  * Build per-unit theme pillar scores the same way the pipeline feeds Overall:
  * - Themes 1 & 5: official scoreField when selected (Displacement Ratio / Demographic Factor)
- * - Composite themes with a full indicator selection: stored composite_score
+ * - Composite themes with a full indicator selection: stored composite_score (national only)
  * - Otherwise: Kendall composite of the selected sub-indicators
+ * When aoiOnly: recompute / read only over AOI units so min–max is local to the selection.
  */
-function buildThemePillarScores(theme, selectedFields, sourceGeo, joinKeys) {
+function buildThemePillarScores(theme, selectedFields, sourceGeo, joinKeys, options = {}) {
+    const aoiKeys = options.aoiKeys instanceof Set && options.aoiKeys.size ? options.aoiKeys : null;
+    const aoiOnly = Boolean(options.aoiOnly && aoiKeys);
     const available = collectAvailableFields(sourceGeo);
     const resolvedSelected = selectedFields
         .map(field => resolveFieldName(field, available))
         .filter(Boolean);
     if (!resolvedSelected.length) return new Map();
+
+    const sourceFeatures = aoiOnly
+        ? (sourceGeo.features || []).filter(feature =>
+              featureMatchesAoiKeys(feature?.properties, aoiKeys)
+          )
+        : sourceGeo.features || [];
+    if (!sourceFeatures.length) return new Map();
 
     const scoreByKey = new Map();
     const putScore = (feature, score) => {
@@ -485,37 +615,40 @@ function buildThemePillarScores(theme, selectedFields, sourceGeo, joinKeys) {
     if (DIRECT_PILLAR_THEME_NUMBERS.has(theme.themeNumber)) {
         const officialField = resolveScoreField(theme.scoreField, available);
         if (officialField && resolvedSelected.includes(officialField)) {
-            sourceGeo.features.forEach(feature => {
+            sourceFeatures.forEach(feature => {
                 putScore(feature, toNumericBinaryAware(feature?.properties?.[officialField]));
             });
             return scoreByKey;
         }
         // Score field not selected: Kendall-composite the chosen alternatives.
-        return kendallScoreByJoinKey(sourceGeo, resolvedSelected, joinKeys);
+        return kendallScoreByJoinKey(sourceFeatures, resolvedSelected, joinKeys);
     }
 
-    if (isFullCompositeSelection(theme, resolvedSelected, available)) {
+    // National builder can reuse stored composite when the full theme is selected.
+    // AOI mode always recalculates so min–max / Kendall reflect the selection only.
+    if (!aoiOnly && isFullCompositeSelection(theme, resolvedSelected, available)) {
         const compositeField = resolveFieldName('composite_score', available);
         if (compositeField) {
-            sourceGeo.features.forEach(feature => {
+            sourceFeatures.forEach(feature => {
                 putScore(feature, toNumericBinaryAware(feature?.properties?.[compositeField]));
             });
             if (scoreByKey.size) return scoreByKey;
         }
     }
 
-    return kendallScoreByJoinKey(sourceGeo, resolvedSelected, joinKeys);
+    return kendallScoreByJoinKey(sourceFeatures, resolvedSelected, joinKeys);
 }
 
-function kendallScoreByJoinKey(sourceGeo, fields, joinKeys) {
+function kendallScoreByJoinKey(sourceFeatures, fields, joinKeys) {
+    const features = Array.isArray(sourceFeatures) ? sourceFeatures : sourceFeatures?.features || [];
     const indicators = fields.map(field => ({
         field,
         label: field,
         inverted: false
     }));
-    const { scoresByIndex } = scoreFeaturesOfficialRecipe(sourceGeo.features, indicators);
+    const { scoresByIndex } = scoreFeaturesOfficialRecipe(features, indicators);
     const scoreByKey = new Map();
-    sourceGeo.features.forEach((feature, index) => {
+    features.forEach((feature, index) => {
         const props = feature?.properties;
         if (!props) return;
         const key = pickJoinValue(props, joinKeys);
@@ -593,7 +726,11 @@ function setModalBusy(busy) {
     if (cancelBtn) cancelBtn.disabled = busy;
     if (status) {
         status.hidden = !busy;
-        status.textContent = busy ? 'Calculating custom overall…' : '';
+        status.textContent = busy
+            ? builderMode === 'aoi'
+                ? 'Calculating AOI custom index…'
+                : 'Calculating custom overall…'
+            : '';
     }
 }
 
@@ -632,7 +769,10 @@ function escapeAttr(text) {
 function collectNumericScores(geojson, field) {
     const values = [];
     (geojson?.features || []).forEach(feature => {
-        const value = Number(feature?.properties?.[field]);
+        if (feature?.properties?._aoi_outside === true) return;
+        const raw = feature?.properties?.[field];
+        if (raw === null || raw === undefined || raw === '') return;
+        const value = Number(raw);
         if (Number.isFinite(value)) values.push(value);
     });
     return values;
@@ -717,14 +857,51 @@ function drawFeaturePath(ctx, feature, project) {
     return false;
 }
 
+const EXPORT_AOI_OUTSIDE_FILL = '#94a3b8';
+const EXPORT_NO_DATA_FILL = '#e2e8f0';
+
+function readFeatureScore(feature, field) {
+    if (feature?.properties?._aoi_outside === true) return { outside: true, value: null };
+    const raw = feature?.properties?.[field];
+    if (raw === null || raw === undefined || raw === '') {
+        return { outside: false, value: null };
+    }
+    const value = Number(raw);
+    return { outside: false, value: Number.isFinite(value) ? value : null };
+}
+
+function featureIsOutsideAoi(feature, aoiKeys) {
+    if (!aoiKeys?.size) return feature?.properties?._aoi_outside === true;
+    if (feature?.properties?._aoi_outside === true) return true;
+    const key = getFeatureSelectionKey(feature?.properties);
+    return !key || !aoiKeys.has(key);
+}
+
 function resolveFillColor(value, breaks, colors) {
-    if (!Number.isFinite(value)) return '#e2e8f0';
+    if (!Number.isFinite(value) || !Array.isArray(breaks) || !breaks.length) {
+        return EXPORT_NO_DATA_FILL;
+    }
     const classIndex = getValueClassIndex(value, breaks, colors.length);
-    if (classIndex === null) return '#e2e8f0';
+    if (classIndex === null) return EXPORT_NO_DATA_FILL;
     return colors[classIndex] || colors[colors.length - 1] || '#94a3b8';
 }
 
-function drawChoroplethPanel(ctx, geojson, field, breaks, colors, project, originX, originY, width, height) {
+function drawChoroplethPanel(
+    ctx,
+    geojson,
+    field,
+    breaks,
+    colors,
+    project,
+    originX,
+    originY,
+    width,
+    height,
+    options = {}
+) {
+    const aoiKeys = options.aoiKeys || null;
+    const maskOutsideAoi = Boolean(options.maskOutsideAoi && aoiKeys?.size);
+
     ctx.save();
     ctx.translate(originX, originY);
     ctx.fillStyle = '#f8fafc';
@@ -734,32 +911,151 @@ function drawChoroplethPanel(ctx, geojson, field, breaks, colors, project, origi
     ctx.strokeRect(0.5, 0.5, width - 1, height - 1);
 
     (geojson?.features || []).forEach(feature => {
-        const value = Number(feature?.properties?.[field]);
         if (!drawFeaturePath(ctx, feature, project)) return;
+        const outside = maskOutsideAoi
+            ? featureIsOutsideAoi(feature, aoiKeys)
+            : feature?.properties?._aoi_outside === true;
+        if (outside) {
+            ctx.fillStyle = EXPORT_AOI_OUTSIDE_FILL;
+            ctx.globalAlpha = 0.45;
+            ctx.fill('evenodd');
+            ctx.globalAlpha = 1;
+            ctx.strokeStyle = '#64748b';
+            ctx.lineWidth = 0.35;
+            ctx.stroke();
+            return;
+        }
+        const { value } = readFeatureScore(feature, field);
         ctx.fillStyle = resolveFillColor(value, breaks, colors);
         ctx.fill('evenodd');
         ctx.strokeStyle = '#374151';
         ctx.lineWidth = 0.45;
         ctx.stroke();
     });
+
+    // Legend inset — top left of this panel
+    drawPanelLegend(ctx, colors, 12, 12);
+
+    if (options.centerTitle) {
+        drawPanelCenterTitle(ctx, options.centerTitle, width, height);
+    }
     ctx.restore();
 }
 
-function drawLegend(ctx, colors, x, y) {
-    const box = 14;
-    const gap = 8;
-    // Ramp is low → high (white → dark), matching the live map choropleth.
-    const labels = ['Lower vulnerability', 'Medium', 'Higher vulnerability'];
-    ctx.font = '12px "Segoe UI", system-ui, sans-serif';
+function drawPanelCenterTitle(ctx, text, width, height) {
+    ctx.save();
+    ctx.font = '700 28px "Segoe UI", system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const x = width / 2;
+    const y = 28;
+    // Light backdrop so black text stays readable over the map edge.
+    const metrics = ctx.measureText(text);
+    const padX = 14;
+    const padY = 6;
+    const boxW = metrics.width + padX * 2;
+    const boxH = 32 + padY;
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.82)';
+    ctx.fillRect(x - boxW / 2, y - boxH / 2, boxW, boxH);
+    ctx.fillStyle = '#000000';
+    ctx.fillText(text, x, y);
+    ctx.restore();
+}
+
+function drawPanelLegend(ctx, colors, x, y) {
+    const box = 12;
+    const rowH = 18;
+    const labels = ['Lower', 'Medium', 'Higher'];
+    const pad = 8;
+    const textW = 72;
+    const panelW = pad * 2 + box + 6 + textW;
+    const panelH = pad * 2 + colors.length * rowH;
+
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.78)';
+    ctx.fillRect(x, y, panelW, panelH);
+    ctx.strokeStyle = 'rgba(148, 163, 184, 0.55)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(x + 0.5, y + 0.5, panelW - 1, panelH - 1);
+
+    ctx.font = '11px "Segoe UI", system-ui, sans-serif';
     colors.forEach((color, index) => {
-        const left = x + index * 170;
+        const top = y + pad + index * rowH;
         ctx.fillStyle = color;
-        ctx.fillRect(left, y, box, box);
-        ctx.strokeStyle = '#64748b';
-        ctx.strokeRect(left + 0.5, y + 0.5, box - 1, box - 1);
-        ctx.fillStyle = '#cbd5e1';
-        ctx.fillText(labels[index] || `Class ${index + 1}`, left + box + 6, y + 11);
+        ctx.fillRect(x + pad, top + 2, box, box);
+        ctx.strokeStyle = '#94a3b8';
+        ctx.strokeRect(x + pad + 0.5, top + 2.5, box - 1, box - 1);
+        ctx.fillStyle = '#f8fafc';
+        ctx.fillText(labels[index] || `Class ${index + 1}`, x + pad + box + 6, top + 12);
     });
+}
+
+/**
+ * Human-readable summary of selected themes / sub-indicators for the PNG caption.
+ */
+function formatThemeSelectionLines(selection) {
+    if (!selection || typeof selection !== 'object') return [];
+    const lines = [];
+    Object.entries(selection).forEach(([layerId, fields]) => {
+        const theme = getThemeByLayerId(layerId);
+        const themeTitle = theme
+            ? `Theme ${theme.themeNumber} — ${theme.title}`
+            : layerId;
+        const fieldList = Array.isArray(fields) ? fields : [];
+        if (!fieldList.length) return;
+
+        const catalogCount = theme?.indicators?.length || 0;
+        const allSelected = catalogCount > 0 && fieldList.length >= catalogCount;
+        if (allSelected) {
+            lines.push(`${themeTitle} (all indicators)`);
+            return;
+        }
+
+        const labels = fieldList.map(field => {
+            const match = theme?.indicators?.find(ind => ind.field === field);
+            return match?.label || field;
+        });
+        const preview = labels.slice(0, 4).join(', ');
+        const more = labels.length > 4 ? ` (+${labels.length - 4} more)` : '';
+        lines.push(`${themeTitle}: ${preview}${more}`);
+    });
+    return lines;
+}
+
+function collectAoiKeysFromCustomGeo(customGeo) {
+    const keys = new Set();
+    (customGeo?.features || []).forEach(feature => {
+        if (feature?.properties?._aoi_outside === true) return;
+        const key = getFeatureSelectionKey(feature?.properties);
+        if (key) keys.add(key);
+    });
+    return keys;
+}
+
+function drawWrappedLines(ctx, lines, x, y, maxWidth, lineHeight, maxLines = 8) {
+    const drawn = [];
+    lines.forEach(line => {
+        const words = String(line).split(/\s+/).filter(Boolean);
+        let current = '';
+        words.forEach(word => {
+            const next = current ? `${current} ${word}` : word;
+            if (ctx.measureText(next).width <= maxWidth) {
+                current = next;
+            } else {
+                if (current) drawn.push(current);
+                current = word;
+            }
+        });
+        if (current) drawn.push(current);
+    });
+
+    const visible = drawn.slice(0, maxLines);
+    if (drawn.length > maxLines) {
+        visible[visible.length - 1] = `${visible[visible.length - 1]} …`;
+    }
+    visible.forEach((line, index) => {
+        ctx.fillText(line, x, y + index * lineHeight);
+    });
+    return visible.length * lineHeight;
 }
 
 /**
@@ -795,9 +1091,20 @@ function renderSideBySideChoroplethComparison(officialGeo, customGeo) {
         throw new Error('Color ramp for export is unavailable.');
     }
 
-    // Per-panel class breaks — same as each layer on the live map. Shared
-    // official-only breaks made the custom panel diverge from the map view.
-    // Identical score sets still produce identical colors (same breaks).
+    const meta = customGeo?._customOverallMeta || {};
+    const aoiMode = Boolean(meta.aoiMode);
+    const aoiKeys = aoiMode ? collectAoiKeysFromCustomGeo(customGeo) : null;
+    const selection = activeSelection || meta.selection || null;
+    const themeLines = formatThemeSelectionLines(selection);
+    const themeCaptionLines = themeLines.length > 0 ? themeLines : ['No theme selection metadata available.'];
+    // Rough wrap estimate (~110 chars / line at 12px on this canvas width).
+    const estimatedThemeRows = themeCaptionLines.reduce(
+        (sum, line) => sum + Math.max(1, Math.ceil(String(line).length / 110)),
+        1
+    );
+
+    // Per-panel class breaks — same as each layer on the live map.
+    // AOI exports ignore outside units when deriving custom breaks.
     const officialBreaks = resolvePanelBreaks(
         officialGeo,
         OFFICIAL_OVERALL_SCORE_FIELD,
@@ -818,8 +1125,10 @@ function renderSideBySideChoroplethComparison(officialGeo, customGeo) {
     const project = makeProjector(bounds, EXPORT_PANEL_WIDTH, EXPORT_PANEL_HEIGHT);
 
     const gap = 24;
-    const headerH = 52;
-    const footerH = 44;
+    const titleH = 40;
+    const themeBlockH = Math.max(64, 28 + estimatedThemeRows * 16);
+    const headerH = titleH + themeBlockH;
+    const footerH = 36;
     const width = EXPORT_PANEL_WIDTH * 2 + gap * 3;
     const height = EXPORT_PANEL_HEIGHT + headerH + footerH + gap;
 
@@ -832,12 +1141,39 @@ function renderSideBySideChoroplethComparison(officialGeo, customGeo) {
     ctx.fillStyle = '#0f172a';
     ctx.fillRect(0, 0, width, height);
 
+    const leftTitle = aoiMode
+        ? 'Official Overall (AOI highlighted)'
+        : 'Official Overall Vulnerability Index';
+    const rightTitle = aoiMode ? 'AOI Custom Index' : 'Custom Overall Index';
+
     ctx.fillStyle = '#f8fafc';
-    ctx.font = '600 22px "Segoe UI", system-ui, sans-serif';
-    ctx.fillText('Official Overall Vulnerability Index', gap, 34);
-    ctx.fillText('Custom Overall Index', gap * 2 + EXPORT_PANEL_WIDTH, 34);
+    ctx.font = '600 20px "Segoe UI", system-ui, sans-serif';
+    ctx.fillText(leftTitle, gap, 28);
+    ctx.fillText(rightTitle, gap * 2 + EXPORT_PANEL_WIDTH, 28);
+
+    // Theme selection caption (both national custom overall and AOI custom index)
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = '12px "Segoe UI", system-ui, sans-serif';
+    const themeHeader = aoiMode
+        ? `Themes selected for AOI index (${meta.aoiUnitCount || aoiKeys?.size || '—'} units):`
+        : 'Themes selected for custom index:';
+    ctx.fillText(themeHeader, gap, titleH + 16);
+    ctx.fillStyle = '#cbd5e1';
+    drawWrappedLines(
+        ctx,
+        themeCaptionLines,
+        gap,
+        titleH + 34,
+        width - gap * 2,
+        16,
+        Math.max(3, estimatedThemeRows + 1)
+    );
 
     const panelY = headerH;
+    const panelOptions = {
+        maskOutsideAoi: aoiMode,
+        aoiKeys
+    };
     drawChoroplethPanel(
         ctx,
         officialGeo,
@@ -848,7 +1184,8 @@ function renderSideBySideChoroplethComparison(officialGeo, customGeo) {
         gap,
         panelY,
         EXPORT_PANEL_WIDTH,
-        EXPORT_PANEL_HEIGHT
+        EXPORT_PANEL_HEIGHT,
+        { ...panelOptions, centerTitle: 'Before' }
     );
     drawChoroplethPanel(
         ctx,
@@ -860,14 +1197,19 @@ function renderSideBySideChoroplethComparison(officialGeo, customGeo) {
         gap * 2 + EXPORT_PANEL_WIDTH,
         panelY,
         EXPORT_PANEL_WIDTH,
-        EXPORT_PANEL_HEIGHT
+        EXPORT_PANEL_HEIGHT,
+        { ...panelOptions, centerTitle: 'After' }
     );
 
-    drawLegend(ctx, colorRamp.colors, gap, height - 30);
+    // Footer — single non-overlapping caption
     const stamp = new Date().toLocaleString();
     ctx.fillStyle = '#94a3b8';
     ctx.font = '12px "Segoe UI", system-ui, sans-serif';
-    ctx.fillText(`Class breaks match live map (per panel) · ${stamp}`, gap + 420, height - 18);
+    const footerY = height - 14;
+    const footerLeft = aoiMode
+        ? `Outside AOI grayed out · Class breaks match live map (per panel) · ${stamp}`
+        : `Class breaks match live map (per panel) · ${stamp}`;
+    ctx.fillText(footerLeft, gap, footerY);
 
     return canvas;
 }
@@ -915,7 +1257,11 @@ async function exportSideBySideComparison() {
 
         const composed = renderSideBySideChoroplethComparison(officialGeo, activeGeoJson);
         const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
-        await downloadCanvasPng(composed, `custom-overall-comparison-${stamp}.png`);
+        const aoiMode = Boolean(activeGeoJson?._customOverallMeta?.aoiMode);
+        const filename = aoiMode
+            ? `aoi-custom-index-comparison-${stamp}.png`
+            : `custom-overall-comparison-${stamp}.png`;
+        await downloadCanvasPng(composed, filename);
     } catch (error) {
         console.error('Custom overall export failed:', error);
         window.alert(error?.message || 'Could not export side-by-side comparison.');

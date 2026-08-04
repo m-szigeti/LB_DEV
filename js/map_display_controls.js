@@ -1,5 +1,5 @@
 /**
- * Global map display controls (Administrative resolution tray).
+ * Global map display controls (Administrative resolution tray + Advanced Options).
  * Defaults preserve today’s tool behavior until the user toggles a control.
  */
 
@@ -25,11 +25,15 @@ const state = {
     colorOnly: false,
     showLabels: false,
     classificationMode: CLASSIFICATION_MODES.EQUAL_COUNT,
+    /** Layer id last targeted by Isolate (null when color-only was toggled globally). */
+    isolatedLayerId: null,
     /** @type {null | {
      *   refreshActiveLayersForDisplay: () => void | Promise<void>,
      *   rebuildActiveLayerStyles: () => void | Promise<void>,
      *   syncLabels: () => void | Promise<void>,
-     *   enforceColorOnlySingleLayer?: () => void
+     *   enforceColorOnlySingleLayer?: () => void,
+     *   isolateSvLayer?: (layerId: string) => void | Promise<void>,
+     *   getCurrentSvLayerId?: () => string | null
      * }} */
     context: null
 };
@@ -50,13 +54,58 @@ export function getClassificationModeLabel(mode = getClassificationMode()) {
     return CLASSIFICATION_LABELS[mode] || CLASSIFICATION_LABELS[CLASSIFICATION_MODES.EQUAL_COUNT];
 }
 
+export function getIsolatedLayerId() {
+    return state.isolatedLayerId;
+}
+
 export function setColorOnlyMode(enabled) {
     state.colorOnly = Boolean(enabled);
+    if (!state.colorOnly) {
+        state.isolatedLayerId = null;
+    } else if (!state.isolatedLayerId) {
+        state.isolatedLayerId = state.context?.getCurrentSvLayerId?.() || null;
+    }
     syncTrayButtons();
     if (state.colorOnly && typeof state.context?.enforceColorOnlySingleLayer === 'function') {
         state.context.enforceColorOnlySingleLayer();
     }
-    return state.context?.refreshActiveLayersForDisplay?.();
+    const refresh = state.context?.refreshActiveLayersForDisplay?.();
+    return Promise.resolve(refresh).then(() => {
+        syncIsolateButtons();
+    });
+}
+
+/**
+ * Isolate one SV layer in color-only mode (plain choropleth, other SV layers off).
+ * Clicking Isolate again on the same layer turns color-only off.
+ * @param {string} layerId
+ */
+export async function isolateLayer(layerId) {
+    if (!layerId) return;
+    const currentId = state.context?.getCurrentSvLayerId?.() || null;
+    const alreadyIsolated =
+        state.colorOnly &&
+        (state.isolatedLayerId === layerId || currentId === layerId) &&
+        document.getElementById(layerId)?.checked;
+
+    if (alreadyIsolated) {
+        await setColorOnlyMode(false);
+        return;
+    }
+
+    state.isolatedLayerId = layerId;
+    state.colorOnly = true;
+    syncTrayButtons();
+    syncIsolateButtons();
+
+    if (typeof state.context?.isolateSvLayer === 'function') {
+        await state.context.isolateSvLayer(layerId);
+    } else if (typeof state.context?.enforceColorOnlySingleLayer === 'function') {
+        state.context.enforceColorOnlySingleLayer();
+    }
+
+    await state.context?.refreshActiveLayersForDisplay?.();
+    syncIsolateButtons();
 }
 
 export function setShowLabelsMode(enabled) {
@@ -101,6 +150,61 @@ function syncTrayButtons() {
             state.classificationMode !== CLASSIFICATION_MODES.EQUAL_COUNT
         );
     }
+    syncIsolateButtons();
+}
+
+function syncIsolateButtons() {
+    const activeId = state.colorOnly
+        ? state.context?.getCurrentSvLayerId?.() || state.isolatedLayerId || null
+        : null;
+    document.querySelectorAll('.sv-isolate-btn[data-isolate-layer]').forEach(btn => {
+        const layerId = btn.getAttribute('data-isolate-layer');
+        const isActive = Boolean(state.colorOnly && layerId && layerId === activeId);
+        btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+        btn.classList.toggle('is-active', isActive);
+        btn.textContent = 'Color';
+    });
+}
+
+function bindClassLimitsButton() {
+    const classBtn = document.getElementById('mapDisplayClassLimitsBtn');
+    if (!classBtn || classBtn.dataset.bound === '1') return;
+    classBtn.dataset.bound = '1';
+    classBtn.addEventListener('click', () => {
+        void cycleClassificationMode();
+    });
+    syncTrayButtons();
+}
+
+function bindColorOnlyButton() {
+    const colorBtn = document.getElementById('mapDisplayColorOnlyBtn');
+    if (!colorBtn || colorBtn.dataset.bound === '1') return;
+    colorBtn.dataset.bound = '1';
+    colorBtn.addEventListener('click', () => {
+        state.isolatedLayerId = null;
+        void setColorOnlyMode(!state.colorOnly);
+    });
+    syncTrayButtons();
+}
+
+function bindIsolateButtons() {
+    document.querySelectorAll('.sv-isolate-btn[data-isolate-layer]').forEach(btn => {
+        if (btn.dataset.bound === '1') return;
+        btn.dataset.bound = '1';
+        btn.addEventListener('click', event => {
+            event.preventDefault();
+            event.stopPropagation();
+            const layerId = btn.getAttribute('data-isolate-layer');
+            void isolateLayer(layerId);
+        });
+    });
+    syncIsolateButtons();
+}
+
+function bindAdvancedDisplayButtons() {
+    bindColorOnlyButton();
+    bindClassLimitsButton();
+    bindIsolateButtons();
 }
 
 /**
@@ -108,20 +212,19 @@ function syncTrayButtons() {
  *   refreshActiveLayersForDisplay: () => void | Promise<void>,
  *   rebuildActiveLayerStyles: () => void | Promise<void>,
  *   syncLabels: () => void | Promise<void>,
- *   enforceColorOnlySingleLayer?: () => void
+ *   enforceColorOnlySingleLayer?: () => void,
+ *   isolateSvLayer?: (layerId: string) => void | Promise<void>,
+ *   getCurrentSvLayerId?: () => string | null
  * }} appContext
  */
 export function initMapDisplayControls(appContext) {
     state.context = appContext || null;
     syncTrayButtons();
 
-    document.getElementById('mapDisplayColorOnlyBtn')?.addEventListener('click', () => {
-        void setColorOnlyMode(!state.colorOnly);
-    });
     document.getElementById('mapDisplayLabelsBtn')?.addEventListener('click', () => {
         void setShowLabelsMode(!state.showLabels);
     });
-    document.getElementById('mapDisplayClassLimitsBtn')?.addEventListener('click', () => {
-        void cycleClassificationMode();
-    });
+    bindAdvancedDisplayButtons();
+    // Advanced Options creates Color only / Class Limits dynamically after init.
+    window.__rebindMapDisplayClassLimits = bindAdvancedDisplayButtons;
 }

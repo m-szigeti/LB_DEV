@@ -2,7 +2,7 @@
 
 import { basemaps, basemapOptions } from './basemaps.js';
 
-/** Shared handle so tray “Show labels” can sync Map Controls admin labels. */
+/** Shared handle so tray “Show labels” can sync Advanced Options admin labels. */
 let adminLabelControlState = null;
 
 /**
@@ -31,7 +31,7 @@ export function createAdminLabelLayers(map, vectorLayers, countryOutline, compar
 }
 
 /**
- * Create a custom control combining all map controls including basemap selection and info panel
+ * Create a custom control combining advanced options including basemap selection
  * @param {Object} map - Leaflet map instance
  * @param {Object} labelLayers - Label layer groups
  * @param {Object} countryOutline - Country outline layer
@@ -49,8 +49,8 @@ function createMapFeaturesControl(map, labelLayers, countryOutline, compareMap, 
 
     const toggleButton = document.createElement('div');
     toggleButton.className = 'combined-control-toggle';
-    toggleButton.innerHTML = 'Map Controls ▲';
-    toggleButton.title = 'Toggle Map Controls';
+    toggleButton.innerHTML = 'Advanced Options ▲';
+    toggleButton.title = 'Toggle Advanced Options';
     container.appendChild(toggleButton);
 
     const contentContainer = document.createElement('div');
@@ -62,18 +62,24 @@ function createMapFeaturesControl(map, labelLayers, countryOutline, compareMap, 
     featuresTitle.innerHTML = '';
     contentContainer.appendChild(featuresTitle);
 
-    // const outlineButton = createButton('🗺️ Outline Lebanon', contentContainer);
-    // outlineButton.classList.add('active');
-
-    const adm1Button = createButton('Municipality Labels', contentContainer);
-    const adm2Button = createButton('District Labels', contentContainer);
-    // const adm3Button = createButton('Cadastre Labels', contentContainer);
-
     adminLabelControlState = {
         map,
         labelLayers,
-        buttons: { adm1: adm1Button, adm2: adm2Button }
+        buttons: { adm1: null, adm2: null }
     };
+
+    const colorOnlyButton = createButton('Show Color only', contentContainer);
+    colorOnlyButton.id = 'mapDisplayColorOnlyBtn';
+    colorOnlyButton.type = 'button';
+    colorOnlyButton.title = 'Show the active layer as a plain color choropleth (global)';
+    colorOnlyButton.setAttribute('aria-pressed', 'false');
+
+    const classLimitsButton = createButton('Class Limits: Equal count', contentContainer);
+    classLimitsButton.id = 'mapDisplayClassLimitsBtn';
+    classLimitsButton.classList.add('sv-map-display-btn-cycle');
+    classLimitsButton.dataset.mode = 'equal-count';
+    classLimitsButton.title = 'Cycle class break method for all layers';
+    classLimitsButton.type = 'button';
 
     const leftMapLabel = document.createElement('label');
     leftMapLabel.className = 'basemap-label';
@@ -105,44 +111,22 @@ function createMapFeaturesControl(map, labelLayers, countryOutline, compareMap, 
     infoPanelTitle.innerHTML = '';
     contentContainer.appendChild(infoPanelTitle);
 
-    // const infoPanelButton = createButton('📊 Analysis Panel', contentContainer);
-    // syncInfoPanelButtonState(infoPanelButton, infoPanel?.isVisible !== false);
-
-    // outlineButton.addEventListener('click', function(e) {
-    //     e.preventDefault();
-    //     toggleCountryOutline(outlineButton, map, countryOutline);
-    // });
-
-    adm1Button.addEventListener('click', function(e) {
-        e.preventDefault();
-        toggleLabels('adm1', adm1Button, labelLayers, map);
-    });
-
-    adm2Button.addEventListener('click', function(e) {
-        e.preventDefault();
-        toggleLabels('adm2', adm2Button, labelLayers, map);
-    });
-
     leftMapSelect.addEventListener('change', function() {
         updateBasemap(map, this.value);
     });
 
-    // infoPanelButton.addEventListener('click', function(e) {
-    //     e.preventDefault();
-    //     toggleInfoPanel(infoPanelButton, infoPanel);
-    // });
-
-    // document.addEventListener('info-panel-visibility-change', function(event) {
-    //     syncInfoPanelButtonState(infoPanelButton, event.detail?.visible);
-    // });
-
     toggleButton.addEventListener('click', function(e) {
         e.preventDefault();
         const isMinimized = container.classList.toggle('minimized');
-        this.innerHTML = isMinimized ? 'Map Controls ▲' : 'Map Controls ▼';
+        this.innerHTML = isMinimized ? 'Advanced Options ▲' : 'Advanced Options ▼';
     });
 
     mountTarget.appendChild(container);
+
+    // Class Limits lives here; re-bind tray display controls so the new node is wired.
+    if (typeof window.__rebindMapDisplayClassLimits === 'function') {
+        window.__rebindMapDisplayClassLimits();
+    }
 }
 
 /**
@@ -227,42 +211,54 @@ function createButton(text, container) {
 /**
  * Toggle the visibility of labels for an admin level
  * @param {string} level - Admin level (adm1 or adm2)
- * @param {HTMLElement} button - Button element that triggered the toggle
+ * @param {HTMLElement|null} button - Optional button element that triggered the toggle
  * @param {Object} labelLayers - Label layer groups
  * @param {Object} map - Leaflet map instance
  */
 function toggleLabels(level, button, labelLayers, map) {
-    const isActive = button.classList.contains('active');
+    const isActive = Boolean(button?.classList?.contains('active')) || map.hasLayer(labelLayers[level]);
     setLabelLevelEnabled(level, !isActive, button, labelLayers, map);
 }
 
 /**
- * Enable or disable an admin label level and sync its Map Controls button.
+ * Enable or disable an admin label level and optionally sync its control button.
  */
 function setLabelLevelEnabled(level, enabled, button, labelLayers, map) {
-    if (!button || !labelLayers?.[level] || !map) return;
+    if (!labelLayers?.[level] || !map) return;
 
-    const isActive = button.classList.contains('active');
+    const layerOnMap = map.hasLayer(labelLayers[level]);
+    const buttonActive = Boolean(button?.classList?.contains('active'));
+    const isActive = button ? buttonActive : layerOnMap;
+
     if (enabled === isActive) {
-        if (enabled && !map.hasLayer(labelLayers[level])) {
+        if (enabled && !layerOnMap) {
             labelLayers[level].addTo(map);
+        }
+        if (button && enabled) {
+            button.classList.add('active');
+            button.style.backgroundColor = '#d4edda';
+            button.style.fontWeight = 'bold';
         }
         return;
     }
 
     if (!enabled) {
-        button.classList.remove('active');
-        button.style.backgroundColor = '#f8f8f8';
-        button.style.fontWeight = 'normal';
+        if (button) {
+            button.classList.remove('active');
+            button.style.backgroundColor = '#f8f8f8';
+            button.style.fontWeight = 'normal';
+        }
         if (map.hasLayer(labelLayers[level])) {
             map.removeLayer(labelLayers[level]);
         }
         return;
     }
 
-    button.classList.add('active');
-    button.style.backgroundColor = '#d4edda';
-    button.style.fontWeight = 'bold';
+    if (button) {
+        button.classList.add('active');
+        button.style.backgroundColor = '#d4edda';
+        button.style.fontWeight = 'bold';
+    }
 
     if (labelLayers[level].getLayers().length === 0) {
         loadAndGenerateLabels(level, labelLayers[level], map);
@@ -275,7 +271,6 @@ function setLabelLevelEnabled(level, enabled, button, labelLayers, map) {
 
 /**
  * Sync governorate (adm1) + district (adm2) permanent labels from the tray control.
- * Keeps Map Controls buttons in the same on/off state.
  * @param {boolean} enabled
  * @param {Object} [map]
  * @param {Object} [labelLayers]
@@ -287,8 +282,8 @@ export function setAdminLabelLayersEnabled(enabled, map = null, labelLayers = nu
     const buttons = state?.buttons;
     if (!targetMap || !layers) return;
 
-    setLabelLevelEnabled('adm1', enabled, buttons?.adm1, layers, targetMap);
-    setLabelLevelEnabled('adm2', enabled, buttons?.adm2, layers, targetMap);
+    setLabelLevelEnabled('adm1', enabled, buttons?.adm1 || null, layers, targetMap);
+    setLabelLevelEnabled('adm2', enabled, buttons?.adm2 || null, layers, targetMap);
 }
 
 /**

@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -74,30 +74,12 @@
                     <div class="sv-map-display-controls" role="group" aria-label="Map display options">
                         <button
                             type="button"
-                            id="mapDisplayColorOnlyBtn"
-                            class="sv-map-display-btn"
-                            aria-pressed="false"
-                            title="Show all layers as plain color choropleths"
-                        >
-                            Show Color only
-                        </button>
-                        <button
-                            type="button"
                             id="mapDisplayLabelsBtn"
                             class="sv-map-display-btn"
                             aria-pressed="false"
                             title="Show district and governorate labels plus scores on polygons"
                         >
                             Show labels
-                        </button>
-                        <button
-                            type="button"
-                            id="mapDisplayClassLimitsBtn"
-                            class="sv-map-display-btn sv-map-display-btn-cycle"
-                            data-mode="equal-count"
-                            title="Cycle class break method for all layers"
-                        >
-                            Class Limits: Equal count
                         </button>
                     </div>
                 </div>
@@ -117,6 +99,7 @@
                         <span class="sv-layer-toggle-text">Overall Vulnerability Index</span>
                         <span class="sv-layer-toggle-check" aria-hidden="true"></span>
                     </label>
+                    <button type="button" class="sv-isolate-btn" data-isolate-layer="svOverallTensionLayer" aria-pressed="false" title="Show this layer alone as a plain color choropleth">Color</button>
                 </div>
             </div>
 
@@ -126,11 +109,12 @@
                     <span class="sv-layer-toggle-text">Custom Overall Index</span>
                     <span class="sv-layer-toggle-check" aria-hidden="true"></span>
                 </label>
+                <button type="button" class="sv-isolate-btn" data-isolate-layer="svCustomOverallLayer" aria-pressed="false" title="Show this layer alone as a plain color choropleth">Color</button>
             </div>
 
             <div id="customOverallBuilderWrap" class="custom-overall-builder-wrap">
                 <button type="button" id="customOverallOpenBtn" class="custom-overall-btn">
-                    Build custom index…
+                    Build custom index...
                 </button>
                 <button type="button" id="customOverallDeleteBtn" class="custom-overall-btn custom-overall-btn-danger" hidden>
                     Delete custom index
@@ -163,7 +147,7 @@
                     <span class="sv-layer-toggle-text">Tensions and Conflict Risk</span>
                     <span class="sv-layer-toggle-check" aria-hidden="true"></span>
                 </label>
-            </div>
+            <button type="button" class="sv-isolate-btn" data-isolate-layer="svAdmin3Layer" aria-pressed="false" title="Show this layer alone as a plain color choropleth">Color</button></div>
             <div id="svPeaceSubindicatorsWrap" class="sv-subindicators-panel sv-peace-subindicators-wrap" data-subindicator-layer="svAdmin3Layer" hidden>
                 <div class="sv-subindicators-header">
                     <span class="sv-subindicators-title">Sub-indicators</span>
@@ -190,7 +174,7 @@
                     <span class="sv-layer-toggle-text">Displacement Pressure</span>
                     <span class="sv-layer-toggle-check" aria-hidden="true"></span>
                 </label>
-            </div>
+            <button type="button" class="sv-isolate-btn" data-isolate-layer="svAdmin1Layer" aria-pressed="false" title="Show this layer alone as a plain color choropleth">Color</button></div>
             <div id="svDisplacementSubindicatorsWrap" class="sv-subindicators-panel sv-peace-subindicators-wrap" data-subindicator-layer="svAdmin1Layer" hidden>
                 <div class="sv-subindicators-header">
                     <span class="sv-subindicators-title">Sub-indicators</span>
@@ -205,7 +189,7 @@
                     <span class="sv-layer-toggle-text">Socioeconomic Vulnerability</span>
                     <span class="sv-layer-toggle-check" aria-hidden="true"></span>
                 </label>
-            </div>
+            <button type="button" class="sv-isolate-btn" data-isolate-layer="svAdmin2Layer" aria-pressed="false" title="Show this layer alone as a plain color choropleth">Color</button></div>
             <div id="svEconomicSubindicatorsWrap" class="sv-subindicators-panel sv-peace-subindicators-wrap" data-subindicator-layer="svAdmin2Layer" hidden>
                 <div class="sv-subindicators-header">
                     <span class="sv-subindicators-title">Sub-indicators</span>
@@ -232,7 +216,7 @@
                     <span class="sv-layer-toggle-text">Service &amp; Infrastructure Vulnerability</span>
                     <span class="sv-layer-toggle-check" aria-hidden="true"></span>
                 </label>
-            </div>
+            <button type="button" class="sv-isolate-btn" data-isolate-layer="svAdmin4Layer" aria-pressed="false" title="Show this layer alone as a plain color choropleth">Color</button></div>
             <div id="svServiceSubindicatorsWrap" class="sv-subindicators-panel sv-peace-subindicators-wrap" data-subindicator-layer="svAdmin4Layer" hidden>
                 <div class="sv-subindicators-header">
                     <span class="sv-subindicators-title">Sub-indicators</span>
@@ -264,7 +248,7 @@
                     <span class="sv-layer-toggle-text">Demographic Tension / Stress</span>
                     <span class="sv-layer-toggle-check" aria-hidden="true"></span>
                 </label>
-            </div>
+            <button type="button" class="sv-isolate-btn" data-isolate-layer="svAdmin5Layer" aria-pressed="false" title="Show this layer alone as a plain color choropleth">Color</button></div>
             <div id="svDemographicSubindicatorsWrap" class="sv-subindicators-panel sv-peace-subindicators-wrap" data-subindicator-layer="svAdmin5Layer" hidden>
                 <div class="sv-subindicators-header">
                     <span class="sv-subindicators-title">Sub-indicators</span>
@@ -279,7 +263,7 @@
                     <span class="sv-layer-toggle-text">Climate and Environmental Risk</span>
                     <span class="sv-layer-toggle-check" aria-hidden="true"></span>
                 </label>
-            </div>
+            <button type="button" class="sv-isolate-btn" data-isolate-layer="svClimateLayer" aria-pressed="false" title="Show this layer alone as a plain color choropleth">Color</button></div>
             <div id="svClimateSubindicatorsWrap" class="sv-subindicators-panel sv-peace-subindicators-wrap" data-subindicator-layer="svClimateLayer" hidden>
                 <div class="sv-subindicators-header">
                     <span class="sv-subindicators-title">Sub-indicators</span>
@@ -306,7 +290,7 @@
                     <span class="sv-layer-toggle-text">Political Vulnerability</span>
                     <span class="sv-layer-toggle-check" aria-hidden="true"></span>
                 </label>
-            </div>
+            <button type="button" class="sv-isolate-btn" data-isolate-layer="svPoliticalLayer" aria-pressed="false" title="Show this layer alone as a plain color choropleth">Color</button></div>
             <div id="svPoliticalSubindicatorsWrap" class="sv-subindicators-panel sv-peace-subindicators-wrap" data-subindicator-layer="svPoliticalLayer" hidden>
                 <div class="sv-subindicators-header">
                     <span class="sv-subindicators-title">Sub-indicators</span>
@@ -333,7 +317,7 @@
                     <span class="sv-layer-toggle-text">Gender Based Vulnerabilities</span>
                     <span class="sv-layer-toggle-check" aria-hidden="true"></span>
                 </label>
-            </div>
+            <button type="button" class="sv-isolate-btn" data-isolate-layer="svGenderLayer" aria-pressed="false" title="Show this layer alone as a plain color choropleth">Color</button></div>
             <div id="svGenderSubindicatorsWrap" class="sv-subindicators-panel sv-peace-subindicators-wrap" data-subindicator-layer="svGenderLayer" hidden>
                 <div class="sv-subindicators-header">
                     <span class="sv-subindicators-title">Sub-indicators</span>
@@ -728,7 +712,7 @@
 
             <div id="compositeSandboxBanner" class="composite-sandbox-banner" hidden>
                 <span id="compositeSandboxBannerText" class="composite-sandbox-banner-text">
-                    Sandbox — viewing After (experimental weighted composite).
+                    Sandbox - viewing After (experimental weighted composite).
                 </span>
                 <div id="compositeSandboxCompareBanner" class="composite-sandbox-compare-wrap composite-sandbox-compare-wrap-banner" hidden>
                     <div class="composite-sandbox-compare-toggle" role="group" aria-label="Compare before and after composite scores">
@@ -737,7 +721,7 @@
                     </div>
                 </div>
                 <div id="compositeSandboxDisplayBanner" class="composite-sandbox-compare-wrap composite-sandbox-compare-wrap-banner" hidden aria-hidden="true" style="display: none !important;">
-                    <!-- Display mode moved to Administrative resolution tray (Show Color only). -->
+                    <!-- Display mode: Show Color only lives in Advanced Options; Color is per layer. -->
                 </div>
                 <button type="button" id="compositeSandboxBannerDeleteBtn" class="composite-sandbox-btn composite-sandbox-btn-danger">
                     Delete weighted map
@@ -747,7 +731,7 @@
             <div id="compositeSandboxComputingOverlay" class="composite-sandbox-computing-overlay" hidden>
                 <div class="composite-sandbox-computing-card">
                     <div class="loading-spinner"></div>
-                    <span>Calculating weighted composite…</span>
+                    <span>Calculating weighted composite...</span>
                 </div>
             </div>
 
@@ -783,7 +767,7 @@
                 <div>
                     <h2 id="customOverallModalTitle">Build custom overall index</h2>
                     <p id="customOverallModalSubtitle" class="custom-overall-modal-subtitle">
-                        Select themes and sub-indicators. Scoring follows the official recipe (median impute, min–max, Kendall τ weights, weighted sum).
+                        Select themes and sub-indicators. Scoring follows the official recipe (median impute, min-max, Kendall tau weights, weighted sum).
                     </p>
                 </div>
                 <button type="button" id="customOverallModalClose" class="custom-overall-modal-close" aria-label="Close">&times;</button>

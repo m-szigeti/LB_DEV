@@ -1,10 +1,8 @@
 /**
- * AOI Analysis-panel UI — render summary HTML and bind export / district actions.
- * Depends on aoi_summary + aoi_context only (not sandbox).
+ * AOI Analysis-panel UI — render summary HTML and bind export / district / custom-index actions.
  */
 
 import {
-    buildAoiBriefing,
     buildAoiCsv,
     formatAoiNumber,
     formatAoiPercent
@@ -24,6 +22,10 @@ import {
     setAnalysisSelectionActive
 } from './analysis_selection.js';
 import { forceAoiStyleRecovery } from './aoi_spotlight.js';
+import {
+    CUSTOM_OVERALL_BUILDER_ENABLED,
+    openCustomOverallBuilderForAoi
+} from './custom_overall_builder.js';
 
 function escapeHtml(text) {
     return String(text)
@@ -41,6 +43,111 @@ function downloadTextFile(filename, text, mime = 'text/plain;charset=utf-8') {
     anchor.download = filename;
     anchor.click();
     URL.revokeObjectURL(url);
+}
+
+/**
+ * Build a print-ready clone of the visible AOI Analysis summary (no action controls).
+ * @param {HTMLElement} root
+ * @param {object} bundle
+ */
+function buildAoiBriefingPdfSource(root, bundle) {
+    const sourcePanel = root.querySelector('.aoi-panel');
+    const wrap = document.createElement('div');
+    wrap.className = 'aoi-pdf-export-root';
+    wrap.setAttribute('aria-hidden', 'true');
+
+    const masthead = document.createElement('div');
+    masthead.className = 'aoi-pdf-masthead';
+    const generatedAt = new Date().toLocaleString();
+    masthead.innerHTML = `
+        <h1 class="aoi-pdf-title">AOI Analysis Briefing</h1>
+        <p class="aoi-pdf-meta">
+            ${escapeHtml(bundle.resolutionLabel || '—')} ·
+            ${Number(bundle.selectionCount) || 0} unit${bundle.selectionCount === 1 ? '' : 's'} selected ·
+            Generated ${escapeHtml(generatedAt)}
+        </p>
+    `;
+    wrap.appendChild(masthead);
+
+    if (sourcePanel) {
+        const clone = sourcePanel.cloneNode(true);
+        clone.querySelectorAll('.aoi-export-row, .aoi-district-tools').forEach(el => el.remove());
+        wrap.appendChild(clone);
+    } else {
+        const empty = document.createElement('p');
+        empty.className = 'no-results-message';
+        empty.textContent = 'No AOI summary content available.';
+        wrap.appendChild(empty);
+    }
+
+    return wrap;
+}
+
+/**
+ * Export the Analysis-tab AOI statistics as a multi-page PDF.
+ * @param {HTMLElement} root
+ * @param {object} bundle
+ */
+async function exportAoiBriefingPdf(root, bundle) {
+    if (typeof html2canvas !== 'function') {
+        throw new Error('html2canvas is not available.');
+    }
+    const jsPdfNamespace = window.jspdf;
+    if (!jsPdfNamespace?.jsPDF) {
+        throw new Error('jsPDF is not available.');
+    }
+
+    const source = buildAoiBriefingPdfSource(root, bundle);
+    source.style.cssText = [
+        'position: fixed',
+        'left: -10000px',
+        'top: 0',
+        'width: 760px',
+        'background: #ffffff',
+        'padding: 24px',
+        'box-sizing: border-box',
+        'z-index: -1'
+    ].join(';');
+    document.body.appendChild(source);
+
+    try {
+        await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        const canvas = await html2canvas(source, {
+            scale: 2,
+            useCORS: true,
+            allowTaint: false,
+            backgroundColor: '#ffffff',
+            width: source.scrollWidth,
+            height: source.scrollHeight
+        });
+
+        const { jsPDF } = jsPdfNamespace;
+        const pdf = new jsPDF('p', 'mm', 'a4');
+        const pageWidth = pdf.internal.pageSize.getWidth();
+        const pageHeight = pdf.internal.pageSize.getHeight();
+        const margin = 10;
+        const usableWidth = pageWidth - margin * 2;
+        const usableHeight = pageHeight - margin * 2;
+        const imgHeight = (canvas.height * usableWidth) / canvas.width;
+        const imgData = canvas.toDataURL('image/png');
+
+        let heightLeft = imgHeight;
+        let position = margin;
+        pdf.addImage(imgData, 'PNG', margin, position, usableWidth, imgHeight);
+        heightLeft -= usableHeight;
+
+        while (heightLeft > 1) {
+            position = margin - (imgHeight - heightLeft);
+            pdf.addPage();
+            pdf.addImage(imgData, 'PNG', margin, position, usableWidth, imgHeight);
+            heightLeft -= usableHeight;
+        }
+
+        const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+        pdf.save(`aoi-briefing-${stamp}.pdf`);
+    } finally {
+        source.remove();
+    }
 }
 
 function renderMetricCards(summary) {
@@ -255,6 +362,11 @@ export async function renderAoiPanelHtml() {
                         : '<p class="no-results-message">Turn on a composite or theme layer with scores to compute AOI metrics.</p>'
                 }
                 <div class="aoi-export-row">
+                    ${
+                        CUSTOM_OVERALL_BUILDER_ENABLED
+                            ? '<button type="button" class="aoi-export-btn aoi-custom-index-btn" data-aoi-action="design-custom-index">Design custom Index for AOI</button>'
+                            : ''
+                    }
                     <button type="button" class="aoi-export-btn" data-aoi-action="clear">Clear AOI</button>
                 </div>
                 ${renderDistrictSelectControls(resolution)}
@@ -269,8 +381,13 @@ export async function renderAoiPanelHtml() {
                 <p class="aoi-layer-attribute">${bundle.selectionCount} unit${bundle.selectionCount === 1 ? '' : 's'} selected</p>
                 ${districtNote}
                 <div class="aoi-export-row">
+                    ${
+                        CUSTOM_OVERALL_BUILDER_ENABLED
+                            ? '<button type="button" class="aoi-export-btn aoi-custom-index-btn" data-aoi-action="design-custom-index">Design custom Index for AOI</button>'
+                            : ''
+                    }
                     <button type="button" class="aoi-export-btn" data-aoi-action="export-csv">Export CSV</button>
-                    <button type="button" class="aoi-export-btn" data-aoi-action="export-briefing">Export briefing</button>
+                    <button type="button" class="aoi-export-btn" data-aoi-action="export-briefing">Export briefing (PDF)</button>
                     <button type="button" class="aoi-export-btn aoi-export-btn-muted" data-aoi-action="clear">Clear AOI</button>
                 </div>
             </div>
@@ -302,40 +419,41 @@ export async function bindAoiPanelInteractions(root, { onChanged } = {}) {
                 notify();
                 return;
             }
+            if (action === 'design-custom-index') {
+                void openCustomOverallBuilderForAoi();
+                return;
+            }
             const bundle = await buildAoiSummaries();
-            const primary = bundle.summaries[0];
-            if (!primary) return;
+            const hasTheme =
+                Array.isArray(bundle.themeContributions?.pillars) &&
+                bundle.themeContributions.pillars.length > 0;
+            const hasSummaries = Array.isArray(bundle.summaries) && bundle.summaries.length > 0;
+            if (!hasSummaries && !hasTheme) {
+                window.alert('No AOI statistics to export yet. Select map units with an active scored layer.');
+                return;
+            }
             const stamp = new Date().toISOString().slice(0, 10);
             if (action === 'export-csv') {
-                // Multi-layer: concatenate CSVs with blank line separators
+                if (!hasSummaries) {
+                    window.alert('CSV export needs an active scored layer with AOI metrics.');
+                    return;
+                }
                 const csv = bundle.summaries.map(s => buildAoiCsv(s)).join('\n\n');
                 downloadTextFile(`aoi-summary-${stamp}.csv`, csv, 'text/csv;charset=utf-8');
             } else if (action === 'export-briefing') {
-                const themeBlock = bundle.themeContributions?.pillars?.length
-                    ? buildAoiBriefing(
-                          {
-                              resolutionLabel: bundle.resolutionLabel,
-                              unitCount: bundle.selectionCount,
-                              layerName: 'Theme contribution',
-                              attributeLabel: 'all themes',
-                              stats: { mean: null, median: null, min: null, max: null },
-                              weighted: { weightedMean: null, weightedCount: 0 },
-                              distribution: null,
-                              pillars: bundle.themeContributions,
-                              extremes: null
-                          },
-                          { title: 'AOI theme contribution' }
-                      )
-                    : '';
-                const text = [
-                    themeBlock,
-                    ...bundle.summaries.map(s =>
-                        buildAoiBriefing(s, { title: `AOI briefing — ${s.layerName}` })
-                    )
-                ]
-                    .filter(Boolean)
-                    .join('\n\n---\n\n');
-                downloadTextFile(`aoi-briefing-${stamp}.txt`, text);
+                const btn = button;
+                const originalLabel = btn.textContent;
+                btn.disabled = true;
+                btn.textContent = 'Exporting PDF…';
+                try {
+                    await exportAoiBriefingPdf(root, bundle);
+                } catch (error) {
+                    console.error('AOI briefing PDF export failed:', error);
+                    window.alert(error?.message || 'Could not export AOI briefing PDF.');
+                } finally {
+                    btn.disabled = false;
+                    btn.textContent = originalLabel;
+                }
             }
         });
     });

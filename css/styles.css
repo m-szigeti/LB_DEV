@@ -507,6 +507,39 @@ body.analysis-selection-mode #map {
     position: relative;
 }
 
+.sv-isolate-btn {
+    flex: 0 0 auto;
+    align-self: stretch;
+    border: 1px solid #94a3b8;
+    border-radius: 6px;
+    background: #f8fafc;
+    color: #334155;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    padding: 0 10px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background-color 0.2s, border-color 0.2s, color 0.2s;
+}
+
+.sv-isolate-btn:hover {
+    background: #e2e8f0;
+    border-color: #64748b;
+}
+
+.sv-isolate-btn.is-active,
+.sv-isolate-btn[aria-pressed="true"] {
+    background: #0f766e;
+    border-color: #0f766e;
+    color: #ffffff;
+}
+
+.sv-composite-layers .sv-isolate-btn {
+    font-size: 12px;
+    padding: 0 12px;
+}
+
 .sv-service-stress-row {
     align-items: stretch;
 }

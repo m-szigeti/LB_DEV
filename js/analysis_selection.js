@@ -207,6 +207,44 @@ export function reapplyAnalysisSelectionStyles() {
     });
 }
 
+/**
+ * Point AOI selection entries at matching features on a newly created Leaflet layer
+ * (e.g. after building an AOI custom index sibling layer).
+ */
+export function rematchAnalysisSelectionToLayer(leafletLayer, layerId = null) {
+    if (!leafletLayer || typeof leafletLayer.eachLayer !== 'function' || !state.items.size) {
+        return 0;
+    }
+
+    const matched = new Map();
+    leafletLayer.eachLayer(featureLayer => {
+        const props = featureLayer?.feature?.properties;
+        const key = getFeatureSelectionKey(props);
+        if (!key || !state.items.has(key) || matched.has(key)) return;
+        const prev = state.items.get(key);
+        matched.set(key, {
+            key,
+            name: getFeatureDisplayName(props) || prev.name,
+            properties: { ...(props || {}) },
+            layerId: layerId ?? prev.layerId,
+            featureLayer,
+            baseOutline: captureOutlineStyle(featureLayer)
+        });
+        applySelectedStyle(featureLayer);
+    });
+
+    // Keep unmatched units in the AOI set (count / exports) even if map handle is gone.
+    state.items.forEach((entry, key) => {
+        if (!matched.has(key)) {
+            matched.set(key, { ...entry, featureLayer: null, baseOutline: null });
+        }
+    });
+
+    state.items = matched;
+    notify();
+    return matched.size;
+}
+
 export function propertiesMatchSelection(properties, keys = getAnalysisSelectionKeys()) {
     const key = getFeatureSelectionKey(properties);
     return key ? keys.has(key) : false;

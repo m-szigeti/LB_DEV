@@ -210,6 +210,10 @@ export function updateVectorLayerStyle(layer, property, colorRamp, opacity = 1, 
 /**
  * Apply style updates to a layer
  */
+/** Outside-AOI units on an AOI-scoped custom index layer. */
+const AOI_OUTSIDE_FILL = '#94a3b8';
+const AOI_OUTSIDE_FILL_OPACITY = 0.18;
+
 function applyLayerStyle(layer, property, colorResolver, opacity) {
     layer.setStyle(feature => {
         if (!feature?.properties) {
@@ -217,6 +221,15 @@ function applyLayerStyle(layer, property, colorResolver, opacity) {
         }
         
         const props = feature.properties;
+        if (props._aoi_outside === true) {
+            return {
+                fillColor: AOI_OUTSIDE_FILL,
+                fillOpacity: Math.min(opacity, AOI_OUTSIDE_FILL_OPACITY),
+                opacity: 0.35,
+                weight: 1,
+                color: '#64748b'
+            };
+        }
         return {
             fillColor: isAcsCodeNoData(props)
                 ? ACS_CODE_NO_DATA_COLOR

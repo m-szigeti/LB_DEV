@@ -42,6 +42,32 @@ const POPULATION_BY_RESOLUTION = {
     }
 };
 
+/** Spelling variants between vulnerability layers and ADM*_POP files. */
+const ADMIN_NAME_ALIASES = {
+    beirut: ['beyrouth'],
+    beyrouth: ['beirut'],
+    'bent jbeil': ['bent jbail'],
+    'bent jbail': ['bent jbeil'],
+    metn: ['meten', 'el metn', 'el meten'],
+    meten: ['metn', 'el metn', 'el meten'],
+    nabatiye: ['nabatieh', 'el nabatieh', 'el nabatiye'],
+    nabatieh: ['nabatiye', 'el nabatieh', 'el nabatiye'],
+    hasbaiya: ['hasbaya'],
+    hasbaya: ['hasbaiya'],
+    jbail: ['jbeil'],
+    jbeil: ['jbail'],
+    kesrouane: ['kesrwane', 'keserwan', 'keserwane'],
+    kesrwane: ['kesrouane', 'keserwan', 'keserwane'],
+    marjayoun: ['marjaayoun', 'marjeyoun'],
+    marjaayoun: ['marjayoun', 'marjeyoun'],
+    rachaiya: ['rachaya', 'rashaya'],
+    rachaya: ['rachaiya', 'rashaya'],
+    'bekaa ouest': ['west bekaa', 'west-bekaa'],
+    'west bekaa': ['bekaa ouest', 'west-bekaa'],
+    'minie danniye': ['minieh dennie', 'el minieh dennie', 'minie-danniye', 'el minieh-dennie'],
+    'minieh dennie': ['minie danniye', 'el minieh dennie', 'minie-danniye', 'el minieh-dennie']
+};
+
 /** @type {null | {
  *   getMap: () => object|null,
  *   getLayers: () => object|null,
@@ -81,6 +107,34 @@ function firstNameValue(props, fields) {
     return null;
 }
 
+function basicNormalizeAdminName(name) {
+    return String(name || '')
+        .trim()
+        .toLowerCase()
+        .replace(/[-_/]+/g, ' ')
+        .replace(/\s+/g, ' ')
+        .replace(/^(el|al)\s+/, '')
+        .trim();
+}
+
+function adminNameLookupKeys(name) {
+    const normalized = basicNormalizeAdminName(name);
+    if (!normalized) return [];
+    const keys = new Set([`name:${normalized}`]);
+    const aliases = ADMIN_NAME_ALIASES[normalized] || [];
+    aliases.forEach(alias => {
+        const aliasNorm = basicNormalizeAdminName(alias);
+        if (aliasNorm) keys.add(`name:${aliasNorm}`);
+    });
+    return [...keys];
+}
+
+function indexPopulationEntry(byKey, entry, rawName) {
+    adminNameLookupKeys(rawName).forEach(key => {
+        if (!byKey.has(key)) byKey.set(key, entry);
+    });
+}
+
 async function loadPopulationLookupForResolution(resolution = 'cadastre') {
     const key = POPULATION_BY_RESOLUTION[resolution] ? resolution : 'cadastre';
     if (populationLookupPromises.has(key)) {
@@ -116,7 +170,7 @@ async function loadPopulationLookupForResolution(resolution = 'cadastre') {
 
                 const name = firstNameValue(props, config.nameFields);
                 if (name) {
-                    byKey.set(`name:${name.toLowerCase()}`, entry);
+                    indexPopulationEntry(byKey, entry, name);
                 }
 
                 const code = props.CODE ?? props.CODE_2;
@@ -134,32 +188,56 @@ async function loadPopulationLookupForResolution(resolution = 'cadastre') {
     return promise;
 }
 
-/** Cadastre-only lookup used by AOI aggregation (legacy Map of totals). */
-async function loadPopulationLookup() {
-    const rich = await loadPopulationLookupForResolution('cadastre');
-    const byKey = new Map();
-    rich.forEach((entry, key) => {
-        byKey.set(key, entry?.total ?? entry);
-    });
-    return byKey;
+function getActiveAoiResolution() {
+    return providers?.getActiveResolution?.() || 'district';
 }
 
-export function resolvePopulationForProperties(properties, lookup) {
+/**
+ * Load population lookup for the active admin resolution (or an explicit one).
+ * @param {string} [resolution]
+ */
+export async function loadPopulationLookup(resolution = getActiveAoiResolution()) {
+    return loadPopulationLookupForResolution(resolution);
+}
+
+export function resolvePopulationForProperties(
+    properties,
+    lookup,
+    resolution = getActiveAoiResolution()
+) {
     if (!properties || !lookup) return null;
-    const acs = properties.ACS_CODE ?? properties['ACS Code'];
-    if (acs !== undefined && acs !== null && String(acs).trim() !== '') {
-        const hit = lookup.get(`acs:${String(acs).trim()}`);
-        if (hit != null) return typeof hit === 'object' ? hit.total : hit;
+    const config = POPULATION_BY_RESOLUTION[resolution] || POPULATION_BY_RESOLUTION.cadastre;
+
+    if (config.useAcs) {
+        const acs = properties.ACS_CODE ?? properties['ACS Code'];
+        if (acs !== undefined && acs !== null && String(acs).trim() !== '') {
+            const hit = lookup.get(`acs:${String(acs).trim()}`);
+            if (hit != null) return typeof hit === 'object' ? hit.total : hit;
+        }
     }
-    const name =
-        properties.adm3_name ??
-        properties.ADM3_NAME ??
-        properties.adm3_name1 ??
-        properties.NAME_3;
+
+    const name = firstNameValue(properties, [
+        ...(config.nameFields || []),
+        'adm3_name',
+        'ADM3_NAME',
+        'adm3_name1',
+        'adm2_name',
+        'ADM2_NAME',
+        'adm2_name1',
+        'adm1_name',
+        'ADM1_NAME',
+        'adm1_name1',
+        'NAME_3',
+        'NAME_2',
+        'NAME_1'
+    ]);
     if (name) {
-        const hit = lookup.get(`name:${String(name).trim().toLowerCase()}`);
-        if (hit != null) return typeof hit === 'object' ? hit.total : hit;
+        for (const key of adminNameLookupKeys(name)) {
+            const hit = lookup.get(key);
+            if (hit != null) return typeof hit === 'object' ? hit.total : hit;
+        }
     }
+
     const code = properties.CODE ?? properties.CODE_NEW ?? properties.CODE_2;
     if (code !== undefined && code !== null && String(code).trim() !== '') {
         const hit = lookup.get(`code:${String(code).trim()}`);
@@ -175,7 +253,7 @@ export function resolvePopulationForProperties(properties, lookup) {
  */
 export async function resolvePopulationDetailsForProperties(
     properties,
-    resolution = providers?.getActiveResolution?.() || 'cadastre'
+    resolution = getActiveAoiResolution()
 ) {
     if (!properties) return null;
     const lookup = await loadPopulationLookupForResolution(resolution);
@@ -195,7 +273,7 @@ export async function resolvePopulationDetailsForProperties(
         'adm1_name', 'ADM1_NAME', 'adm1_name1',
         'NAME_3', 'NAME_2', 'NAME_1'
     ]);
-    if (name) tryKeys.push(`name:${name.toLowerCase()}`);
+    if (name) tryKeys.push(...adminNameLookupKeys(name));
     const code = properties.CODE ?? properties.CODE_NEW ?? properties.CODE_2;
     if (code !== undefined && code !== null && String(code).trim() !== '') {
         tryKeys.push(`code:${String(code).trim()}`);
@@ -298,7 +376,8 @@ export async function buildAoiSummaries() {
         return { resolutionLabel, summaries: [], selectionCount: 0 };
     }
 
-    const popLookup = await loadPopulationLookup();
+    const resolution = getActiveAoiResolution();
+    const popLookup = await loadPopulationLookup(resolution);
     const infoLayers = Array.from(providers.getActiveInfoLayers?.() || []);
     const summaries = [];
 
@@ -338,7 +417,7 @@ export async function buildAoiSummaries() {
             const matched = index.get(item.key);
             const properties = matched?.properties || item.properties || {};
             const score = parseNumeric(properties[attribute]);
-            const population = resolvePopulationForProperties(properties, popLookup);
+            const population = resolvePopulationForProperties(properties, popLookup, resolution);
             const noData = score === null;
             let classIndex = null;
             if (!noData && breaks) {

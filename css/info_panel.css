@@ -961,9 +961,24 @@
 }
 
 .aoi-export-btn-muted {
-    background: #f8fafc;
     border-color: #cbd5e1;
+    background: #f8fafc;
     color: #475569;
+}
+
+.aoi-export-btn-muted:hover:not(:disabled) {
+    background: #f1f5f9;
+}
+
+.aoi-custom-index-btn {
+    border-color: #0f766e;
+    background: #ccfbf1;
+    color: #0f766e;
+    width: 100%;
+}
+
+.aoi-custom-index-btn:hover:not(:disabled) {
+    background: #99f6e4;
 }
 
 .aoi-district-tools {
@@ -992,6 +1007,34 @@
     border: 1px solid #cbd5e1;
     border-radius: 4px;
     background: #fff;
+}
+
+.aoi-pdf-export-root {
+    color: #212529;
+    font-family: "Segoe UI", system-ui, sans-serif;
+}
+
+.aoi-pdf-masthead {
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 2px solid #e2e8f0;
+}
+
+.aoi-pdf-title {
+    margin: 0 0 4px;
+    font-size: 20px;
+    font-weight: 700;
+    color: #0f172a;
+}
+
+.aoi-pdf-meta {
+    margin: 0;
+    font-size: 12px;
+    color: #64748b;
+}
+
+.aoi-pdf-export-root .aoi-panel {
+    margin-top: 0;
 }
 
 .analysis-area-unit-list {
