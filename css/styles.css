@@ -370,7 +370,7 @@ body.analysis-selection-mode #map {
     margin-bottom: 10px;
 }
 
-/* Main layer panel section titles (Composite / Intervention Mapping / Stressors) — smaller than other sidebar dropdowns */
+/* Main layer panel section titles (Composite / Stressors / Intervention Mapping) — smaller than other sidebar dropdowns */
 .dropdown-btn.sv-sidebar-section-dropdown {
     font-size: 13px;
     padding: 9px 10px;
