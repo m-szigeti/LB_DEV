@@ -1737,6 +1737,29 @@ body.analysis-selection-mode #map {
     border: 1px solid #e9ecef;
 }
 
+.info-score-hero-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.info-score-hero-multi {
+    margin-bottom: 0;
+    border-top: 3px solid #94a3b8;
+    min-width: 0;
+}
+
+.info-score-hero-multi .info-score-hero-label {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.info-score-hero-multi .info-score-hero-value {
+    font-size: 18px;
+}
+
 .info-score-hero-label {
     font-size: 12px;
     font-weight: 600;

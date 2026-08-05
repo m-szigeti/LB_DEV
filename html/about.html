@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>About Us - DSVI Data Visualization</title>
+    <title>About Us - Lebanon Vulnerability Mapping Tool</title>
     
     <!-- CSS styles -->
     <link rel="stylesheet" href="../css/styles.css">
     
-    <meta name="description" content="About the DSVI Data Visualization tool and team">
+    <meta name="description" content="About the Lebanon vulnerability mapping tool and the development team">
     
     <!-- Additional styles for content pages -->
     <style>
@@ -69,6 +69,11 @@
             width: 100%;
             height: 200px;
             object-fit: scale-down;
+            background: #e9ecef;
+        }
+
+        .team-member img.placeholder-avatar {
+            object-fit: cover;
         }
         
         .team-member-info {
@@ -83,6 +88,12 @@
         .team-member p {
             color: #6c757d;
             margin-bottom: 10px;
+        }
+
+        .team-member .placeholder-note {
+            font-size: 12px;
+            font-style: italic;
+            color: #868e96;
         }
         
         @media (max-width: 992px) {
@@ -127,73 +138,89 @@
     <!-- Main content container -->
     <div class="content-container">
         <div class="content-section">
-            <h1>About the DSVI Data Visualization Tool</h1>
+            <h1>About the Lebanon Vulnerability Mapping Tool</h1>
             <p>
-                The Development and Social Vulnerability Index (DSVI) Data Visualization Tool is designed to help researchers, policymakers, and NGOs analyze and understand socioeconomic and vulnerability data across regions. By combining multiple data sources and providing intuitive visualization capabilities, our tool enables users to identify patterns, make data-driven decisions, and better target interventions where they're needed most.
+                This development tool supports exploration of composite vulnerability indexes for Lebanon
+                across administrative resolutions (cadastre, district, and governorate). It brings together
+                theme layers such as displacement pressure, socioeconomic vulnerability, service stress,
+                climate and environmental risk, political vulnerability, and gender-based vulnerabilities,
+                alongside the Overall Vulnerability Index and related analysis workflows (AOI selection,
+                custom indexes, and briefing exports).
+            </p>
+            <p>
+                The interface is intended for analysts, programme staff, and partners who need a clear
+                spatial view of where pressures concentrate and how different themes compare for the same units.
             </p>
         </div>
         
         <div class="content-section">
             <h2>Our Mission</h2>
             <p>
-                Our mission is to democratize access to critical development data, making it easier for stakeholders at all levels to understand complex socioeconomic patterns. By providing user-friendly visualization tools, we aim to bridge the gap between data collection and actionable insights, ultimately contributing to more effective development initiatives and better outcomes for vulnerable populations.
+                Our goal is to make multi-theme vulnerability data easier to inspect, compare, and communicate.
+                By pairing map-based visualization with transparent composite scoring and export options,
+                the tool aims to support evidence-informed targeting and dialogue among UNDP and partner teams
+                working on development and resilience in Lebanon.
             </p>
         </div>
         
         <div class="content-section">
             <h2>Development team and Partners</h2>
+            <p>
+                Named contributors will be listed here as confirmations are finalized.
+                For now, only the lead developer is shown by name; other roles use placeholders.
+            </p>
             <div class="team-members">
                 <div class="team-member">
-                    <img src="../assets/Szigeti.jpg" alt="Team Member">
+                    <img src="../assets/Szigeti.jpg" alt="Martin Szigeti">
                     <div class="team-member-info">
                         <h3>M.Sc. Martin Szigeti</h3>
                         <p><strong>GIS Specialist</strong></p>
-                        <p>Works for UNDP SDG AI Lab since 2020. Lead developer of DSVI and the DSVI tool.</p>
+                        <p>Works for UNDP SDG AI Lab since 2020. Lead developer of the Lebanon vulnerability mapping tool.</p>
                     </div>
                 </div>
                 
                 <div class="team-member">
-                    <img src="../assets/Makhan_Sacko.PNG" alt="Team Member">
+                    <img class="placeholder-avatar" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 400 400'%3E%3Crect fill='%23dee2e6' width='400' height='400'/%3E%3Ccircle fill='%23adb5bd' cx='200' cy='150' r='70'/%3E%3Cellipse fill='%23adb5bd' cx='200' cy='340' rx='120' ry='90'/%3E%3Ctext x='200' y='385' text-anchor='middle' fill='%236c757d' font-family='Arial,sans-serif' font-size='22'%3EPhoto TBD%3C/text%3E%3C/svg%3E" alt="Placeholder portrait">
                     <div class="team-member-info">
-                        <h3>M.Sc. Makhan Sacko</h3>
-                        <p><strong>Responsable Exploration Accelerator Lab CO/ML</strong></p>
-                        <p>Lead Advisor from CO Lebanon for the DSVI implementation in Lebanon</p>
+                        <h3>Name TBD</h3>
+                        <p><strong>Role TBD</strong></p>
+                        <p class="placeholder-note">Country office / programme advisory role — details to be confirmed.</p>
                     </div>
                 </div>
                 
                 <div class="team-member">
-                    <img src="../assets/Ademonkoun_Missinhoun.jpg" alt="Team Member">
+                    <img class="placeholder-avatar" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 400 400'%3E%3Crect fill='%23e9ecef' width='400' height='400'/%3E%3Ccircle fill='%23ced4da' cx='200' cy='150' r='70'/%3E%3Cellipse fill='%23ced4da' cx='200' cy='340' rx='120' ry='90'/%3E%3Ctext x='200' y='385' text-anchor='middle' fill='%236c757d' font-family='Arial,sans-serif' font-size='22'%3EPhoto TBD%3C/text%3E%3C/svg%3E" alt="Placeholder portrait">
                     <div class="team-member-info">
-                        <h3>Ademonkoun Missinhoun</h3>
-                        <p><strong>UNDP Economics Advisor CO/ML</strong></p>
-                        <p></p>
+                        <h3>Name TBD</h3>
+                        <p><strong>Role TBD</strong></p>
+                        <p class="placeholder-note">Economics / policy advisory role — details to be confirmed.</p>
                     </div>
                 </div>
                 
                 <div class="team-member">
-                    <img src="../assets/issa_bamba.jpg" alt="Team Member">
+                    <img class="placeholder-avatar" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 400 400'%3E%3Crect fill='%23dee2e6' width='400' height='400'/%3E%3Ccircle fill='%23adb5bd' cx='200' cy='150' r='70'/%3E%3Cellipse fill='%23adb5bd' cx='200' cy='340' rx='120' ry='90'/%3E%3Ctext x='200' y='385' text-anchor='middle' fill='%236c757d' font-family='Arial,sans-serif' font-size='22'%3EPhoto TBD%3C/text%3E%3C/svg%3E" alt="Placeholder portrait">
                     <div class="team-member-info">
-                        <h3>Issa Bamba</h3>
-                        <p><strong>UNDP Data Scientist</strong></p>
-                        <p></p>
+                        <h3>Name TBD</h3>
+                        <p><strong>Role TBD</strong></p>
+                        <p class="placeholder-note">Data science / analytics role — details to be confirmed.</p>
                     </div>
                 </div>
                 
                 <div class="team-member">
-                    <img src="../assets/dikmener.JPG" alt="Team Member">
+                    <img class="placeholder-avatar" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 400 400'%3E%3Crect fill='%23e9ecef' width='400' height='400'/%3E%3Ccircle fill='%23ced4da' cx='200' cy='150' r='70'/%3E%3Cellipse fill='%23ced4da' cx='200' cy='340' rx='120' ry='90'/%3E%3Ctext x='200' y='385' text-anchor='middle' fill='%236c757d' font-family='Arial,sans-serif' font-size='22'%3EPhoto TBD%3C/text%3E%3C/svg%3E" alt="Placeholder portrait">
                     <div class="team-member-info">
-                        <h3>Gokhan Dikmener</h3>
-                        <p><strong>UNDP Technical Specialist</strong></p>
-                        <p></p>
+                        <h3>Name TBD</h3>
+                        <p><strong>Role TBD</strong></p>
+                        <p class="placeholder-note">Technical specialist role — details to be confirmed.</p>
                     </div>
                 </div>
                 
                 <div class="team-member">
-                    <img src="../assets/dina.JPG" alt="Team Member">
+                    <img class="placeholder-avatar" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 400 400'%3E%3Crect fill='%23dee2e6' width='400' height='400'/%3E%3Ccircle fill='%23adb5bd' cx='200' cy='150' r='70'/%3E%3Cellipse fill='%23adb5bd' cx='200' cy='340' rx='120' ry='90'/%3E%3Ctext x='200' y='385' text-anchor='middle' fill='%236c757d' font-family='Arial,sans-serif' font-size='22'%3EPhoto TBD%3C/text%3E%3C/svg%3E" alt="Placeholder portrait">
                     <div class="team-member-info">
-                        <h3>Dina Akylbekova</h3>
-                        <p><strong>UNDP Coordinator</strong></p>
-                        <p></p>
+                        <h3>Name TBD</h3>
+                        <p><strong>Role TBD</strong></p>
+                        <p class="placeholder-note">Coordination / programme management role — details to be confirmed.</p>
                     </div>
                 </div>
             </div>
@@ -202,7 +229,9 @@
         <div class="content-section">
             <h2>Our Partners</h2>
             <p>
-                The DSVI Data Visualization Tool is the result of collaboration between multiple organizations committed to improving development outcomes through better data and analysis. Our key partners include:
+                The tool is developed in collaboration with UNDP entities and partners working on
+                data, AI, and development programming. Partner listings below are organizational;
+                individual named credits will be updated when confirmed.
             </p>
             <ul>
                 <li>United Nations Development Programme (UNDP)</li>
@@ -210,16 +239,15 @@
                 <li>Istanbul International Center for Private Sector in Development (ICPSD)</li>
                 <li>Bureau for Programme and Policy Support (BPPS)</li>
                 <li>Sustainable Finance Hub (SFH)</li>
-                <li>Sustainable Development Goals AI Lab (SDG AI LAB)</li>
-                <li>National Statistical Offices in partner countries</li>
-
+                <li>Sustainable Development Goals AI Lab (SDG AI Lab)</li>
+                <li>National and local data partners in Lebanon (as applicable)</li>
             </ul>
         </div>
     </div>
     
     <!-- Simple footer -->
     <footer style="background-color: #343a40; color: white; text-align: center; padding: 20px; margin-top: 40px;">
-        <p>© 2025 DSVI Data Visualization Tool | All Rights Reserved</p>
+        <p>© 2026 Lebanon Vulnerability Mapping Tool | All Rights Reserved</p>
     </footer>
 </body>
 </html>

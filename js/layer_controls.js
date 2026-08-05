@@ -3290,14 +3290,17 @@ function setupSVRadioControls(map, layers, colorScales, addLegendEntry, removeLe
         getActiveResolution: () => getActiveAdminResolution()
     });
     configureInfoPopupEnrichment(async properties => {
-        const [themes, population] = await Promise.all([
+        const [themes, population, activeScores] = await Promise.all([
             getSVThemeScoresForFeature(properties, layers),
-            resolvePopulationDetailsForProperties(properties, getActiveAdminResolution())
+            resolvePopulationDetailsForProperties(properties, getActiveAdminResolution()),
+            buildActiveLayerPopupScores(properties, layers)
         ]);
         return {
             themes: themes?.themes || [],
             arabicName: themes?.arabicName || getArabicNameFromProperties(properties),
-            population
+            population,
+            activeScores,
+            activeLayerIds: Array.from(activeSVLayers)
         };
     });
     configureAoiSpotlight({
@@ -4479,7 +4482,7 @@ function pushEdgeFadeRingLegend(layerId, config, attr, breaks, colors, addLegend
         layerName: getChoroplethLegendTitle(layerId, attr, config) || config?.legendName || 'Political Vulnerability',
         type: 'edge-fade-ring',
         description:
-            'Green / yellow / red color fades smoothly inward from each unit boundary. Color-only mode uses the theme orange choropleth instead.',
+            'Green / yellow / red appear as thin nested rings along each unit boundary, fading inward. Color-only mode uses the theme orange choropleth instead.',
         items: terms.map((term, idx) => ({
             label: `${term} (${rangeLabels[idx] || '—'})`,
             color: colors[idx] || EDGE_FADE_GYR_COLORS[idx]
@@ -7627,6 +7630,91 @@ async function getSVThemeScoresForFeature(properties, layers) {
     }
 
     return { themes, arabicName };
+}
+
+function getActiveLayerPopupScoreAttribute(layerId, config) {
+    if (!config) return null;
+    if (config.renderMode === 'proportional-circles') {
+        return getEffectiveDisplacementCircleAttribute(config);
+    }
+    if (layerId === 'svAdmin2Layer') {
+        return getEffectiveEconomicAttribute(config);
+    }
+    if (layerId === 'svAdmin4Layer') {
+        return getEffectiveServiceAttribute(config);
+    }
+    return getEffectiveChoroplethAttribute(layerId, config);
+}
+
+function getActiveLayerPopupScoreColor(layerId) {
+    const theme = SV_THEME_SCORE_DEFINITIONS.find(entry => entry.layerId === layerId);
+    if (theme?.color) return theme.color;
+    if (layerId === SV_OVERALL_LAYER_ID || layerId === CUSTOM_OVERALL_LAYER_ID) {
+        return '#1d4ed8';
+    }
+    return '#64748b';
+}
+
+function getActiveLayerPopupScoreLabel(layerId, config, attributeKey) {
+    if (layerId === SV_OVERALL_LAYER_ID || layerId === CUSTOM_OVERALL_LAYER_ID) {
+        return config?.legendName || 'Overall Vulnerability Index';
+    }
+    if (layerId === 'svAdmin1Layer') {
+        return getDisplacementSubindicatorLegendTitle(attributeKey, config);
+    }
+    if (layerId === 'svAdmin2Layer') {
+        return getEconomicSubindicatorLegendTitle(attributeKey, config);
+    }
+    if (layerId === 'svAdmin4Layer') {
+        return getServiceSubindicatorLegendTitle(attributeKey, config);
+    }
+    if (THEME_SUBINDICATOR_LAYER_IDS.includes(layerId)) {
+        return getThemeSubindicatorLegendTitle(layerId, attributeKey, config);
+    }
+    if (layerId === 'svAdmin3Layer') {
+        return getPeaceCadastreChoroplethLegendTitle(layerId, attributeKey, config);
+    }
+    if (layerId === 'svAdmin5Layer') {
+        return getDemographicChoroplethLegendTitle(layerId, attributeKey, config);
+    }
+    return config?.legendName || getLayerDisplayName(layerId, config);
+}
+
+async function buildActiveLayerPopupScores(properties, layers) {
+    const featureKey = getFeatureLookupKey(properties);
+    if (!featureKey || !activeSVLayers.size) return [];
+
+    const scores = [];
+    for (const layerId of Array.from(activeSVLayers)) {
+        const config = layerConfig[layerId];
+        if (!config) continue;
+
+        const lookup = await getSVLayerLookup(layerId, layers);
+        const matchedProps = lookup?.get(featureKey);
+        if (!matchedProps || isAcsCodeNoData(matchedProps)) continue;
+
+        const attributeKey = getActiveLayerPopupScoreAttribute(layerId, config);
+        if (!attributeKey) continue;
+
+        let rawValue = matchedProps[attributeKey];
+        if (
+            config.renderMode === 'proportional-circles' &&
+            (rawValue === undefined || rawValue === null || rawValue === '')
+        ) {
+            rawValue = resolveDisplacementPropertyValue(matchedProps, attributeKey);
+        }
+        const value = typeof rawValue === 'number' ? rawValue : Number(rawValue);
+        if (!Number.isFinite(value)) continue;
+
+        scores.push({
+            layerId,
+            label: getActiveLayerPopupScoreLabel(layerId, config, attributeKey),
+            color: getActiveLayerPopupScoreColor(layerId),
+            value,
+            attribute: attributeKey
+        });
+    }
+    return scores;
 }
 
 async function getSVPillarBreakdown(properties, layers) {

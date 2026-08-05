@@ -175,28 +175,29 @@ function renderServiceSymbolEntry(entry) {
 
 function renderEdgeFadeRingEntry(entry) {
     const itemsHtml = entry.items
-        .map(item => `
+        .map(item => {
+            const c = item.color || '#94a3b8';
+            // Match map: thin nested boundary bands fading inward, clear center.
+            const swatch = `
+                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" aria-hidden="true" style="display:block;flex-shrink:0;border:1px solid #d1d5db;border-radius:4px;background:#f8fafc;">
+                    <rect x="1.5" y="1.5" width="29" height="29" rx="3" fill="none" stroke="${c}" stroke-width="3.2" opacity="0.9"/>
+                    <rect x="4.5" y="4.5" width="23" height="23" rx="2.5" fill="none" stroke="${c}" stroke-width="2.6" opacity="0.5"/>
+                    <rect x="7.5" y="7.5" width="17" height="17" rx="2" fill="none" stroke="${c}" stroke-width="2" opacity="0.22"/>
+                </svg>
+            `;
+            return `
             <div style="display:flex; align-items:center; margin-bottom:6px;">
-                <div style="
-                    width:28px;
-                    height:28px;
-                    border-radius:6px;
-                    border:4px solid ${item.color};
-                    background:
-                        radial-gradient(circle at center, transparent 42%, ${item.color}33 42%, ${item.color}33 58%, transparent 58%),
-                        #f8fafc;
-                    box-sizing:border-box;
-                    flex-shrink:0;
-                "></div>
+                ${swatch}
                 <span style="font-size: 11px; color: #333; margin-left: 8px; line-height: 1.25;">${item.label}</span>
             </div>
-        `)
+        `;
+        })
         .join('');
 
     const desc = entry.description
         ? `<p style="margin: 8px 0 0 0; font-size: 10px; color: #666; line-height: 1.3;">${entry.description}</p>`
         : `<p style="margin: 8px 0 0 0; font-size: 10px; color: #666; line-height: 1.3;">
-                    Color fades smoothly from the boundary inward; the center stays clear.
+                    Thin colored rings along the unit boundary fade inward; the center stays clear.
                 </p>`;
 
     return `

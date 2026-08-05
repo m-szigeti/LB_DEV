@@ -49,6 +49,8 @@ const PILLAR_SCORE_FIELDS = [
 ];
 
 const SV_LAYER_TYPE_TO_ID = {
+    'sv-overall': 'svOverallTensionLayer',
+    'sv-custom-overall': 'svCustomOverallLayer',
     'sv-admin5': 'svAdmin5Layer',
     'sv-admin1': 'svAdmin1Layer',
     'sv-admin2': 'svAdmin2Layer',
@@ -426,19 +428,101 @@ function generateThemeBarsSection(themes) {
 function generateEnrichedCompositePopup(properties, layerType, sourceLayer, enrichment) {
     let content = '';
     content += generatePopupIdentitySection(enrichment);
-    content += generateSocialVulnerabilitySection(properties, layerType, sourceLayer);
+    content += generateActiveLayersScoreSection(properties, layerType, sourceLayer, enrichment);
 
     const themes = enrichment?.themes || [];
-    const activeLayerId = SV_LAYER_TYPE_TO_ID[layerType];
-    const otherThemes = activeLayerId
-        ? themes.filter(theme => theme.layerId !== activeLayerId)
-        : themes;
-    // Overall / custom overall: show all themes. Pillar layers: show the other themes.
+    const activeLayerIds = new Set(
+        Array.isArray(enrichment?.activeLayerIds) && enrichment.activeLayerIds.length
+            ? enrichment.activeLayerIds
+            : [SV_LAYER_TYPE_TO_ID[layerType]].filter(Boolean)
+    );
+    const isOverall =
+        layerType === 'sv-overall' || layerType === 'sv-custom-overall';
+    // Active layers are already in the score hero — omit them from the comparison bars
+    // unless Overall is the only active score and we still want the full theme set.
+    const barThemes = themes.filter(theme => {
+        if (activeLayerIds.has(theme.layerId)) return false;
+        return true;
+    });
     content += generateThemeBarsSection(
-        layerType === 'sv-overall' || layerType === 'sv-custom-overall' ? themes : otherThemes
+        isOverall && activeLayerIds.size <= 1 ? themes : barThemes
     );
 
     return content || '<p class="info-no-data">No detailed information available for this area.</p>';
+}
+
+function formatScoreHeroCategory(numericValue, attributeKey, layerType, sourceLayer) {
+    if (!Number.isFinite(numericValue)) return '';
+    const skipVulnCategory =
+        (attributeKey && String(attributeKey).startsWith('peace_si_')) ||
+        (layerType === 'sv-admin5' &&
+            (String(attributeKey).includes('Population') ||
+                String(attributeKey).includes('Heterogeneity') ||
+                String(attributeKey).includes('Displacement_Ratio') ||
+                String(attributeKey).includes('Demographic_Factor')));
+    if (skipVulnCategory) return '';
+    const categoryLabel =
+        getSubindicatorCategoryLabel(numericValue, attributeKey, layerType, sourceLayer) ||
+        categorizeSVScore(numericValue);
+    return categoryLabel ? ` (${categoryLabel})` : '';
+}
+
+/**
+ * Score hero for the clicked layer, or a side-by-side grid when multiple SV layers are active.
+ */
+function generateActiveLayersScoreSection(properties, layerType, sourceLayer, enrichment) {
+    const activeScores = Array.isArray(enrichment?.activeScores) ? enrichment.activeScores : [];
+    if (activeScores.length <= 1) {
+        return generateSocialVulnerabilitySection(properties, layerType, sourceLayer);
+    }
+
+    let content = '<div class="info-section info-score-section">';
+    content += '<div class="info-score-hero-grid">';
+    activeScores.forEach(score => {
+        const scoreLayerType =
+            Object.entries(SV_LAYER_TYPE_TO_ID).find(([, id]) => id === score.layerId)?.[0] ||
+            layerType;
+        const scoreSource =
+            window.mapLayers?.vector?.[score.layerId] || sourceLayer;
+        const category = formatScoreHeroCategory(
+            Number(score.value),
+            score.attribute,
+            scoreLayerType,
+            scoreSource
+        );
+        const accent = score.color || '#94a3b8';
+        content += `
+            <div class="info-score-hero info-score-hero-multi" style="border-top-color:${escapeHtml(accent)}">
+                <div class="info-score-hero-label">${escapeHtml(score.label)}</div>
+                <div class="info-score-hero-value">${escapeHtml(formatValue(score.value))}${escapeHtml(category)}</div>
+            </div>
+        `;
+    });
+    content += '</div>';
+
+    // Extra selected sub-indicators for the layer that was clicked.
+    const subLayerId = SV_LAYER_TYPE_TO_ID[layerType];
+    const primaryField = getPrimaryVulnerabilityField(properties, layerType);
+    if (subLayerId) {
+        getSelectedSubindicators(subLayerId)
+            .slice(1)
+            .forEach(fieldKey => {
+                if (fieldKey === primaryField) return;
+                const rawValue = properties[fieldKey];
+                if (rawValue === undefined || rawValue === null || rawValue === '') return;
+                const label = getPrimaryFieldDisplayLabel(fieldKey, layerType);
+                const category = formatScoreHeroCategory(
+                    Number(rawValue),
+                    fieldKey,
+                    layerType,
+                    sourceLayer
+                );
+                content += createInfoItem(label, `${formatValue(rawValue)}${category}`, false);
+            });
+    }
+
+    content += '</div>';
+    return content;
 }
 
 /**
