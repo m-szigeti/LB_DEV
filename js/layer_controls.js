@@ -4411,245 +4411,16 @@ async function loadSVForestFireSymbolLayer(config, map = null) {
     return finalLayer;
 }
 
-/** GYR edge-fade: 3 intensity classes as nested boundary rings fading inward. */
+/** GYR edge glow: class color stroked along the boundary, clipped to polygon interior. */
 const EDGE_FADE_CLASS_COUNT = 3;
 const EDGE_FADE_GYR_COLORS = ['#22c55e', '#eab308', '#dc2626'];
-/** Keep band count low for renderer cost; thin halo near the boundary only. */
-const EDGE_FADE_BAND_COUNT = 3;
-/**
- * Homothety depth: inner ring scale = 1 - EDGE_FADE_INNER_FRAC.
- * Applied in local meters (not raw lng/lat) so E/W sides don’t skew.
- */
-const EDGE_FADE_INNER_FRAC = 0.12;
-const EDGE_FADE_INNER_SCALE = 1 - EDGE_FADE_INNER_FRAC;
-const EDGE_FADE_OUTER_OPACITY = 0.9;
-const EDGE_FADE_INNER_OPACITY = 0.18;
-
-function buildEdgeFadeBands(bandCount = EDGE_FADE_BAND_COUNT) {
-    const n = Math.max(3, Math.round(bandCount));
-    const bands = [];
-    for (let i = 0; i < n; i++) {
-        const t0 = i / n;
-        const t1 = (i + 1) / n;
-        const outerScale = 1 - EDGE_FADE_INNER_FRAC * t0;
-        const innerScale = 1 - EDGE_FADE_INNER_FRAC * t1;
-        const midT = (t0 + t1) / 2;
-        const ease = Math.pow(1 - midT, 1.35);
-        const baseOpacity =
-            EDGE_FADE_INNER_OPACITY +
-            (EDGE_FADE_OUTER_OPACITY - EDGE_FADE_INNER_OPACITY) * ease;
-        bands.push({ outerScale, innerScale, baseOpacity });
-    }
-    return bands;
-}
-
-const EDGE_FADE_BANDS = buildEdgeFadeBands();
-
-function openGeoRing(ring) {
-    if (!Array.isArray(ring) || ring.length < 2) return [];
-    const pts = ring.map(pt => [Number(pt[0]), Number(pt[1])]).filter(pt =>
-        Number.isFinite(pt[0]) && Number.isFinite(pt[1])
-    );
-    if (pts.length < 2) return [];
-    const first = pts[0];
-    const last = pts[pts.length - 1];
-    if (first[0] === last[0] && first[1] === last[1]) {
-        return pts.slice(0, -1);
-    }
-    return pts;
-}
-
-function closeGeoRing(coords) {
-    if (!Array.isArray(coords) || !coords.length) return coords || [];
-    const first = coords[0];
-    const last = coords[coords.length - 1];
-    if (
-        Array.isArray(first) &&
-        Array.isArray(last) &&
-        first[0] === last[0] &&
-        first[1] === last[1]
-    ) {
-        return coords;
-    }
-    return [...coords, [first[0], first[1]]];
-}
-
-function lngLatToLocalMeters(lng, lat, originLng, originLat) {
-    const cosLat = Math.cos((originLat * Math.PI) / 180);
-    return [
-        (lng - originLng) * 111320 * Math.max(0.2, cosLat),
-        (lat - originLat) * 111320
-    ];
-}
-
-function localMetersToLngLat(x, y, originLng, originLat) {
-    const cosLat = Math.cos((originLat * Math.PI) / 180);
-    return [
-        originLng + x / (111320 * Math.max(0.2, cosLat)),
-        originLat + y / 111320
-    ];
-}
-
-function pointToSegmentDistanceSq(px, py, ax, ay, bx, by) {
-    const dx = bx - ax;
-    const dy = by - ay;
-    if (dx === 0 && dy === 0) {
-        const ex = px - ax;
-        const ey = py - ay;
-        return ex * ex + ey * ey;
-    }
-    const t = Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / (dx * dx + dy * dy)));
-    const qx = ax + dx * t;
-    const qy = ay + dy * t;
-    const ex = px - qx;
-    const ey = py - qy;
-    return ex * ex + ey * ey;
-}
-
-function pointInRingXY(pt, ring) {
-    // Ray cast; ring may be open or closed.
-    const x = pt[0];
-    const y = pt[1];
-    let inside = false;
-    const n = ring.length;
-    const limit = n > 1 && ring[0][0] === ring[n - 1][0] && ring[0][1] === ring[n - 1][1] ? n - 1 : n;
-    for (let i = 0, j = limit - 1; i < limit; j = i++) {
-        const xi = ring[i][0];
-        const yi = ring[i][1];
-        const xj = ring[j][0];
-        const yj = ring[j][1];
-        const intersect =
-            yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi + 0.0) + xi;
-        if (intersect) inside = !inside;
-    }
-    return inside;
-}
-
-function distanceToRingBoundaryXY(pt, ring) {
-    let minSq = Infinity;
-    const n = ring.length;
-    const limit = n > 1 && ring[0][0] === ring[n - 1][0] && ring[0][1] === ring[n - 1][1] ? n - 1 : n;
-    for (let i = 0; i < limit; i++) {
-        const a = ring[i];
-        const b = ring[(i + 1) % limit];
-        const dSq = pointToSegmentDistanceSq(pt[0], pt[1], a[0], a[1], b[0], b[1]);
-        if (dSq < minSq) minSq = dSq;
-    }
-    return Math.sqrt(minSq);
-}
-
-/**
- * Visual center ≈ pole of inaccessibility (coarse grid + refine).
- * Better than vertex-average centroid for elongated / irregular admin units.
- */
-function getRingVisualCenterXY(ring) {
-    const pts = ring.length > 1 && ring[0][0] === ring[ring.length - 1][0] && ring[0][1] === ring[ring.length - 1][1]
-        ? ring.slice(0, -1)
-        : ring;
-    if (pts.length < 3) return null;
-
-    let minX = Infinity;
-    let maxX = -Infinity;
-    let minY = Infinity;
-    let maxY = -Infinity;
-    let sx = 0;
-    let sy = 0;
-    pts.forEach(([x, y]) => {
-        if (x < minX) minX = x;
-        if (x > maxX) maxX = x;
-        if (y < minY) minY = y;
-        if (y > maxY) maxY = y;
-        sx += x;
-        sy += y;
-    });
-    const centroid = [sx / pts.length, sy / pts.length];
-    if (!(maxX > minX) || !(maxY > minY)) return centroid;
-
-    const width = maxX - minX;
-    const height = maxY - minY;
-    let best = centroid;
-    let bestDist = pointInRingXY(centroid, pts) ? distanceToRingBoundaryXY(centroid, pts) : -1;
-
-    const refine = (x0, x1, y0, y1, steps) => {
-        const dx = (x1 - x0) / steps;
-        const dy = (y1 - y0) / steps;
-        for (let iy = 0; iy <= steps; iy++) {
-            for (let ix = 0; ix <= steps; ix++) {
-                const p = [x0 + dx * ix, y0 + dy * iy];
-                if (!pointInRingXY(p, pts)) continue;
-                const d = distanceToRingBoundaryXY(p, pts);
-                if (d > bestDist) {
-                    bestDist = d;
-                    best = p;
-                }
-            }
-        }
-    };
-
-    // Coarse then local refine around the best cell.
-    refine(minX, maxX, minY, maxY, 12);
-    const span = Math.max(width, height) * 0.15;
-    refine(best[0] - span, best[0] + span, best[1] - span, best[1] + span, 8);
-    return best;
-}
-
-function getRingScaleCenterLngLat(ring) {
-    const open = openGeoRing(ring);
-    if (open.length < 3) return null;
-    const originLng = open[0][0];
-    const originLat = open[0][1];
-    const local = open.map(([lng, lat]) => lngLatToLocalMeters(lng, lat, originLng, originLat));
-    const centerXY = getRingVisualCenterXY(local);
-    if (!centerXY) return null;
-    return localMetersToLngLat(centerXY[0], centerXY[1], originLng, originLat);
-}
-
-/**
- * Scale a ring about an interior point in local meters (isotropic on the ground).
- * This keeps nested rings clean (no offset self-intersections) while avoiding the
- * lng/lat aspect skew that made E/W (“right”) sides look angled wrong.
- */
-function scaleGeoRingAboutMetric(ring, centerLngLat, scale) {
-    const open = openGeoRing(ring);
-    if (!open.length || !centerLngLat) return null;
-    const [cxLng, cyLat] = centerLngLat;
-    const local = open.map(([lng, lat]) => lngLatToLocalMeters(lng, lat, cxLng, cyLat));
-    const scaled = local.map(([x, y]) => [x * scale, y * scale]);
-    return closeGeoRing(scaled.map(([x, y]) => localMetersToLngLat(x, y, cxLng, cyLat)));
-}
-
-/**
- * Build a donut band between two metric-homothetic copies of a polygon's outer ring.
- * Same clean topology as the original centroid-scale approach.
- */
-function buildInsetBandGeometry(geometry, outerScale, innerScale) {
-    if (!geometry) return null;
-    if (geometry.type === 'Polygon') {
-        const outer = geometry.coordinates?.[0];
-        if (!outer?.length) return null;
-        const center = getRingScaleCenterLngLat(outer);
-        if (!center) return null;
-        const outerRing = scaleGeoRingAboutMetric(outer, center, outerScale);
-        const innerRingRaw = scaleGeoRingAboutMetric(outer, center, innerScale);
-        if (!outerRing?.length || !innerRingRaw?.length) return null;
-        const innerRing = innerRingRaw.slice().reverse();
-        return { type: 'Polygon', coordinates: [outerRing, innerRing] };
-    }
-    if (geometry.type === 'MultiPolygon') {
-        const parts = [];
-        for (const polyCoords of geometry.coordinates || []) {
-            const band = buildInsetBandGeometry(
-                { type: 'Polygon', coordinates: polyCoords },
-                outerScale,
-                innerScale
-            );
-            if (band?.coordinates) parts.push(band.coordinates);
-        }
-        if (!parts.length) return null;
-        return { type: 'MultiPolygon', coordinates: parts };
-    }
-    return null;
-}
+/** Soft glow passes — widest / faintest first, then tighter / stronger. */
+const EDGE_FADE_GLOW_PASSES = [
+    { widthPx: 34, alpha: 0.14 },
+    { widthPx: 22, alpha: 0.26 },
+    { widthPx: 12, alpha: 0.45 },
+    { widthPx: 5, alpha: 0.8 }
+];
 
 function getEdgeFadeColors(config) {
     return config?.edgeFadeColors?.length
@@ -4657,34 +4428,199 @@ function getEdgeFadeColors(config) {
         : EDGE_FADE_GYR_COLORS;
 }
 
-function buildEdgeFadeRingFeatures(sourceFeatures, attr, breaks, colors) {
-    const ringFeatures = [];
-    sourceFeatures.forEach(feature => {
-        if (!feature?.geometry) return;
-        const raw = Number(feature.properties?.[attr]);
-        const classIndex = Number.isFinite(raw) ? getPatternClassIndex(raw, breaks) : 0;
-        const color = colors[classIndex] || colors[colors.length - 1] || '#dc2626';
-        EDGE_FADE_BANDS.forEach((band, bandIndex) => {
-            const geometry = buildInsetBandGeometry(
-                feature.geometry,
-                band.outerScale,
-                band.innerScale
-            );
-            if (!geometry) return;
-            ringFeatures.push({
-                type: 'Feature',
-                properties: {
-                    ...(feature.properties || {}),
-                    __edgeFadeColor: color,
-                    __edgeFadeBaseOpacity: band.baseOpacity,
-                    __edgeFadeClassIndex: classIndex,
-                    __edgeFadeBandIndex: bandIndex
-                },
-                geometry
+function latLngsFromRing(ring) {
+    const open = [];
+    if (!Array.isArray(ring)) return open;
+    for (const pt of ring) {
+        if (!Array.isArray(pt) || pt.length < 2) continue;
+        const lng = Number(pt[0]);
+        const lat = Number(pt[1]);
+        if (!Number.isFinite(lng) || !Number.isFinite(lat)) continue;
+        open.push([lat, lng]);
+    }
+    if (open.length > 1) {
+        const first = open[0];
+        const last = open[open.length - 1];
+        if (first[0] === last[0] && first[1] === last[1]) open.pop();
+    }
+    return open;
+}
+
+function geometryToGlowRingSets(geometry) {
+    // Each item is an array of rings (outer + holes) as [lat, lng][] for one polygon part.
+    const parts = [];
+    if (!geometry) return parts;
+    if (geometry.type === 'Polygon') {
+        const rings = (geometry.coordinates || [])
+            .map(latLngsFromRing)
+            .filter(ring => ring.length >= 3);
+        if (rings.length) parts.push(rings);
+    } else if (geometry.type === 'MultiPolygon') {
+        for (const poly of geometry.coordinates || []) {
+            const rings = (poly || [])
+                .map(latLngsFromRing)
+                .filter(ring => ring.length >= 3);
+            if (rings.length) parts.push(rings);
+        }
+    }
+    return parts;
+}
+
+/**
+ * Canvas overlay: GYR glow along each unit outline, clipped so it only shows inside.
+ */
+const SVEdgeFadeGlowLayer = L.Layer.extend({
+    options: {
+        opacityScale: 1,
+        padding: 0
+    },
+
+    initialize(geojson, options) {
+        L.setOptions(this, options);
+        this._geojson = geojson;
+        this._attr = options?.svAttribute || 'composite_score';
+        this._breaks = options?.breaks || [];
+        this._colors = options?.colors || EDGE_FADE_GYR_COLORS;
+        this._opacityScale = Number.isFinite(options?.opacityScale) ? options.opacityScale : 1;
+        this._items = [];
+        this._rebuildItems();
+    },
+
+    onAdd(map) {
+        this._map = map;
+        if (!this._canvas) {
+            this._canvas = L.DomUtil.create('canvas', 'leaflet-zoom-animated sv-edge-fade-glow');
+            this._canvas.style.pointerEvents = 'none';
+            this._ctx = this._canvas.getContext('2d');
+        }
+        map.getPanes().overlayPane.appendChild(this._canvas);
+        map.on('moveend zoomend viewreset resize', this._redraw, this);
+        if (map.options.zoomAnimation && L.Browser.any3d) {
+            map.on('zoomanim', this._animateZoom, this);
+        }
+        this._redraw();
+    },
+
+    onRemove(map) {
+        map.off('moveend zoomend viewreset resize', this._redraw, this);
+        if (this._animateZoom) map.off('zoomanim', this._animateZoom, this);
+        if (this._canvas?.parentNode) {
+            this._canvas.parentNode.removeChild(this._canvas);
+        }
+        this._map = null;
+    },
+
+    getEvents() {
+        return {};
+    },
+
+    setClassification({ attr, breaks, colors, opacityScale } = {}) {
+        if (attr) this._attr = attr;
+        if (breaks) this._breaks = breaks;
+        if (colors) this._colors = colors;
+        if (Number.isFinite(opacityScale)) this._opacityScale = opacityScale;
+        this._rebuildItems();
+        this._redraw();
+    },
+
+    setOpacityScale(opacityScale) {
+        this._opacityScale = Number.isFinite(opacityScale) ? opacityScale : 1;
+        this._redraw();
+    },
+
+    _rebuildItems() {
+        const features = this._geojson?.features || [];
+        const colors = this._colors || EDGE_FADE_GYR_COLORS;
+        const attr = this._attr;
+        const breaks = this._breaks || [];
+        this._items = features
+            .map(feature => {
+                if (!feature?.geometry) return null;
+                const raw = Number(feature.properties?.[attr]);
+                const classIndex = Number.isFinite(raw) ? getPatternClassIndex(raw, breaks) : 0;
+                const color = colors[classIndex] || colors[colors.length - 1] || '#dc2626';
+                const parts = geometryToGlowRingSets(feature.geometry);
+                if (!parts.length) return null;
+                return { color, parts, properties: feature.properties || {} };
+            })
+            .filter(Boolean);
+    },
+
+    _animateZoom(e) {
+        const map = this._map;
+        if (!map || !this._canvas) return;
+        const scale = map.getZoomScale(e.zoom);
+        const offset = map._latLngBoundsToNewLayerBounds(map.getBounds(), e.zoom, e.center).min;
+        L.DomUtil.setTransform(this._canvas, offset, scale);
+    },
+
+    _redraw() {
+        const map = this._map;
+        const canvas = this._canvas;
+        const ctx = this._ctx;
+        if (!map || !canvas || !ctx) return;
+
+        const size = map.getSize();
+        const dpr = window.devicePixelRatio || 1;
+        canvas.width = Math.max(1, Math.floor(size.x * dpr));
+        canvas.height = Math.max(1, Math.floor(size.y * dpr));
+        canvas.style.width = `${size.x}px`;
+        canvas.style.height = `${size.y}px`;
+
+        const topLeft = map.containerPointToLayerPoint([0, 0]);
+        L.DomUtil.setPosition(canvas, topLeft);
+
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        ctx.clearRect(0, 0, size.x, size.y);
+        ctx.lineJoin = 'round';
+        ctx.lineCap = 'round';
+
+        const zoom = map.getZoom();
+        const widthScale = Math.max(0.7, Math.min(1.4, 1 + (zoom - 9) * 0.06));
+        const opacityScale = Math.max(0.15, Math.min(1.25, this._opacityScale || 1));
+
+        const projectRing = ring =>
+            ring.map(([lat, lng]) => map.latLngToContainerPoint([lat, lng]));
+
+        this._items.forEach(item => {
+            item.parts.forEach(rings => {
+                const projected = rings.map(projectRing).filter(r => r.length >= 3);
+                if (!projected.length) return;
+
+                ctx.save();
+                ctx.beginPath();
+                projected.forEach(ring => {
+                    ctx.moveTo(ring[0].x, ring[0].y);
+                    for (let i = 1; i < ring.length; i++) {
+                        ctx.lineTo(ring[i].x, ring[i].y);
+                    }
+                    ctx.closePath();
+                });
+                // Clip to polygon interior (holes via even-odd) so glow cannot spill outside.
+                ctx.clip('evenodd');
+
+                ctx.strokeStyle = item.color;
+                EDGE_FADE_GLOW_PASSES.forEach(pass => {
+                    ctx.globalAlpha = pass.alpha * opacityScale;
+                    ctx.lineWidth = pass.widthPx * widthScale;
+                    ctx.beginPath();
+                    projected.forEach(ring => {
+                        ctx.moveTo(ring[0].x, ring[0].y);
+                        for (let i = 1; i < ring.length; i++) {
+                            ctx.lineTo(ring[i].x, ring[i].y);
+                        }
+                        ctx.closePath();
+                    });
+                    ctx.stroke();
+                });
+                ctx.restore();
             });
         });
-    });
-    return ringFeatures;
+    }
+});
+
+function createSVEdgeFadeGlowLayer(geojson, options = {}) {
+    return new SVEdgeFadeGlowLayer(geojson, options);
 }
 
 async function loadSVEdgeFadeRingLayer(config, map = null) {
@@ -4699,54 +4635,47 @@ async function loadSVEdgeFadeRingLayer(config, map = null) {
         .map(feature => Number(feature.properties?.[attr]))
         .filter(value => Number.isFinite(value));
     const breaks = resolveClassificationBreaks(numericValues, EDGE_FADE_CLASS_COUNT, getClassificationMode());
-    const ringFeatures = buildEdgeFadeRingFeatures(sourceFeatures, attr, breaks, colors);
 
-    const ringLayer = L.geoJSON(
-        { type: 'FeatureCollection', features: ringFeatures },
-        {
-            interactive: false,
-            // Canvas handles many small ribbon polygons far better than SVG paths.
-            renderer: typeof L.canvas === 'function' ? L.canvas({ padding: 0.5 }) : undefined,
-            style: feature => {
-                const p = feature?.properties || {};
-                return {
-                    color: p.__edgeFadeColor || colors[0],
-                    weight: 0,
-                    opacity: 0,
-                    fillColor: p.__edgeFadeColor || colors[0],
-                    fillOpacity: Number(p.__edgeFadeBaseOpacity) || 0.4
-                };
-            }
-        }
-    );
+    const opacitySlider = document.getElementById(config.opacityControl || 'svOpacity');
+    const opacityFactor = opacitySlider ? parseFloat(opacitySlider.value) : 0.6;
+    const opacityScale = Number.isFinite(opacityFactor)
+        ? Math.max(0.15, Math.min(1.25, opacityFactor / 0.6))
+        : 1;
+
+    const glowLayer = createSVEdgeFadeGlowLayer(data, {
+        svAttribute: attr,
+        breaks,
+        colors,
+        opacityScale
+    });
 
     const adminOutlineLayer = createSVHitPolygonLayer(data, {
         map,
         thinBoundaries: Boolean(config?.thinBoundaries)
     });
 
-    const finalLayer = ringLayer;
-    finalLayer.layerData = {
+    glowLayer.layerData = {
         raw: data,
         propertyFields: Object.keys(sourceFeatures[0]?.properties || {}),
         selectedProperty: attr,
         colorRamp: null
     };
-    finalLayer._isSVEdgeFadeRingLayer = true;
-    finalLayer._svEdgeFadeRingLayer = ringLayer;
-    finalLayer._svAdminOutlineLayer = adminOutlineLayer;
-    finalLayer._svPolygonGeoJson = data;
-    finalLayer._svEdgeFadeMeta = { breaks, colors, svAttribute: attr };
-    finalLayer._svEdgeFadeColorOnly = false;
-    return finalLayer;
+    glowLayer._isSVEdgeFadeRingLayer = true;
+    glowLayer._svEdgeFadeRingLayer = glowLayer;
+    glowLayer._svAdminOutlineLayer = adminOutlineLayer;
+    glowLayer._svPolygonGeoJson = data;
+    glowLayer._svEdgeFadeMeta = { breaks, colors, svAttribute: attr };
+    glowLayer._svEdgeFadeColorOnly = false;
+    return glowLayer;
 }
 
 function setSVEdgeFadeVisualsOnMap(map, layer, onMap) {
     if (!map || !layer) return;
+    const glow = layer._svEdgeFadeRingLayer || layer;
     if (onMap) {
-        if (!map.hasLayer(layer)) layer.addTo(map);
-    } else if (map.hasLayer(layer)) {
-        map.removeLayer(layer);
+        if (!map.hasLayer(glow)) glow.addTo(map);
+    } else if (map.hasLayer(glow)) {
+        map.removeLayer(glow);
     }
 }
 
@@ -4794,7 +4723,7 @@ function pushEdgeFadeRingLegend(layerId, config, attr, breaks, colors, addLegend
         layerName: getChoroplethLegendTitle(layerId, attr, config) || config?.legendName || 'Political Vulnerability',
         type: 'edge-fade-ring',
         description:
-            'Green / yellow / red appear as thin nested rings along each unit boundary, fading inward. Color-only mode uses the theme orange choropleth instead.',
+            'Green / yellow / red glow along each unit boundary, visible only inside the polygon. Color-only mode uses the theme orange choropleth instead.',
         items: terms.map((term, idx) => ({
             label: `${term} (${rangeLabels[idx] || '—'})`,
             color: colors[idx] || EDGE_FADE_GYR_COLORS[idx]
@@ -4823,45 +4752,24 @@ function refreshSVEdgeFadeRingLayer(map, layers, addLegendEntry, options = {}) {
         .map(feature => Number(feature.properties?.[attr]))
         .filter(value => Number.isFinite(value));
     const breaks = resolveClassificationBreaks(numericValues, EDGE_FADE_CLASS_COUNT, getClassificationMode());
-    const ringFeatures = buildEdgeFadeRingFeatures(sourceFeatures, attr, breaks, colors);
 
     const opacitySlider = document.getElementById(config.opacityControl || 'svOpacity');
     const opacityFactor = opacitySlider ? parseFloat(opacitySlider.value) : 0.6;
-    const opacityScale = Number.isFinite(opacityFactor) ? Math.max(0.15, Math.min(1, opacityFactor / 0.6)) : 1;
+    const opacityScale = Number.isFinite(opacityFactor)
+        ? Math.max(0.15, Math.min(1.25, opacityFactor / 0.6))
+        : 1;
 
-    const ringLayer = layer._svEdgeFadeRingLayer;
-    if (ringLayer) {
-        ringLayer.clearLayers();
-        ringLayer.addData({ type: 'FeatureCollection', features: ringFeatures });
-        ringLayer.eachLayer(featureLayer => {
-            const p = featureLayer?.feature?.properties || {};
-            const base = Number(p.__edgeFadeBaseOpacity);
-            featureLayer.setStyle({
-                color: p.__edgeFadeColor || colors[0],
-                weight: 0,
-                opacity: 0,
-                fillColor: p.__edgeFadeColor || colors[0],
-                fillOpacity: (Number.isFinite(base) ? base : 0.4) * opacityScale
-            });
-        });
+    const glowLayer = layer._svEdgeFadeRingLayer || layer;
+    if (typeof glowLayer.setClassification === 'function') {
+        glowLayer.setClassification({ attr, breaks, colors, opacityScale });
     }
+    setSVEdgeFadeVisualsOnMap(map, layer, true);
 
     const outline = layer._svAdminOutlineLayer;
     if (outline && map && !map.hasLayer(outline)) {
         outline.addTo(map);
     }
-    if (outline && typeof outline.eachLayer === 'function') {
-        outline.eachLayer(featureLayer => {
-            if (typeof featureLayer.setStyle !== 'function') return;
-            featureLayer.setStyle({
-                color: SV_OUTLINE_COLOR,
-                weight: SV_OUTLINE_WEIGHT,
-                opacity: SV_OUTLINE_OPACITY,
-                fill: false,
-                fillOpacity: 0
-            });
-        });
-    }
+    applySVHitPolygonStyle(outline, { thinBoundaries: Boolean(config?.thinBoundaries) });
 
     layer._svEdgeFadeMeta = { breaks, colors, svAttribute: attr };
     if (layer.layerData) {
@@ -4953,18 +4861,9 @@ function restoreSVEdgeFadeFromColorOnly(map, layers, layerId) {
     if (outline && map && !map.hasLayer(outline)) {
         outline.addTo(map);
     }
-    if (outline && typeof outline.eachLayer === 'function') {
-        outline.eachLayer(featureLayer => {
-            if (typeof featureLayer.setStyle !== 'function') return;
-            featureLayer.setStyle({
-                color: SV_OUTLINE_COLOR,
-                weight: SV_OUTLINE_WEIGHT,
-                opacity: SV_OUTLINE_OPACITY,
-                fill: false,
-                fillOpacity: 0
-            });
-        });
-    }
+    applySVHitPolygonStyle(outline, {
+        thinBoundaries: Boolean(layerConfig[layerId]?.thinBoundaries)
+    });
     layer._svEdgeFadeColorOnly = false;
 }
 

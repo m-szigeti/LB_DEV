@@ -212,12 +212,19 @@ function renderEdgeFadeRingEntry(entry) {
     const itemsHtml = entry.items
         .map(item => {
             const c = item.color || '#94a3b8';
-            // Match map: thin nested boundary bands fading inward, clear center.
+            // Inward-only glow along the boundary (soft strokes clipped to the unit).
             const swatch = `
                 <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" aria-hidden="true" style="display:block;flex-shrink:0;border:1px solid #d1d5db;border-radius:4px;background:#f8fafc;">
-                    <rect x="1.5" y="1.5" width="29" height="29" rx="3" fill="none" stroke="${c}" stroke-width="3.2" opacity="0.9"/>
-                    <rect x="4.5" y="4.5" width="23" height="23" rx="2.5" fill="none" stroke="${c}" stroke-width="2.6" opacity="0.5"/>
-                    <rect x="7.5" y="7.5" width="17" height="17" rx="2" fill="none" stroke="${c}" stroke-width="2" opacity="0.22"/>
+                    <defs>
+                        <clipPath id="edgeGlowClip-${c.replace('#', '')}">
+                            <rect x="4" y="4" width="24" height="24" rx="3"/>
+                        </clipPath>
+                    </defs>
+                    <g clip-path="url(#edgeGlowClip-${c.replace('#', '')})">
+                        <rect x="4" y="4" width="24" height="24" rx="3" fill="none" stroke="${c}" stroke-width="10" opacity="0.18"/>
+                        <rect x="4" y="4" width="24" height="24" rx="3" fill="none" stroke="${c}" stroke-width="6" opacity="0.35"/>
+                        <rect x="4" y="4" width="24" height="24" rx="3" fill="none" stroke="${c}" stroke-width="2.5" opacity="0.85"/>
+                    </g>
                 </svg>
             `;
             return `
@@ -232,7 +239,7 @@ function renderEdgeFadeRingEntry(entry) {
     const desc = entry.description
         ? `<p style="margin: 8px 0 0 0; font-size: 10px; color: #666; line-height: 1.3;">${entry.description}</p>`
         : `<p style="margin: 8px 0 0 0; font-size: 10px; color: #666; line-height: 1.3;">
-                    Thin colored rings along the unit boundary fade inward; the center stays clear.
+                    Colored glow follows the unit boundary and is clipped so it only shows inside.
                 </p>`;
 
     return `
