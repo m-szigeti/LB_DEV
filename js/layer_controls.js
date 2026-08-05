@@ -4416,10 +4416,10 @@ const EDGE_FADE_CLASS_COUNT = 3;
 const EDGE_FADE_GYR_COLORS = ['#22c55e', '#eab308', '#dc2626'];
 /** Soft glow passes — widest / faintest first, then tighter / stronger. */
 const EDGE_FADE_GLOW_PASSES = [
-    { widthPx: 34, alpha: 0.14 },
-    { widthPx: 22, alpha: 0.26 },
-    { widthPx: 12, alpha: 0.45 },
-    { widthPx: 5, alpha: 0.8 }
+    { widthPx: 24, alpha: 0.14 },
+    { widthPx: 15, alpha: 0.26 },
+    { widthPx: 8, alpha: 0.45 },
+    { widthPx: 3.5, alpha: 0.8 }
 ];
 
 function getEdgeFadeColors(config) {
