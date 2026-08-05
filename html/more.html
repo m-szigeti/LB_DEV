@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>More Information - DSVI Data Visualization</title>
+    <title>More Information - Lebanon Vulnerability Tool</title>
     
     <!-- CSS styles -->
     <link rel="stylesheet" href="../css/styles.css">
     
-    <meta name="description" content="More information about the DSVI Data Visualization tool and methodology">
+    <meta name="description" content="Methodology, composite scoring, and guidance for the Lebanon vulnerability mapping tool">
     
     <!-- Additional styles for content pages -->
     <style>
@@ -18,7 +18,6 @@
             overflow-x: hidden !important;
         }
 
-        /* Ensure the content container allows scrolling */
         .content-container {
             min-height: 100vh;
             overflow: visible;
@@ -27,15 +26,9 @@
             margin: 0 auto;
         }
 
-        /* Make sure the footer stays at the bottom */
         footer {
             margin-top: 40px;
             position: relative;
-        }
-        .content-container {
-            padding: 30px;
-            max-width: 1200px;
-            margin: 0 auto;
         }
         
         .content-section {
@@ -47,6 +40,11 @@
             border-bottom: 2px solid #6c757d;
             padding-bottom: 10px;
             margin-bottom: 20px;
+        }
+
+        .content-section h3 {
+            color: #343a40;
+            margin-top: 28px;
         }
         
         .data-source {
@@ -61,18 +59,16 @@
             color: #343a40;
             margin-top: 0;
         }
-        
-        .methodology-diagram {
-            display: flex;
-            justify-content: center;
-            margin: 30px 0;
-        }
-        
-        .methodology-diagram img {
-            max-width: 100%;
-            height: auto;
-            border-radius: 8px;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+
+        .callout {
+            background: #efefeb;
+            border-left: 4px solid #a5a394;
+            color: #555;
+            font-size: 15px;
+            line-height: 1.5;
+            padding: 12px 14px;
+            border-radius: 4px;
+            margin: 20px 0;
         }
         
         .faq-item {
@@ -82,6 +78,7 @@
         .faq-item h3 {
             color: #343a40;
             margin-bottom: 10px;
+            margin-top: 0;
         }
         
         .two-column {
@@ -99,7 +96,6 @@
             }
         }
         
-        /* Table styles */
         table {
             width: 100%;
             border-collapse: collapse;
@@ -109,6 +105,7 @@
         th, td {
             padding: 12px 15px;
             border: 1px solid #ddd;
+            vertical-align: top;
         }
         
         thead {
@@ -120,25 +117,62 @@
             background-color: #f2f2f2;
         }
 
-        /* Figure styles */
-        .figure-container {
-            margin: 30px 0;
+        .method-steps {
+            counter-reset: method-step;
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .method-steps > li {
+            position: relative;
+            padding: 14px 14px 14px 52px;
+            margin-bottom: 10px;
+            background: #f7f7f7;
+            border: 1px solid #d8d8d8;
+            border-radius: 8px;
+        }
+
+        .method-steps > li::before {
+            counter-increment: method-step;
+            content: counter(method-step);
+            position: absolute;
+            left: 14px;
+            top: 14px;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: #dce9fa;
+            color: #3f79c5;
+            font-size: 13px;
+            font-weight: 700;
+            line-height: 24px;
             text-align: center;
         }
-        
-        .figure-container img {
-            max-width: 100%;
-            height: auto;
-            border-radius: 8px;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-            margin-bottom: 10px;
+
+        .pillar-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 12px;
+            margin: 20px 0;
         }
-        
-        .figure-caption {
-            font-style: italic;
-            color: #6c757d;
-            margin-top: 10px;
-            font-size: 0.9em;
+
+        .pillar-card {
+            background: #f8f9fa;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 14px 16px;
+        }
+
+        .pillar-card strong {
+            display: block;
+            margin-bottom: 6px;
+            color: #212529;
+        }
+
+        .pillar-card span {
+            color: #555;
+            font-size: 0.95em;
+            line-height: 1.45;
         }
     </style>
 </head>
@@ -171,344 +205,281 @@
     <!-- Main content container -->
     <div class="content-container">
         <div class="content-section">
-            <h1>More Information About the DSVI Tool</h1>
+            <h1>More Information</h1>
             <p>
-                This page provides detailed information about the Development and Social Vulnerability Index (DSVI) Data Visualization Tool, including methodology, data sources, and guidance on interpretation.
+                This page describes the Lebanon vulnerability mapping tool: what it shows, how to use the main features,
+                and how composite theme scores and the Overall Vulnerability Index are calculated.
             </p>
+            <div class="callout">
+                The tool provides a <strong>structural vulnerability baseline</strong> for exploration and reporting.
+                It is <strong>not</strong> a real-time early-warning system. Interpret results alongside local knowledge
+                and other data sources. Scores are comparable <strong>within the selected administrative resolution only</strong>
+                (cadastre, district, or governorate).
+            </div>
         </div>
+
+        <div class="content-section">
+            <h2>What the Tool Shows</h2>
+            <p>
+                The map displays composite vulnerability and tension indexes across Lebanon, plus contextual layers
+                that are not part of the composite calculation. Composite scores use a <strong>0–1 scale</strong>.
+                In the published Overall Vulnerability Index, <strong>higher scores indicate lower vulnerability /
+                greater resilience</strong>, and <strong>lower scores indicate higher vulnerability</strong>.
+            </p>
+            <div class="two-column">
+                <div class="column">
+                    <h3>Sidebar sections</h3>
+                    <ol>
+                        <li><strong>Composite Indexes</strong> — Overall Vulnerability Index and theme pillars (with optional sub-indicators).</li>
+                        <li><strong>Stressors</strong> — Contextual layers such as road access, collective shelters, TTF hotspots, and population.</li>
+                        <li><strong>UNDP Intervention Mapping</strong> — Project locations clustered by type of activity.</li>
+                    </ol>
+                </div>
+                <div class="column">
+                    <h3>Administrative resolution</h3>
+                    <p>
+                        Use <strong>Cadastre</strong>, <strong>District</strong>, or <strong>Governorate</strong> to change
+                        the map unit. Changing resolution reloads the matching GeoJSON layers. Not every theme is available
+                        at every resolution (for example, some themes are unavailable at cadastre).
+                    </p>
+                </div>
+            </div>
+        </div>
+
         <div class="content-section">
             <h2>How to Use the Tool</h2>
             <div class="two-column">
                 <div class="column">
-                    <h3>Basic Usage</h3>
+                    <h3>Basic workflow</h3>
                     <ol>
-                        <li><strong>Select a Layer:</strong> Use the sidebar to toggle different data layers on and off</li>
-                        <li><strong>Adjust Opacity:</strong> Use the slider controls to adjust the transparency of each layer</li>
-                        <li><strong>View Data:</strong> Click on areas of the map to view detailed information about that location</li>
-                        <li><strong>Change Basemap:</strong> Use the basemap selector in the top right to change the background map</li>
+                        <li><strong>Pick a resolution</strong> in the left panel (Cadastre / District / Governorate).</li>
+                        <li><strong>Turn on a theme</strong> under Composite Indexes (Overall and/or one or more pillars).</li>
+                        <li><strong>Click a polygon</strong> to open a popup with the unit’s score, population context, and theme bars.</li>
+                        <li><strong>Explore sub-indicators</strong> with the chips under each pillar to map a single input instead of the composite.</li>
+                        <li><strong>Add context</strong> from Stressors or UNDP Intervention Mapping as needed.</li>
                     </ol>
                 </div>
                 <div class="column">
-                    <h3>Advanced Features</h3>
-                    <ol>
-                        <li><strong>Compare Indicators:</strong> Toggle multiple layers to compare different aspects of vulnerability</li>
-                        <li><strong>Adjust Colors:</strong> For vector layers, select different attributes and color schemes</li>
-                        <li><strong>Export Maps:</strong> Use the screenshot function to export your map view for reports</li>
-                        <li><strong>View Legend:</strong> Refer to the legend to understand the classification of values</li>
-                    </ol>
+                    <h3>Analysis and display features</h3>
+                    <ul>
+                        <li><strong>Active Layers</strong> — Rankings, indicator definitions, and layer details for what is currently on.</li>
+                        <li><strong>Analysis (AOI)</strong> — Select map units (or whole districts at cadastre), review summary statistics, export CSV / PDF briefing, and design a custom index for the selected area.</li>
+                        <li><strong>Color</strong> (per composite layer) — Show that layer alone as a plain choropleth.</li>
+                        <li><strong>Show Labels</strong> — Place score labels on the map.</li>
+                        <li><strong>Advanced Options</strong> — Basemap, global color-only mode, and class-limit method (equal count, equal interval, natural breaks).</li>
+                        <li><strong>Build custom index</strong> — Choose themes and sub-indicators; the tool recalculates a custom overall using the official scoring recipe. Export a Before/After comparison PNG when available.</li>
+                    </ul>
                 </div>
             </div>
         </div>
+
         <div class="content-section">
-            <h2>Methodology</h2>
+            <h2>Composite Indexes</h2>
             <p>
-                The DSVI integrates multiple indicators of development and social vulnerability to create a comprehensive assessment tool. DSVI combines Geographic Information Systems (GIS), Artificial Intelligence (AI), and Machine Learning (ML) technologies for building interactive high-resolution maps visualizing vulnerabilities. Our methodology follows these key steps:
+                Theme layers summarise groups of indicators into a single score per administrative unit.
+                The Overall Vulnerability Index is a second-stage composite built from theme-level inputs.
             </p>
-            
-            <ol>
-                <li><strong>Data Collection:</strong> We gather data from multiple reliable sources, including Demographic and Health Surveys (DHS), satellite imagery, and international databases.</li>
-                <li><strong>Data Preprocessing:</strong> All indicators are norLebanonzed and prepared to ensure comparability across different measurement scales.</li>
-                <li><strong>Social Vulnerability Calculation:</strong> Using Principal Component Analysis (PCA) and expert opinion to calculate vulnerability scores for survey locations.</li>
-                <li><strong>Machine Learning Modeling:</strong> We use multiple algorithms to predict social vulnerability for areas without survey coverage, creating high-resolution vulnerability maps.</li>
-                <li><strong>Validation:</strong> The resulting indices are validated against ground truth data and expert assessments.</li>
-                <li><strong>Visualization:</strong> We develop interactive maps and dashboards to make the data accessible to a wide range of users.</li>
+
+            <div class="pillar-list">
+                <div class="pillar-card">
+                    <strong>Tensions and Conflict Risk</strong>
+                    <span>Social unrest, violence, and conflict-related tensions.</span>
+                </div>
+                <div class="pillar-card">
+                    <strong>Displacement Pressure</strong>
+                    <span>Impact of population movements and strain on host communities.</span>
+                </div>
+                <div class="pillar-card">
+                    <strong>Socioeconomic Vulnerability</strong>
+                    <span>Poverty, deprivation, and livelihood hardship.</span>
+                </div>
+                <div class="pillar-card">
+                    <strong>Service &amp; Infrastructure Vulnerability</strong>
+                    <span>Availability and quality of essential services and infrastructure.</span>
+                </div>
+                <div class="pillar-card">
+                    <strong>Demographic Tension / Stress</strong>
+                    <span>Demographic pressure and related stress factors.</span>
+                </div>
+                <div class="pillar-card">
+                    <strong>Climate &amp; Environmental Risk</strong>
+                    <span>Environmental hazards and climate-related pressures.</span>
+                </div>
+                <div class="pillar-card">
+                    <strong>Political Vulnerability</strong>
+                    <span>Governance gaps, institutional fragility, and political marginalization.</span>
+                </div>
+                <div class="pillar-card">
+                    <strong>Gender-Based Vulnerability</strong>
+                    <span>Gender disparities in access, safety, and participation.</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="content-section">
+            <h2>How Composite Scores Are Calculated</h2>
+            <p>
+                Theme composites and the Overall Vulnerability Index follow the same statistical recipe
+                (implemented in the data pipeline and mirrored in the tool for custom / experimental recomputation).
+            </p>
+
+            <h3>Official scoring recipe</h3>
+            <ol class="method-steps">
+                <li>
+                    <strong>Numeric coercion</strong><br>
+                    Indicator values are converted to numbers (including binary-aware handling of yes/no style fields).
+                </li>
+                <li>
+                    <strong>Median imputation</strong><br>
+                    Missing values in each indicator are filled with that indicator’s median across units at the current resolution.
+                </li>
+                <li>
+                    <strong>Min–max normalisation</strong><br>
+                    Each indicator is scaled to 0–1 using the observed minimum and maximum among units at that resolution.
+                    Selected indicators that run in the opposite direction (for example night-time lights) are inverted so that
+                    higher normalised values align with the intended vulnerability direction for scoring.
+                </li>
+                <li>
+                    <strong>Kendall τ weights</strong><br>
+                    A Kendall τ correlation matrix is computed between the normalised indicators.
+                    Each indicator’s weight is proportional to its <em>mean absolute</em> Kendall τ with all other indicators.
+                    Weights are rescaled to sum to 1. If correlations are undefined or all near zero, equal weights are used.
+                </li>
+                <li>
+                    <strong>Weighted sum</strong><br>
+                    The composite score for each unit is the weighted sum of its normalised indicator values
+                    (typically stored as <code>composite_score</code> for themes, or <code>overall_vulnerability_score</code> for Overall).
+                </li>
             </ol>
-            
-            <div class="figure-container">
-                <img src="../assets/Workflow_new.png" alt="DSVI Workflow Diagram">
-                <p class="figure-caption">Figure 1: DSVI Workflow from Business Understanding to Product Deployment</p>
+
+            <h3>Theme composites vs Overall</h3>
+            <div class="two-column">
+                <div class="column data-source">
+                    <h3>Theme / pillar scores</h3>
+                    <p>
+                        Most themes apply the recipe above to that theme’s <strong>sub-indicators</strong>.
+                        Displacement Pressure and Demographic Tension / Stress often enter the Overall stage as a
+                        <strong>single official metric</strong> (for example Displacement Ratio or Demographic Factor),
+                        rather than a Kendall sub-composite of every listed input—unless a custom build recomputes from selected sub-indicators.
+                    </p>
+                </div>
+                <div class="column data-source">
+                    <h3>Overall Vulnerability Index</h3>
+                    <p>
+                        Overall is a <strong>second-stage composite</strong>: theme-level scores are joined for each unit,
+                        then the same Kendall recipe is applied to those pillar inputs.
+                        A weak pillar therefore reduces the overall score. The map shows precomputed Overall scores from the published GeoJSON by default.
+                    </p>
+                </div>
             </div>
 
-            <p>
-                The calculation of Social Vulnerability follows a detailed process that involves:
-            </p>
-            <ol>
-                <li>Collection and preprocessing of survey data</li>
-                <li>Long listing of potentially relevant vulnerability indicators</li>
-                <li>Short listing of indicators with feedback from local experts</li>
-                <li>Principal component analysis on remaining indicators</li>
-                <li>Discussion on indicator influence and components' meaning with experts</li>
-                <li>Summation of components into single vulnerability score</li>
-            </ol>
-        </div>
-        
-        <div class="content-section">
-            <h2>Data Sources</h2>
-            <p>
-                The DSVI tool incorporates data from various sources to provide a comprehensive picture of development challenges and social vulnerability:
-            </p>
-            
-            <div class="data-source">
-                <h3>Survey Data</h3>
-                <p>DSVI primarily uses Demographic and Health Survey (DHS) data with geolocations to calculate social vulnerability. For Lebanon, we used the DHS 2018 (Standard) and 2021 Malaria Indicator Survey (MIS) nationwide survey data. These surveys contain hundreds of variables covering dimensions of income, employment status, access to infrastructure, health, violence, gender equality, ethnic group, age, and more.</p>
-            </div>
-            
-            <div class="data-source">
-                <h3>Spatial Data</h3>
-                <p>We collect and create high-quality spatial data to find connections between geographical factors and calculated social vulnerability scores. These include socioeconomic variables (nightlight intensity, distance to healthcare, etc.) and biophysical variables (elevation, vegetation, etc.).</p>
-            </div>
-            
-            <div class="data-source">
-                <h3>Expert Opinion</h3>
-                <p>Social vulnerability is a contextual metric that requires expert input for weighting. For every country studied, domain knowledge of the specific circumstances must be considered. Expert input helps interpret the influence of humanitarian indicators and validate results.</p>
-            </div>
-            
-            <div class="data-source">
-                <h3>Administrative Boundaries</h3>
-                <p>Administrative level 1 (province/state) and level 2 (district/county) boundaries are sourced from national mapping agencies and the United Nations Office for the Coordination of Humanitarian Affairs (OCHA).</p>
-            </div>
-        </div>
-        
-        <div class="content-section">
-            <h2>Geodatasets Used</h2>
-            <p>
-                The following geodatasets were used for predicting social vulnerability in Lebanon:
-            </p>
-            
-            <table>
-                <thead>
-                    <tr>
-                        <th>Group</th>
-                        <th>Variable</th>
-                        <th>Type</th>
-                        <th>Year</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td>Socioeconomic</td>
-                        <td>Nightlight Intensity</td>
-                        <td>Raw data</td>
-                        <td>2024</td>
-                    </tr>
-                    <tr>
-                        <td>Socioeconomic</td>
-                        <td>Proximity to Healthcare</td>
-                        <td>Derived</td>
-                        <td>2024</td>
-                    </tr>
-                    <tr>
-                        <td>Socioeconomic</td>
-                        <td>Proximity to Education</td>
-                        <td>Derived</td>
-                        <td>2024</td>
-                    </tr>
-                    <tr>
-                        <td>Socioeconomic</td>
-                        <td>Proximity to Main Road</td>
-                        <td>Derived</td>
-                        <td>2024</td>
-                    </tr>
-                    <tr>
-                        <td>Socioeconomic</td>
-                        <td>Population Density</td>
-                        <td>Raw data</td>
-                        <td>2024</td>
-                    </tr>
-                    <tr>
-                        <td>Socioeconomic</td>
-                        <td>Conflicts</td>
-                        <td>Raw data</td>
-                        <td>2012-2024</td>
-                    </tr>
-                    <tr>
-                        <td>Socioeconomic</td>
-                        <td>Relative Wealth</td>
-                        <td>Derived</td>
-                        <td>2021</td>
-                    </tr>
-                    <tr>
-                        <td>Socioeconomic</td>
-                        <td>Cell Tower Density</td>
-                        <td>Derived</td>
-                        <td>2024</td>
-                    </tr>
-                    <tr>
-                        <td>Bio-physical</td>
-                        <td>Temperature</td>
-                        <td>Raw data</td>
-                        <td>2023</td>
-                    </tr>
-                    <tr>
-                        <td>Bio-physical</td>
-                        <td>Precipitation</td>
-                        <td>Raw data</td>
-                        <td>2023</td>
-                    </tr>
-                    <tr>
-                        <td>Bio-physical</td>
-                        <td>Vegetation Indices</td>
-                        <td>Raw data</td>
-                        <td>2024</td>
-                    </tr>
-                    <tr>
-                        <td>Bio-physical</td>
-                        <td>Elevation</td>
-                        <td>Raw data</td>
-                        <td>-</td>
-                    </tr>
-                </tbody>
-            </table>
-
-            <div class="figure-container">
-                <img src="../assets/SV_masked.png" alt="Social Vulnerability Map of populated areas">
-                <p class="figure-caption">Figure 2: Social Vulnerability Map of populated areas in Lebanon</p>
-            </div>
-        </div>
-        
-        <div class="content-section">
-            <h2>Key Indicators</h2>
-            <p>
-                The DSVI incorporates multiple indicators across several dimensions of development and vulnerability. The following indicator groups from DHS surveys were particularly important:
-            </p>
-            
-            <table>
-                <thead>
-                    <tr>
-                        <th>Social</th>
-                        <th>Health</th>
-                        <th>Economy</th>
-                        <th>Infrastructure</th>
-                        <th>Malaria</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td>Age</td>
-                        <td>Health insurance</td>
-                        <td>Working environment</td>
-                        <td>Travel times to water/health</td>
-                        <td>Mosquito nets and their use</td>
-                    </tr>
-                    <tr>
-                        <td>Gender</td>
-                        <td>Tuberculosis</td>
-                        <td>Unemployment</td>
-                        <td>Internet access</td>
-                        <td>Treatment against malaria</td>
-                    </tr>
-                    <tr>
-                        <td>Ethnicity</td>
-                        <td>Vaccinations</td>
-                        <td>Child labour</td>
-                        <td>Building materials</td>
-                        <td>Diagnostic blood tests</td>
-                    </tr>
-                    <tr>
-                        <td>Migration</td>
-                        <td>Disability</td>
-                        <td>Access to banking</td>
-                        <td>Transportation</td>
-                        <td>Awareness of Malaria and methods to reduce risk</td>
-                    </tr>
-                    <tr>
-                        <td>Household size</td>
-                        <td>Malaria STD's</td>
-                        <td></td>
-                        <td>Urban/Rural</td>
-                        <td></td>
-                    </tr>
-                    <tr>
-                        <td>Literacy</td>
-                        <td>Health insurance</td>
-                        <td></td>
-                        <td>Cooking fuel</td>
-                        <td></td>
-                    </tr>
-                </tbody>
-            </table>
-            
-            <p>
-                According to our analysis, the most important drivers of vulnerability in Lebanon were:
-            </p>
+            <h3>Important interpretation notes</h3>
             <ul>
-                <li><strong>From PCA Analysis:</strong> Literacy, Access to electricity, Education in single years, Educational attainment, Highest educational level, and Use of internet</li>
-                <li><strong>From Machine Learning Models:</strong> Nightlight intensity, Relative wealth, Distance to education, Celltower density, Distance to financial services, Conflicts, Population density, and Distance to healthcare</li>
+                <li><strong>Resolution matters.</strong> Min–max bounds and Kendall weights are computed within the units of the selected resolution. Do not compare a cadastre score directly to a district score.</li>
+                <li><strong>Map colours ≠ raw score formula.</strong> Class Limits (equal count, equal interval, natural breaks) only change how scores are binned for the choropleth legend; they do not recalculate the underlying composite.</li>
+                <li><strong>Custom Overall / AOI custom index.</strong> These tools re-run the official recipe on the themes (and optional sub-indicators) you select. In AOI mode, normalisation and Kendall weights are computed over the selected units only; units outside the AOI are muted on the map.</li>
+                <li><strong>Weight sandbox.</strong> Experimental per-theme sliders keep the same normalisation path but replace Kendall weights with user-chosen weights.</li>
             </ul>
-        </div>
-        
-        <div class="content-section">
-            <h2>Vulnerability Classification</h2>
-            <p>
-                Vulnerability scores are classified into five categories for easier interpretation:
-            </p>
-            
+
             <table>
                 <thead>
                     <tr>
-                        <th>Vulnerability Score</th>
-                        <th>Vulnerability Class</th>
+                        <th>Stage</th>
+                        <th>Inputs</th>
+                        <th>Output</th>
                     </tr>
                 </thead>
                 <tbody>
                     <tr>
-                        <td>0 – 0.2</td>
-                        <td>Very Low</td>
+                        <td>Theme composite</td>
+                        <td>Theme sub-indicators (or a designated single metric for some themes)</td>
+                        <td>Theme score (e.g. <code>composite_score</code>)</td>
                     </tr>
                     <tr>
-                        <td>0.2 – 0.4</td>
-                        <td>Low</td>
+                        <td>Overall index</td>
+                        <td>Theme-level scores / official theme metrics</td>
+                        <td><code>overall_vulnerability_score</code></td>
                     </tr>
                     <tr>
-                        <td>0.4 – 0.6</td>
-                        <td>Medium</td>
-                    </tr>
-                    <tr>
-                        <td>0.6 – 0.8</td>
-                        <td>High</td>
-                    </tr>
-                    <tr>
-                        <td>0.8 – 1.0</td>
-                        <td>Very High</td>
+                        <td>Custom / AOI index</td>
+                        <td>User-selected themes and sub-indicators</td>
+                        <td>Experimental custom score field on a sibling map layer</td>
                     </tr>
                 </tbody>
             </table>
         </div>
-        
+
+        <div class="content-section">
+            <h2>Context Layers (Not Part of the Composite)</h2>
+            <div class="data-source">
+                <h3>Stressors</h3>
+                <p>
+                    Road Access Status, Collective Shelter Status, TTF Hotspots, and Population provide operational and demographic context.
+                    They can be viewed together with composite layers but are not inputs to the Overall Vulnerability Index formula.
+                </p>
+            </div>
+            <div class="data-source">
+                <h3>UNDP Intervention Mapping</h3>
+                <p>
+                    Project points are clustered by Type of Activity. Popups summarise individual projects; cluster popups show the activity mix nearby.
+                    This layer supports situational awareness and does not enter composite scoring.
+                </p>
+            </div>
+        </div>
+
         <div class="content-section">
             <h2>Frequently Asked Questions</h2>
-            
+
             <div class="faq-item">
-                <h3>How often is the data updated?</h3>
+                <h3>Why do scores change when I switch Cadastre / District / Governorate?</h3>
                 <p>
-                    Data updates vary by source. Administrative statistics are updated as new data becomes available, typically annually. Survey data like DHS is updated on their survey cycle, typically every 5 years. Satellite-derived indicators are updated more frequently, with some being refreshed quarterly or monthly.
+                    Each resolution uses its own geometry and score table. Normalisation and (for recomputed indexes) Kendall weights are defined among units at that level, so values are not interchangeable across resolutions.
                 </p>
             </div>
-            
+
             <div class="faq-item">
-                <h3>How should I interpret the vulnerability scores?</h3>
+                <h3>Does Class Limits change the composite calculation?</h3>
                 <p>
-                    Vulnerability scores are norLebanonzed on a scale of 0-1, where 0 represents the lowest vulnerability and 1 represents the highest vulnerability within the dataset. These scores should be interpreted as relative measures within a country rather than absolute measures between countries.
+                    No. Class Limits only change how continuous scores are grouped into legend colours on the map.
                 </p>
             </div>
-            
+
             <div class="faq-item">
-                <h3>Can I download the data for my own analysis?</h3>
+                <h3>What does AOI Analysis measure?</h3>
                 <p>
-                    Yes, all data layers can be downloaded in GeoJSON format for vector data or GeoTIFF format for raster data. Please note that some datasets may have specific usage restrictions or attribution requirements.
+                    Area-of-interest summaries aggregate scores already present on the active layers for the selected units
+                    (means, class shares, theme contribution, extremes). That is different from designing a custom index,
+                    which recalculates a new composite over the selection.
                 </p>
             </div>
-            
+
             <div class="faq-item">
-                <h3>How accurate is the data at the local level?</h3>
+                <h3>Can I treat the custom or sandbox map as official?</h3>
                 <p>
-                    Accuracy varies by indicator and region. Survey data like DHS is typically representative at the provincial level but may have wider confidence intervals for smaller areas. Satellite-derived indicators have consistent spatial resolution but may have varying accuracy depending on ground conditions. For critical decision-making, we recommend triangulating with local knowledge and data.
+                    No. Custom Overall, AOI custom index, and the weight sandbox are exploratory. The published Overall and theme GeoJSON remain the reference layers unless your team formally adopts a new build.
+                </p>
+            </div>
+
+            <div class="faq-item">
+                <h3>How should I communicate results?</h3>
+                <p>
+                    Prefer relative language within one resolution (“higher / lower than neighbouring districts”), state the date and layer used,
+                    and avoid implying real-time risk or precision beyond what the indicators support.
                 </p>
             </div>
         </div>
-        
-        
+
         <div class="content-section">
-            <h2>Contact Us</h2>
+            <h2>Contact</h2>
             <p>
-                If you have questions about the DSVI tool, methodology, or data sources, please contact us at <a href="mailto:dsvi-team@example.org">dsvi-team@example.org</a>. We welcome feedback and suggestions for improving the tool.
+                For questions about methodology, data updates, or tool use, contact the project team through your UNDP / SDG AI Lab channel.
+                Feedback on documentation gaps is welcome.
             </p>
         </div>
     </div>
     
-    <!-- Simple footer -->
     <footer style="background-color: #343a40; color: white; text-align: center; padding: 20px; margin-top: 40px;">
-        <p>© 2025 DSVI Data Visualization Tool | All Rights Reserved</p>
+        <p>© 2026 Lebanon Vulnerability Mapping Tool | All Rights Reserved</p>
     </footer>
 </body>
 </html>

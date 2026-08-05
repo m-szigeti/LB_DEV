@@ -94,6 +94,9 @@ function renderEntry(entry) {
     if (entry.type === 'service-symbol' && entry.items?.length) {
         return renderServiceSymbolEntry(entry);
     }
+    if (entry.type === 'edge-fade-ring' && entry.items?.length) {
+        return renderEdgeFadeRingEntry(entry);
+    }
     if (entry.type === 'sectarian-dummy-glyph' && entry.items?.length) {
         return renderSectarianDummyGlyphEntry(entry);
     }
@@ -165,6 +168,43 @@ function renderServiceSymbolEntry(entry) {
                 <p style="margin: 8px 0 0 0; font-size: 10px; color: #666; line-height: 1.3;">
                     Circle color follows class intensity; symbols cluster at lower zoom.
                 </p>
+            </div>
+        </div>
+    `;
+}
+
+function renderEdgeFadeRingEntry(entry) {
+    const itemsHtml = entry.items
+        .map(item => `
+            <div style="display:flex; align-items:center; margin-bottom:6px;">
+                <div style="
+                    width:28px;
+                    height:28px;
+                    border-radius:6px;
+                    border:4px solid ${item.color};
+                    background:
+                        radial-gradient(circle at center, transparent 42%, ${item.color}33 42%, ${item.color}33 58%, transparent 58%),
+                        #f8fafc;
+                    box-sizing:border-box;
+                    flex-shrink:0;
+                "></div>
+                <span style="font-size: 11px; color: #333; margin-left: 8px; line-height: 1.25;">${item.label}</span>
+            </div>
+        `)
+        .join('');
+
+    const desc = entry.description
+        ? `<p style="margin: 8px 0 0 0; font-size: 10px; color: #666; line-height: 1.3;">${entry.description}</p>`
+        : `<p style="margin: 8px 0 0 0; font-size: 10px; color: #666; line-height: 1.3;">
+                    Color fades smoothly from the boundary inward; the center stays clear.
+                </p>`;
+
+    return `
+        <div class="legend-entry" style="margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid #eee;">
+            <h4 style="margin: 0 0 8px 0; font-size: 14px; color: #333;">${entry.layerName}</h4>
+            <div class="color-scheme">
+                <div class="color-boxes">${itemsHtml}</div>
+                ${desc}
             </div>
         </div>
     `;

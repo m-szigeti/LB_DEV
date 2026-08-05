@@ -329,6 +329,8 @@ const layerConfig = {
         type: 'sv-vector',
         url: JUNE17_FILES.theme7.district,
         legendName: 'Political Vulnerability',
+        renderMode: 'edge-fade-ring',
+        edgeFadeColors: ['#22c55e', '#eab308', '#dc2626'],
         style: {
             color: '#2b83ba',
             weight: 2,
@@ -706,6 +708,9 @@ function enforceColorOnlySingleLayer(map, layers, removeLegendEntry) {
                 setSVServiceMarkersOnMap(map, layer, false);
                 setSVServiceChoroplethOnMap(map, layer, false);
             }
+            if (config?.renderMode === 'edge-fade-ring') {
+                setSVEdgeFadeChoroplethOnMap(map, layer, false);
+            }
             removeSVAuxiliaryLayers(map, layer);
             removeSubindicatorMapExtras(map, layer);
             clearPolygonSelection(layerId, layers);
@@ -864,7 +869,8 @@ const SV_BASE_LAYER_CONFIG = {
     svPoliticalLayer: {
         fixedColorRamp: 'whiteToDarkOrange',
         legendName: 'Political Vulnerability',
-        renderMode: 'choropleth',
+        renderMode: 'edge-fade-ring',
+        edgeFadeColors: ['#22c55e', '#eab308', '#dc2626'],
         svAttribute: 'composite_score'
     },
     svGenderLayer: {
@@ -1939,6 +1945,7 @@ function syncChoroplethSubindicatorOverlays(map, layerId, layers, config) {
         overlay.addTo(map);
         layer._svSubindicatorOverlays.push(overlay);
     });
+    keepRoadLayerOnTop(layers);
 }
 
 function syncDisplacementSubindicatorExtras(map, layerId, layers, config) {
@@ -1953,6 +1960,7 @@ function syncDisplacementSubindicatorExtras(map, layerId, layers, config) {
     if (!extras.length) return;
 
     const scale = getSVDisplacementRadiusScale(map);
+    applyDisplacementCircleRadiusBounds(config);
     const minR = (config.minRadius || layer._svCircleMeta?.minRadius || 7) * scale * 0.65;
     const maxR = (config.maxRadius || layer._svCircleMeta?.maxRadius || 22) * scale * 0.65;
     const fillOpacity = getSVDisplacementCircleFillOpacity(map) * 0.55;
@@ -2299,12 +2307,13 @@ function refreshSVDisplacementLayerCircles(layerId, layers, config, map) {
     const layer = layers.vector[layerId];
     if (!layer || !layer._isSVProportionalLayer) return;
 
+    applyDisplacementCircleRadiusBounds(config);
     const attr = getEffectiveDisplacementCircleAttribute(config);
     recomputeSVDisplacementCircleMeta(
         layer,
         attr,
-        config.minRadius || layer._svCircleMeta?.minRadius || 4,
-        config.maxRadius || layer._svCircleMeta?.maxRadius || 16
+        config.minRadius || layer._svCircleMeta?.minRadius || 7,
+        config.maxRadius || layer._svCircleMeta?.maxRadius || 22
     );
     refreshSVDisplacementCircles(layerId, layers, config, map);
 }
@@ -2426,6 +2435,7 @@ function refreshSVEconomicStripePattern(map, layers, addLegendEntry) {
     if (map) {
         syncChoroplethSubindicatorOverlays(map, layerId, layers, config);
     }
+    keepRoadLayerOnTop(layers);
 }
 
 function clearStripePatternFill(vectorLayer) {
@@ -2606,6 +2616,8 @@ async function refreshSVLayerForDisplay(layerId, map, layers, addLegendEntry) {
         } else {
             refreshSVServiceSymbolLayer(map, layers, addLegendEntry);
         }
+    } else if (config.renderMode === 'edge-fade-ring') {
+        refreshSVEdgeFadeRingLayer(map, layers, addLegendEntry, { singleColorMode });
     } else if (config.renderMode === 'stripe-pattern' || config.renderMode === 'service-pattern') {
         if (singleColorMode) {
             refreshSVEconomicSingleColorMode(map, layers, addLegendEntry);
@@ -2668,6 +2680,7 @@ async function refreshSVLayerForDisplay(layerId, map, layers, addLegendEntry) {
 
     updateSVHoverTooltips(layer, layerId, config);
     syncSVPermanentScoreLabels(map, layers);
+    keepRoadLayerOnTop(layers);
     if (window.currentInfoPanel) {
         window.currentInfoPanel.updateLayer(layerId, {
             selectedAttribute: getEffectiveChoroplethAttribute(layerId, config)
@@ -2680,6 +2693,7 @@ async function refreshActiveSVLayersForDisplay(map, layers, addLegendEntry) {
         await refreshSVLayerForDisplay(layerId, map, layers, addLegendEntry);
     }
     syncMapDisplayLabels(map, layers);
+    keepRoadLayerOnTop(layers);
 }
 
 async function rebuildActiveSVLayerStyles(map, layers, addLegendEntry) {
@@ -3451,10 +3465,14 @@ async function applySVResolution(resolution, map, layers, colorScales, addLegend
         }
         config.renderMode = base.renderMode === 'choropleth' ? undefined : base.renderMode;
         config.patternColor = base.patternColor;
+        config.edgeFadeColors = base.edgeFadeColors;
         config.minRadius = base.minRadius;
         config.maxRadius = base.maxRadius;
         config.markerColor = base.markerColor;
         config.thinBoundaries = Boolean(resolutionLayer.thinBoundaries);
+        if (layerId === 'svAdmin1Layer') {
+            applyDisplacementCircleRadiusBounds(config, selectedResolution);
+        }
 
         const toggle = document.getElementById(layerId);
         if (!toggle) return;
@@ -3715,6 +3733,8 @@ async function loadSVLayer(layerId, map, layers, colorScales, addLegendEntry, re
                 loadedLayer = await loadSVCircleLayer(config);
             } else if (config.renderMode === 'service-symbol') {
                 loadedLayer = await loadSVServiceSymbolLayer(config);
+            } else if (config.renderMode === 'edge-fade-ring') {
+                loadedLayer = await loadSVEdgeFadeRingLayer(config);
             } else if (config.renderMode === 'sectarian-glyph') {
                 loadedLayer = await loadSVSectarianGlyphLayer(config);
             } else {
@@ -3724,6 +3744,8 @@ async function loadSVLayer(layerId, map, layers, colorScales, addLegendEntry, re
             layers.vector[layerId] = loadedLayer;
             let interactionLayer = loadedLayer;
             if (config.renderMode === 'sectarian-glyph' && loadedLayer?._svAdminOutlineLayer) {
+                interactionLayer = loadedLayer._svAdminOutlineLayer;
+            } else if (config.renderMode === 'edge-fade-ring' && loadedLayer?._svAdminOutlineLayer) {
                 interactionLayer = loadedLayer._svAdminOutlineLayer;
             } else if (config.renderMode === 'proportional-circles' && loadedLayer._svDisplacementMarkerLayer) {
                 interactionLayer = loadedLayer._svDisplacementMarkerLayer;
@@ -3774,6 +3796,8 @@ async function loadSVLayer(layerId, map, layers, colorScales, addLegendEntry, re
             updateSVServiceMarkerIconSizes(map, layers.vector[layerId]);
         } else if (config.renderMode === 'proportional-circles' && layers.vector[layerId]?._svAdminOutlineLayer) {
             layers.vector[layerId]._svAdminOutlineLayer.addTo(map);
+        } else if (config.renderMode === 'edge-fade-ring' && layers.vector[layerId]?._svAdminOutlineLayer) {
+            layers.vector[layerId]._svAdminOutlineLayer.addTo(map);
         } else if (config.renderMode === 'sectarian-glyph' && layers.vector[layerId]?._svAdminOutlineLayer) {
             layers.vector[layerId]._svAdminOutlineLayer.addTo(map);
         }
@@ -3794,6 +3818,12 @@ async function loadSVLayer(layerId, map, layers, colorScales, addLegendEntry, re
             refreshSVDisplacementLayerCircles(layerId, layers, config, map);
         } else if (config.renderMode === 'service-symbol') {
             populateServiceSubindicatorSelect();
+            if (typeof window.syncSVSubindicatorPanelsVisibility === 'function') {
+                window.syncSVSubindicatorPanelsVisibility();
+            }
+            applySVLayerOpacity(layerId, layers, opacity, map, addLegendEntry);
+        } else if (config.renderMode === 'edge-fade-ring') {
+            renderSVSubindicatorPanel(layerId);
             if (typeof window.syncSVSubindicatorPanelsVisibility === 'function') {
                 window.syncSVSubindicatorPanelsVisibility();
             }
@@ -3869,6 +3899,8 @@ async function loadSVLayer(layerId, map, layers, colorScales, addLegendEntry, re
             }
         }
         if (config.renderMode === 'sectarian-glyph' && layers.vector[layerId]?._svAdminOutlineLayer) {
+            updateSVHoverTooltips(layers.vector[layerId]._svAdminOutlineLayer, layerId, config);
+        } else if (config.renderMode === 'edge-fade-ring' && layers.vector[layerId]?._svAdminOutlineLayer) {
             updateSVHoverTooltips(layers.vector[layerId]._svAdminOutlineLayer, layerId, config);
         }
         updateSVHoverTooltips(layers.vector[layerId], layerId, config);
@@ -4030,14 +4062,15 @@ async function loadSVCircleLayer(config) {
         .filter(Boolean);
 
     const circleAttr = getEffectiveDisplacementCircleAttribute(config);
+    applyDisplacementCircleRadiusBounds(config);
     const numericValues = pointFeatures
         .filter(feature => !isAcsCodeNoData(feature.properties))
         .map(feature => resolveDisplacementPropertyValue(feature.properties, circleAttr))
         .filter(value => Number.isFinite(value));
     const minValue = numericValues.length ? Math.min(...numericValues) : 0;
     const maxValue = numericValues.length ? Math.max(...numericValues) : 1;
-    const minRadius = config.minRadius || 4;
-    const maxRadius = config.maxRadius || 16;
+    const minRadius = config.minRadius || 7;
+    const maxRadius = config.maxRadius || 22;
 
     const clusterStyleState = {
         fillOpacity: SV_DISPLACEMENT_FILL_OPACITY_MIN,
@@ -4191,6 +4224,433 @@ async function loadSVServiceSymbolLayer(config) {
     finalLayer._svCadastreOutlineLayer = cadastreOutlineLayer;
     finalLayer._svPolygonGeoJson = data;
     return finalLayer;
+}
+
+/** GYR edge-fade: 3 intensity classes as nested boundary rings fading inward. */
+const EDGE_FADE_CLASS_COUNT = 3;
+const EDGE_FADE_GYR_COLORS = ['#22c55e', '#eab308', '#dc2626'];
+/** Keep band count low for renderer cost; thin halo near the boundary only. */
+const EDGE_FADE_BAND_COUNT = 3;
+const EDGE_FADE_INNER_SCALE = 0.88;
+const EDGE_FADE_OUTER_OPACITY = 0.9;
+const EDGE_FADE_INNER_OPACITY = 0.18;
+
+function buildEdgeFadeBands(bandCount = EDGE_FADE_BAND_COUNT) {
+    const n = Math.max(3, Math.round(bandCount));
+    const bands = [];
+    for (let i = 0; i < n; i++) {
+        const t0 = i / n;
+        const t1 = (i + 1) / n;
+        const outerScale = 1 - (1 - EDGE_FADE_INNER_SCALE) * t0;
+        const innerScale = 1 - (1 - EDGE_FADE_INNER_SCALE) * t1;
+        // Ease opacity so outer bands stay stronger and the falloff looks continuous.
+        const midT = (t0 + t1) / 2;
+        const ease = Math.pow(1 - midT, 1.35);
+        const baseOpacity =
+            EDGE_FADE_INNER_OPACITY +
+            (EDGE_FADE_OUTER_OPACITY - EDGE_FADE_INNER_OPACITY) * ease;
+        bands.push({ outerScale, innerScale, baseOpacity });
+    }
+    return bands;
+}
+
+const EDGE_FADE_BANDS = buildEdgeFadeBands();
+
+function getGeoRingCentroid(ring) {
+    if (!Array.isArray(ring) || !ring.length) return null;
+    let sx = 0;
+    let sy = 0;
+    let n = 0;
+    for (const pt of ring) {
+        if (!Array.isArray(pt) || pt.length < 2) continue;
+        const lng = Number(pt[0]);
+        const lat = Number(pt[1]);
+        if (!Number.isFinite(lng) || !Number.isFinite(lat)) continue;
+        sx += lng;
+        sy += lat;
+        n += 1;
+    }
+    return n ? [sx / n, sy / n] : null;
+}
+
+function closeGeoRing(coords) {
+    if (!Array.isArray(coords) || !coords.length) return coords || [];
+    const first = coords[0];
+    const last = coords[coords.length - 1];
+    if (
+        Array.isArray(first) &&
+        Array.isArray(last) &&
+        first[0] === last[0] &&
+        first[1] === last[1]
+    ) {
+        return coords;
+    }
+    return [...coords, [...first]];
+}
+
+function scaleGeoRingAbout(ring, centroid, scale) {
+    const [cx, cy] = centroid;
+    return ring.map(pt => {
+        if (!Array.isArray(pt) || pt.length < 2) return pt;
+        const lng = Number(pt[0]);
+        const lat = Number(pt[1]);
+        if (!Number.isFinite(lng) || !Number.isFinite(lat)) return pt;
+        const out = [cx + (lng - cx) * scale, cy + (lat - cy) * scale];
+        for (let i = 2; i < pt.length; i++) out.push(pt[i]);
+        return out;
+    });
+}
+
+/**
+ * Build a donut band between two centroid-scaled copies of a polygon's outer ring.
+ * Interior stays empty so the fade reads as an edge halo.
+ */
+function buildInsetBandGeometry(geometry, outerScale, innerScale) {
+    if (!geometry) return null;
+    if (geometry.type === 'Polygon') {
+        const outer = geometry.coordinates?.[0];
+        if (!outer?.length) return null;
+        const centroid = getGeoRingCentroid(outer);
+        if (!centroid) return null;
+        const outerRing = closeGeoRing(scaleGeoRingAbout(outer, centroid, outerScale));
+        const innerRing = closeGeoRing(scaleGeoRingAbout(outer, centroid, innerScale)).slice().reverse();
+        return { type: 'Polygon', coordinates: [outerRing, innerRing] };
+    }
+    if (geometry.type === 'MultiPolygon') {
+        const parts = [];
+        for (const polyCoords of geometry.coordinates || []) {
+            const band = buildInsetBandGeometry(
+                { type: 'Polygon', coordinates: polyCoords },
+                outerScale,
+                innerScale
+            );
+            if (band?.coordinates) parts.push(band.coordinates);
+        }
+        if (!parts.length) return null;
+        return { type: 'MultiPolygon', coordinates: parts };
+    }
+    return null;
+}
+
+function getEdgeFadeColors(config) {
+    return config?.edgeFadeColors?.length
+        ? config.edgeFadeColors
+        : EDGE_FADE_GYR_COLORS;
+}
+
+function buildEdgeFadeRingFeatures(sourceFeatures, attr, breaks, colors) {
+    const ringFeatures = [];
+    sourceFeatures.forEach(feature => {
+        if (!feature?.geometry) return;
+        const raw = Number(feature.properties?.[attr]);
+        const classIndex = Number.isFinite(raw) ? getPatternClassIndex(raw, breaks) : 0;
+        const color = colors[classIndex] || colors[colors.length - 1] || '#dc2626';
+        EDGE_FADE_BANDS.forEach((band, bandIndex) => {
+            const geometry = buildInsetBandGeometry(
+                feature.geometry,
+                band.outerScale,
+                band.innerScale
+            );
+            if (!geometry) return;
+            ringFeatures.push({
+                type: 'Feature',
+                properties: {
+                    ...(feature.properties || {}),
+                    __edgeFadeColor: color,
+                    __edgeFadeBaseOpacity: band.baseOpacity,
+                    __edgeFadeClassIndex: classIndex,
+                    __edgeFadeBandIndex: bandIndex
+                },
+                geometry
+            });
+        });
+    });
+    return ringFeatures;
+}
+
+async function loadSVEdgeFadeRingLayer(config) {
+    const response = await fetch(config.url);
+    const data = await response.json();
+    const sourceFeatures = data?.features || [];
+    const attr = config.svAttribute;
+    const colors = getEdgeFadeColors(config);
+
+    const numericValues = sourceFeatures
+        .filter(feature => !isAcsCodeNoData(feature.properties))
+        .map(feature => Number(feature.properties?.[attr]))
+        .filter(value => Number.isFinite(value));
+    const breaks = resolveClassificationBreaks(numericValues, EDGE_FADE_CLASS_COUNT, getClassificationMode());
+    const ringFeatures = buildEdgeFadeRingFeatures(sourceFeatures, attr, breaks, colors);
+
+    const ringLayer = L.geoJSON(
+        { type: 'FeatureCollection', features: ringFeatures },
+        {
+            interactive: false,
+            style: feature => {
+                const p = feature?.properties || {};
+                return {
+                    color: p.__edgeFadeColor || colors[0],
+                    weight: 0,
+                    opacity: 0,
+                    fillColor: p.__edgeFadeColor || colors[0],
+                    fillOpacity: Number(p.__edgeFadeBaseOpacity) || 0.4
+                };
+            }
+        }
+    );
+
+    const adminOutlineLayer = L.geoJSON(data, {
+        style: () => ({
+            color: SV_OUTLINE_COLOR,
+            weight: SV_OUTLINE_WEIGHT,
+            opacity: SV_OUTLINE_OPACITY,
+            fill: false,
+            fillOpacity: 0
+        }),
+        interactive: true
+    });
+
+    const finalLayer = ringLayer;
+    finalLayer.layerData = {
+        raw: data,
+        propertyFields: Object.keys(sourceFeatures[0]?.properties || {}),
+        selectedProperty: attr,
+        colorRamp: null
+    };
+    finalLayer._isSVEdgeFadeRingLayer = true;
+    finalLayer._svEdgeFadeRingLayer = ringLayer;
+    finalLayer._svAdminOutlineLayer = adminOutlineLayer;
+    finalLayer._svPolygonGeoJson = data;
+    finalLayer._svEdgeFadeMeta = { breaks, colors, svAttribute: attr };
+    finalLayer._svEdgeFadeColorOnly = false;
+    return finalLayer;
+}
+
+function setSVEdgeFadeVisualsOnMap(map, layer, onMap) {
+    if (!map || !layer) return;
+    if (onMap) {
+        if (!map.hasLayer(layer)) layer.addTo(map);
+    } else if (map.hasLayer(layer)) {
+        map.removeLayer(layer);
+    }
+}
+
+function ensureSVEdgeFadeChoroplethLayer(layer, config) {
+    const data = layer?._svPolygonGeoJson || layer?.layerData?.raw;
+    if (!data?.features?.length) return null;
+    if (!layer._svChoroplethFillLayer) {
+        layer._svChoroplethFillLayer = L.geoJSON(data, {
+            style: {
+                weight: 0,
+                opacity: 0,
+                fillOpacity: 0.6
+            }
+        });
+        layer._svChoroplethFillLayer.layerData = {
+            raw: data,
+            propertyFields: Object.keys(data.features[0]?.properties || {}),
+            selectedProperty: config?.svAttribute,
+            colorRamp: null
+        };
+    }
+    return layer._svChoroplethFillLayer;
+}
+
+function setSVEdgeFadeChoroplethOnMap(map, layer, onMap) {
+    if (!map || !layer?._svChoroplethFillLayer) return;
+    if (onMap) {
+        if (!map.hasLayer(layer._svChoroplethFillLayer)) {
+            layer._svChoroplethFillLayer.addTo(map);
+        }
+    } else if (map.hasLayer(layer._svChoroplethFillLayer)) {
+        map.removeLayer(layer._svChoroplethFillLayer);
+    }
+}
+
+function pushEdgeFadeRingLegend(layerId, config, attr, breaks, colors, addLegendEntry) {
+    const pushLegend = addLegendEntry || window.addLegendEntry;
+    if (typeof pushLegend !== 'function') return;
+    const terms = ['Low', 'Medium', 'High'];
+    const rangeLabels =
+        breaks.length >= EDGE_FADE_CLASS_COUNT + 1
+            ? formatClassLegendRanges(breaks)
+            : ['—', '—', '—'];
+    pushLegend(layerId, {
+        layerName: getChoroplethLegendTitle(layerId, attr, config) || config?.legendName || 'Political Vulnerability',
+        type: 'edge-fade-ring',
+        description:
+            'Green / yellow / red color fades smoothly inward from each unit boundary. Color-only mode uses the theme orange choropleth instead.',
+        items: terms.map((term, idx) => ({
+            label: `${term} (${rangeLabels[idx] || '—'})`,
+            color: colors[idx] || EDGE_FADE_GYR_COLORS[idx]
+        }))
+    });
+}
+
+function refreshSVEdgeFadeRingLayer(map, layers, addLegendEntry, options = {}) {
+    const layerId = 'svPoliticalLayer';
+    const config = layerConfig[layerId];
+    const layer = layers.vector[layerId];
+    if (!config || !layer || !layer._isSVEdgeFadeRingLayer || !activeSVLayers.has(layerId)) return;
+
+    if (options.singleColorMode || isColorOnlyMode()) {
+        refreshSVEdgeFadeSingleColorMode(map, layers, addLegendEntry);
+        return;
+    }
+
+    restoreSVEdgeFadeFromColorOnly(map, layers, layerId);
+
+    const attr = getEffectiveChoroplethAttribute(layerId, config);
+    const colors = getEdgeFadeColors(config);
+    const sourceFeatures = layer._svPolygonGeoJson?.features || layer.layerData?.raw?.features || [];
+    const numericValues = sourceFeatures
+        .filter(feature => !isAcsCodeNoData(feature.properties))
+        .map(feature => Number(feature.properties?.[attr]))
+        .filter(value => Number.isFinite(value));
+    const breaks = resolveClassificationBreaks(numericValues, EDGE_FADE_CLASS_COUNT, getClassificationMode());
+    const ringFeatures = buildEdgeFadeRingFeatures(sourceFeatures, attr, breaks, colors);
+
+    const opacitySlider = document.getElementById(config.opacityControl || 'svOpacity');
+    const opacityFactor = opacitySlider ? parseFloat(opacitySlider.value) : 0.6;
+    const opacityScale = Number.isFinite(opacityFactor) ? Math.max(0.15, Math.min(1, opacityFactor / 0.6)) : 1;
+
+    const ringLayer = layer._svEdgeFadeRingLayer;
+    if (ringLayer) {
+        ringLayer.clearLayers();
+        ringLayer.addData({ type: 'FeatureCollection', features: ringFeatures });
+        ringLayer.eachLayer(featureLayer => {
+            const p = featureLayer?.feature?.properties || {};
+            const base = Number(p.__edgeFadeBaseOpacity);
+            featureLayer.setStyle({
+                color: p.__edgeFadeColor || colors[0],
+                weight: 0,
+                opacity: 0,
+                fillColor: p.__edgeFadeColor || colors[0],
+                fillOpacity: (Number.isFinite(base) ? base : 0.4) * opacityScale
+            });
+        });
+    }
+
+    const outline = layer._svAdminOutlineLayer;
+    if (outline && map && !map.hasLayer(outline)) {
+        outline.addTo(map);
+    }
+    if (outline && typeof outline.eachLayer === 'function') {
+        outline.eachLayer(featureLayer => {
+            if (typeof featureLayer.setStyle !== 'function') return;
+            featureLayer.setStyle({
+                color: SV_OUTLINE_COLOR,
+                weight: SV_OUTLINE_WEIGHT,
+                opacity: SV_OUTLINE_OPACITY,
+                fill: false,
+                fillOpacity: 0
+            });
+        });
+    }
+
+    layer._svEdgeFadeMeta = { breaks, colors, svAttribute: attr };
+    if (layer.layerData) {
+        layer.layerData.selectedProperty = attr;
+    }
+
+    pushEdgeFadeRingLegend(layerId, config, attr, breaks, colors, addLegendEntry);
+    updateSVHoverTooltips(outline || layer, layerId, config);
+    reapplySelectedPolygonHighlight(layerId);
+    if (window.currentInfoPanel) {
+        window.currentInfoPanel.updateLayer(layerId, { selectedAttribute: attr });
+    }
+}
+
+function refreshSVEdgeFadeSingleColorMode(map, layers, addLegendEntry) {
+    const layerId = 'svPoliticalLayer';
+    const config = layerConfig[layerId];
+    const layer = layers.vector[layerId];
+    if (!config || !layer || !layer._isSVEdgeFadeRingLayer || !activeSVLayers.has(layerId)) return;
+
+    const outline = layer._svAdminOutlineLayer;
+    if (!outline) return;
+
+    setSVEdgeFadeVisualsOnMap(map, layer, false);
+    setSVEdgeFadeChoroplethOnMap(map, layer, false);
+    if (map && !map.hasLayer(outline)) {
+        outline.addTo(map);
+    }
+
+    // Keep Political Color mode on the theme orange ramp (not the global sandbox red).
+    const attr = getEffectiveChoroplethAttribute(layerId, config);
+    const fixedRamp = getColorRamp(config.fixedColorRamp || 'whiteToDarkOrange');
+    if (!fixedRamp) return;
+    const opacitySlider = document.getElementById(config.opacityControl || 'svOpacity');
+    const opacity = opacitySlider ? parseFloat(opacitySlider.value) : 0.6;
+
+    if (!outline.layerData) {
+        outline.layerData = {
+            raw: layer._svPolygonGeoJson || layer.layerData?.raw,
+            propertyFields: Object.keys((layer._svPolygonGeoJson || layer.layerData?.raw)?.features?.[0]?.properties || {}),
+            selectedProperty: attr,
+            colorRamp: null
+        };
+    } else {
+        outline.layerData.raw = layer._svPolygonGeoJson || layer.layerData?.raw || outline.layerData.raw;
+        outline.layerData.selectedProperty = attr;
+        outline.layerData._styleSignature = null;
+    }
+
+    outline.eachLayer(featureLayer => {
+        if (featureLayer?.options) {
+            featureLayer.options.interactive = true;
+        }
+        if (typeof featureLayer?.setStyle === 'function') {
+            featureLayer.setStyle({ fill: true });
+        }
+    });
+
+    const updateLegendForLayer = (layerName, colorScheme, description, labels) => {
+        pushSVChoroplethLegendEntry(
+            layerId,
+            attr,
+            config,
+            layerName,
+            colorScheme,
+            `${description} Color-only mode (theme orange ramp).`,
+            labels,
+            addLegendEntry
+        );
+    };
+
+    layer._svEdgeFadeColorOnly = true;
+    updateVectorLayerStyle(outline, attr, fixedRamp, opacity, updateLegendForLayer, { skipTooltips: true });
+    applySVPolygonOutlineStyle(outline, config, { hide: true });
+    updateSVHoverTooltips(outline, layerId, config);
+    reapplySelectedPolygonHighlight(layerId);
+    if (window.currentInfoPanel) {
+        window.currentInfoPanel.updateLayer(layerId, { selectedAttribute: attr, opacity });
+    }
+}
+
+function restoreSVEdgeFadeFromColorOnly(map, layers, layerId) {
+    const layer = layers.vector[layerId];
+    if (!layer?._isSVEdgeFadeRingLayer || !layer._svEdgeFadeColorOnly) return;
+
+    setSVEdgeFadeChoroplethOnMap(map, layer, false);
+    setSVEdgeFadeVisualsOnMap(map, layer, true);
+    const outline = layer._svAdminOutlineLayer;
+    if (outline && map && !map.hasLayer(outline)) {
+        outline.addTo(map);
+    }
+    if (outline && typeof outline.eachLayer === 'function') {
+        outline.eachLayer(featureLayer => {
+            if (typeof featureLayer.setStyle !== 'function') return;
+            featureLayer.setStyle({
+                color: SV_OUTLINE_COLOR,
+                weight: SV_OUTLINE_WEIGHT,
+                opacity: SV_OUTLINE_OPACITY,
+                fill: false,
+                fillOpacity: 0
+            });
+        });
+    }
+    layer._svEdgeFadeColorOnly = false;
 }
 
 const SECTARIAN_GLYPH_ICON_SIZE = [28, 28];
@@ -4578,6 +5038,29 @@ function detachSVServiceCadastreOutlineZoom(map, layer) {
 
 const SV_DISPLACEMENT_ZOOM_REF = 10;
 
+/**
+ * Pixel radius bounds by admin resolution.
+ * Cadastre units are small, so 7–22 already reads well. District/governorate
+ * polygons are much larger at typical zoom, so circles need a bigger base size
+ * to stay visible relative to the unit (zoom scale alone is not enough).
+ */
+function getDisplacementCircleRadiusBounds(resolution = getActiveAdminResolution()) {
+    if (resolution === 'governorate') {
+        return { minRadius: 18, maxRadius: 52 };
+    }
+    if (resolution === 'district') {
+        return { minRadius: 16, maxRadius: 46 };
+    }
+    return { minRadius: 7, maxRadius: 22 };
+}
+
+function applyDisplacementCircleRadiusBounds(config, resolution = getActiveAdminResolution()) {
+    if (!config || config.renderMode !== 'proportional-circles') return;
+    const bounds = getDisplacementCircleRadiusBounds(resolution);
+    config.minRadius = bounds.minRadius;
+    config.maxRadius = bounds.maxRadius;
+}
+
 function getSVDisplacementRadiusScale(map) {
     if (!map || typeof map.getZoom !== 'function') {
         return 1;
@@ -4611,6 +5094,7 @@ function refreshSVDisplacementCircles(layerId, layers, config, map) {
         return;
     }
 
+    applyDisplacementCircleRadiusBounds(config);
     const attr = getEffectiveDisplacementCircleAttribute(config);
     recomputeSVDisplacementCircleMeta(
         layer,
@@ -4781,7 +5265,7 @@ function setupSVColorRampSelector(map, layers, addLegendEntry, updateLegend) {
     setupColorRampSelector('svColorRamp', 'svColorPreview', (colorRamp) => {
         activeSVLayers.forEach(layerId => {
             const config = layerConfig[layerId];
-            if (!config || !layers.vector[layerId] || config.renderMode === 'proportional-circles' || config.renderMode === 'stripe-pattern' || config.renderMode === 'service-pattern' || config.renderMode === 'service-symbol' || config.renderMode === 'sectarian-glyph') {
+            if (!config || !layers.vector[layerId] || config.renderMode === 'proportional-circles' || config.renderMode === 'stripe-pattern' || config.renderMode === 'service-pattern' || config.renderMode === 'service-symbol' || config.renderMode === 'sectarian-glyph' || config.renderMode === 'edge-fade-ring') {
                 return;
             }
 
@@ -5250,6 +5734,10 @@ function applySVStripePatternStyle(layerId, layer, config, opacity, map, addLege
             items: legendItems
         });
     }
+
+    if (layerId === 'svAdmin2Layer') {
+        keepSocioEconomicLayerAtBottom({ vector: { svAdmin2Layer: layer } });
+    }
 }
 
 function applySVLayerOpacity(layerId, layers, opacity, map = null, addLegendEntry = null) {
@@ -5279,6 +5767,11 @@ function applySVLayerOpacity(layerId, layers, opacity, map = null, addLegendEntr
             if (typeof marker.setOpacity === 'function') marker.setOpacity(1);
         });
         refreshSVServiceSymbolLayer(map, layers, addLegendEntry);
+        return;
+    }
+
+    if (config.renderMode === 'edge-fade-ring') {
+        refreshSVEdgeFadeRingLayer(map, layers, addLegendEntry);
         return;
     }
 
@@ -6443,7 +6936,25 @@ async function handlePolygonSelection(layerId, vectorLayer, selectedLayer, layer
     await updateSelectedPolygonInfoPanel(layerId, selectedLayer.feature?.properties || null, config, layers);
 }
 
+function keepSocioEconomicLayerAtBottom(layers) {
+    const layerId = 'svAdmin2Layer';
+    if (!activeSVLayers.has(layerId)) return;
+    const layer = layers?.vector?.[layerId];
+    if (!layer) return;
+
+    // Stripe fill first, then any socio sub-indicator overlays — all below other themes.
+    const parts = [layer, ...(layer._svSubindicatorOverlays || [])].filter(Boolean);
+    [...parts].reverse().forEach(part => {
+        if (typeof part.bringToBack === 'function') {
+            part.bringToBack();
+        }
+    });
+}
+
 function keepRoadLayerOnTop(layers) {
+    // Socio-economic stripe fill must sit under every other theme / stressor layer.
+    keepSocioEconomicLayerAtBottom(layers);
+
     const roadLayer = layers?.vector?.roadStatusLayer;
     if (roadLayer && typeof roadLayer.bringToFront === 'function') {
         roadLayer.bringToFront();
@@ -6676,6 +7187,7 @@ function updateSVHoverTooltips(layer, layerId, config) {
     const target =
         layer._svDisplacementMarkerLayer ||
         layer._svSectarianMarkerLayer ||
+        (layer._isSVEdgeFadeRingLayer ? layer._svAdminOutlineLayer : null) ||
         layer;
 
     target.eachLayer(featureLayer => {
@@ -6705,6 +7217,12 @@ function getSVScoreLabelTarget(layer, layerId, config) {
             return layer._svChoroplethFillLayer;
         }
         return ensureSVScoreLabelHost(layer);
+    }
+    if (config.renderMode === 'edge-fade-ring') {
+        if (isColorOnlyMode() && layer._svAdminOutlineLayer) {
+            return layer._svAdminOutlineLayer;
+        }
+        return layer._svAdminOutlineLayer || ensureSVScoreLabelHost(layer);
     }
     if (config.renderMode === 'proportional-circles') {
         return layer._svAdminOutlineLayer || null;
