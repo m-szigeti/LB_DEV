@@ -338,26 +338,26 @@ function renderColorScaleEntry(entry) {
             directionalInfo = '';
         } else if (entry.scaleDirection === 'white-to-dark-blue') {
             directionalInfo = `
-                <div style="margin-top: 8px; padding: 6px; background: #f8f9fa; border-radius: 4px; font-size: 10px; color: #666; line-height: 1.4;">
-                    <strong>Scale:</strong> White = Lower vulnerability &nbsp;→&nbsp; Dark blue = Higher vulnerability
+                <div class="legend-scale-note" style="margin-top: 8px; padding: 6px; background: #f8f9fa; border-radius: 4px; font-size: 10px; color: #666; line-height: 1.35; max-width: 11.5em;">
+                    <strong>Scale:</strong> White = lower vulnerability<br>→ Dark blue = higher vulnerability
                 </div>
             `;
         } else if (entry.scaleDirection === 'white-to-red') {
             directionalInfo = `
-                <div style="margin-top: 8px; padding: 6px; background: #f8f9fa; border-radius: 4px; font-size: 10px; color: #666; line-height: 1.4;">
-                    <strong>Scale:</strong> White = Lower risk &nbsp;→&nbsp; Red = Higher risk
+                <div class="legend-scale-note" style="margin-top: 8px; padding: 6px; background: #f8f9fa; border-radius: 4px; font-size: 10px; color: #666; line-height: 1.35; max-width: 11.5em;">
+                    <strong>Scale:</strong> White = lower risk<br>→ Red = higher risk
                 </div>
             `;
         } else if (entry.scaleDirection === 'white-to-orange') {
             directionalInfo = `
-                <div style="margin-top: 8px; padding: 6px; background: #f8f9fa; border-radius: 4px; font-size: 10px; color: #666; line-height: 1.4;">
-                    <strong>Scale:</strong> White = Lower vulnerability &nbsp;→&nbsp; Orange = Higher vulnerability
+                <div class="legend-scale-note" style="margin-top: 8px; padding: 6px; background: #f8f9fa; border-radius: 4px; font-size: 10px; color: #666; line-height: 1.35; max-width: 11.5em;">
+                    <strong>Scale:</strong> White = lower vulnerability<br>→ Orange = higher vulnerability
                 </div>
             `;
         } else if (entry.scaleDirection === 'white-to-pink') {
             directionalInfo = `
-                <div style="margin-top: 8px; padding: 6px; background: #f8f9fa; border-radius: 4px; font-size: 10px; color: #666; line-height: 1.4;">
-                    <strong>Scale:</strong> White = Lower vulnerability &nbsp;→&nbsp; Pink = Higher vulnerability
+                <div class="legend-scale-note" style="margin-top: 8px; padding: 6px; background: #f8f9fa; border-radius: 4px; font-size: 10px; color: #666; line-height: 1.35; max-width: 11.5em;">
+                    <strong>Scale:</strong> White = lower vulnerability<br>→ Pink = higher vulnerability
                 </div>
             `;
         } else if (isVulnerabilityData) {
