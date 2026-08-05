@@ -311,6 +311,12 @@ const layerConfig = {
         type: 'sv-vector',
         url: JUNE17_FILES.theme6.district,
         legendName: 'Climate and Environmental Risk',
+        renderMode: 'forest-fire-symbol',
+        forestFireIcons: [
+            'assets/forest-fire-low.svg',
+            'assets/forest-fire-medium.svg',
+            'assets/forest-fire-high.svg'
+        ],
         style: {
             color: '#2b83ba',
             weight: 2,
@@ -708,6 +714,10 @@ function enforceColorOnlySingleLayer(map, layers, removeLegendEntry) {
                 setSVServiceMarkersOnMap(map, layer, false);
                 setSVServiceChoroplethOnMap(map, layer, false);
             }
+            if (config?.renderMode === 'forest-fire-symbol') {
+                setSVForestFireMarkersOnMap(map, layer, false);
+                setSVServiceChoroplethOnMap(map, layer, false);
+            }
             if (config?.renderMode === 'edge-fade-ring') {
                 setSVEdgeFadeChoroplethOnMap(map, layer, false);
             }
@@ -863,7 +873,12 @@ const SV_BASE_LAYER_CONFIG = {
     svClimateLayer: {
         fixedColorRamp: 'whiteToDarkRed',
         legendName: 'Climate and Environmental Risk',
-        renderMode: 'choropleth',
+        renderMode: 'forest-fire-symbol',
+        forestFireIcons: [
+            'assets/forest-fire-low.svg',
+            'assets/forest-fire-medium.svg',
+            'assets/forest-fire-high.svg'
+        ],
         svAttribute: 'composite_score'
     },
     svPoliticalLayer: {
@@ -2390,20 +2405,7 @@ function restoreSVDisplacementCirclesFromColorOnly(map, layers, layerId) {
     const outline = layer._svAdminOutlineLayer;
     const isCadastre = Boolean(layerConfig[layerId]?.thinBoundaries);
     if (outline?.eachLayer) {
-        outline.eachLayer(featureLayer => {
-            if (typeof featureLayer.setStyle !== 'function') return;
-            featureLayer.setStyle({
-                color: isCadastre ? SV_OUTLINE_CADASTRE_COLOR : SV_OUTLINE_COLOR,
-                weight: isCadastre ? SV_OUTLINE_CADASTRE_WEIGHT : SV_OUTLINE_WEIGHT,
-                opacity: isCadastre ? SV_OUTLINE_CADASTRE_OPACITY : SV_OUTLINE_OPACITY,
-                fill: false,
-                fillOpacity: 0,
-                fillColor: null
-            });
-            if (featureLayer.options) {
-                featureLayer.options.interactive = false;
-            }
-        });
+        applySVHitPolygonStyle(outline, { thinBoundaries: isCadastre });
         if (outline.layerData) {
             outline.layerData._styleSignature = null;
         }
@@ -2521,8 +2523,9 @@ function refreshSVServiceSingleColorMode(map, layers, addLegendEntry) {
 
     setSVServiceMarkersOnMap(map, layer, false);
     setSVServiceChoroplethOnMap(map, layer, true);
-    if (layer._svCadastreOutlineLayer && map?.hasLayer(layer._svCadastreOutlineLayer)) {
-        map.removeLayer(layer._svCadastreOutlineLayer);
+    // Keep hit polygons on the map so AOI/info clicks stay polygon-based in color-only mode.
+    if (layer._svAdminOutlineLayer && map && !map.hasLayer(layer._svAdminOutlineLayer)) {
+        layer._svAdminOutlineLayer.addTo(map);
     }
 
     const attr = getEffectiveServiceAttribute(config);
@@ -2616,6 +2619,8 @@ async function refreshSVLayerForDisplay(layerId, map, layers, addLegendEntry) {
         } else {
             refreshSVServiceSymbolLayer(map, layers, addLegendEntry);
         }
+    } else if (config.renderMode === 'forest-fire-symbol') {
+        refreshSVForestFireSymbolLayer(map, layers, addLegendEntry, { singleColorMode });
     } else if (config.renderMode === 'edge-fade-ring') {
         refreshSVEdgeFadeRingLayer(map, layers, addLegendEntry, { singleColorMode });
     } else if (config.renderMode === 'stripe-pattern' || config.renderMode === 'service-pattern') {
@@ -2958,10 +2963,82 @@ const SV_SERVICE_MARKER_SIZE_AGGREGATE = 28;
 const SV_SERVICE_MARKER_SIZE_UNCLUSTERED_CADASTRE = 22;
 const SV_SANDBOX_SINGLE_COLOR_RAMP_ID = 'whiteToDarkRed';
 const SV_SANDBOX_SERVICE_SYMBOL_COLORS = ['#fecaca', '#f87171', '#991b1b'];
+const FOREST_FIRE_CLASS_COUNT = 3;
+const FOREST_FIRE_ICON_URLS = [
+    'assets/forest-fire-low.svg',
+    'assets/forest-fire-medium.svg',
+    'assets/forest-fire-high.svg'
+];
+const FOREST_FIRE_MARKER_SIZE_DEFAULT = 28;
+const FOREST_FIRE_MARKER_SIZE_AGGREGATE = 42;
+const FOREST_FIRE_MARKER_SIZE_UNCLUSTERED_CADASTRE = 36;
+/** Push climate icons SE of polygon center so they clear service/displacement centers. */
+const FOREST_FIRE_OFFSET_LAT_FRAC = -0.16;
+const FOREST_FIRE_OFFSET_LNG_FRAC = 0.16;
+/** Pane above markers so AOI/info clicks hit polygons, not icons/clusters. */
+const SV_HIT_PANE_NAME = 'svHitPane';
+const SV_HIT_PANE_Z_INDEX = 625;
 let svCustomOverallOfficialWasChecked = false;
 
 function usesServiceMarkerClustering(resolution = getActiveAdminResolution()) {
     return resolution === 'cadastre';
+}
+
+function usesForestFireMarkerClustering(resolution = getActiveAdminResolution()) {
+    return resolution === 'cadastre';
+}
+
+function ensureSVHitPane(map) {
+    if (!map?.createPane || typeof map.getPane !== 'function') return null;
+    if (!map.getPane(SV_HIT_PANE_NAME)) {
+        const pane = map.createPane(SV_HIT_PANE_NAME);
+        pane.style.zIndex = String(SV_HIT_PANE_Z_INDEX);
+    }
+    return SV_HIT_PANE_NAME;
+}
+
+/** Visible boundary + near-invisible fill so the whole unit is clickable for AOI/info. */
+function buildSVHitPolygonStyle({ thinBoundaries = false } = {}) {
+    return {
+        color: thinBoundaries ? SV_OUTLINE_CADASTRE_COLOR : SV_OUTLINE_COLOR,
+        weight: thinBoundaries ? SV_OUTLINE_CADASTRE_WEIGHT : SV_OUTLINE_WEIGHT,
+        opacity: thinBoundaries ? SV_OUTLINE_CADASTRE_OPACITY : SV_OUTLINE_OPACITY,
+        fill: true,
+        fillColor: '#111827',
+        fillOpacity: 0.01
+    };
+}
+
+function createSVHitPolygonLayer(geoJsonData, { map = null, thinBoundaries = false } = {}) {
+    const pane = ensureSVHitPane(map);
+    return L.geoJSON(geoJsonData, {
+        ...(pane ? { pane } : {}),
+        interactive: true,
+        style: () => buildSVHitPolygonStyle({ thinBoundaries })
+    });
+}
+
+function applySVHitPolygonStyle(outlineLayer, { thinBoundaries = false } = {}) {
+    if (!outlineLayer?.eachLayer) return;
+    const style = buildSVHitPolygonStyle({ thinBoundaries });
+    outlineLayer.eachLayer(featureLayer => {
+        if (typeof featureLayer.setStyle === 'function') {
+            featureLayer.setStyle(style);
+        }
+        if (featureLayer?.options) {
+            featureLayer.options.interactive = true;
+        }
+    });
+}
+
+function getSVPolygonInteractionLayer(loadedLayer) {
+    if (!loadedLayer) return null;
+    return (
+        loadedLayer._svAdminOutlineLayer ||
+        loadedLayer._svHitPolygonLayer ||
+        loadedLayer._svChoroplethFillLayer ||
+        loadedLayer
+    );
 }
 
 /**
@@ -3268,9 +3345,9 @@ function setupSVRadioControls(map, layers, colorScales, addLegendEntry, removeLe
             const leafletLayer = infoLayer?.layer;
             if (!leafletLayer) return null;
             return (
-                leafletLayer._svDisplacementMarkerLayer ||
-                leafletLayer._svChoroplethFillLayer ||
                 leafletLayer._svAdminOutlineLayer ||
+                leafletLayer._svHitPolygonLayer ||
+                leafletLayer._svChoroplethFillLayer ||
                 leafletLayer
             );
         },
@@ -3469,6 +3546,8 @@ async function applySVResolution(resolution, map, layers, colorScales, addLegend
         config.renderMode = base.renderMode === 'choropleth' ? undefined : base.renderMode;
         config.patternColor = base.patternColor;
         config.edgeFadeColors = base.edgeFadeColors;
+        config.forestFireIcons = base.forestFireIcons;
+        config.serviceSymbolColors = base.serviceSymbolColors;
         config.minRadius = base.minRadius;
         config.maxRadius = base.maxRadius;
         config.markerColor = base.markerColor;
@@ -3733,26 +3812,21 @@ async function loadSVLayer(layerId, map, layers, colorScales, addLegendEntry, re
                 }
                 loadedLayer = createVectorLayerFromGeoJson(customGeo, config);
             } else if (config.renderMode === 'proportional-circles') {
-                loadedLayer = await loadSVCircleLayer(config);
+                loadedLayer = await loadSVCircleLayer(config, map);
             } else if (config.renderMode === 'service-symbol') {
-                loadedLayer = await loadSVServiceSymbolLayer(config);
+                loadedLayer = await loadSVServiceSymbolLayer(config, map);
+            } else if (config.renderMode === 'forest-fire-symbol') {
+                loadedLayer = await loadSVForestFireSymbolLayer(config, map);
             } else if (config.renderMode === 'edge-fade-ring') {
-                loadedLayer = await loadSVEdgeFadeRingLayer(config);
+                loadedLayer = await loadSVEdgeFadeRingLayer(config, map);
             } else if (config.renderMode === 'sectarian-glyph') {
-                loadedLayer = await loadSVSectarianGlyphLayer(config);
+                loadedLayer = await loadSVSectarianGlyphLayer(config, map);
             } else {
                 loadedLayer = await loadVectorLayer(config.url, { style: config.style });
             }
             if (expectedVersion !== svResolutionVersion) return;
             layers.vector[layerId] = loadedLayer;
-            let interactionLayer = loadedLayer;
-            if (config.renderMode === 'sectarian-glyph' && loadedLayer?._svAdminOutlineLayer) {
-                interactionLayer = loadedLayer._svAdminOutlineLayer;
-            } else if (config.renderMode === 'edge-fade-ring' && loadedLayer?._svAdminOutlineLayer) {
-                interactionLayer = loadedLayer._svAdminOutlineLayer;
-            } else if (config.renderMode === 'proportional-circles' && loadedLayer._svDisplacementMarkerLayer) {
-                interactionLayer = loadedLayer._svDisplacementMarkerLayer;
-            }
+            const interactionLayer = getSVPolygonInteractionLayer(loadedLayer) || loadedLayer;
             addInfoPopupHandler(interactionLayer, config.layerType || 'sv-default');
             attachPolygonSelectionHandlers(layerId, interactionLayer, layers, config);
         }
@@ -3777,6 +3851,8 @@ async function loadSVLayer(layerId, map, layers, colorScales, addLegendEntry, re
                 }
             } else if (config.renderMode === 'service-symbol') {
                 populateServiceSubindicatorSelect();
+            } else if (config.renderMode === 'forest-fire-symbol') {
+                renderSVSubindicatorPanel(layerId);
             } else if (config.renderMode === 'stripe-pattern' || config.renderMode === 'service-pattern') {
                 if (layerId === 'svAdmin2Layer') {
                     populateEconomicSubindicatorSelect();
@@ -3793,10 +3869,17 @@ async function loadSVLayer(layerId, map, layers, colorScales, addLegendEntry, re
         layers.vector[layerId].addTo(map);
         if (config.renderMode === 'service-symbol') {
             applySVServicePriorityFilter(layers.vector[layerId], isSVServicePriorityOnlyEnabled());
-            updateSVServiceCadastreOutlineVisibility(map, layers.vector[layerId]);
-            attachSVServiceCadastreOutlineZoomSync(map, layers.vector[layerId]);
+            if (layers.vector[layerId]?._svAdminOutlineLayer) {
+                layers.vector[layerId]._svAdminOutlineLayer.addTo(map);
+            }
             attachSVServiceMarkerZoomSync(map, layers.vector[layerId]);
             updateSVServiceMarkerIconSizes(map, layers.vector[layerId]);
+        } else if (config.renderMode === 'forest-fire-symbol') {
+            if (layers.vector[layerId]?._svAdminOutlineLayer) {
+                layers.vector[layerId]._svAdminOutlineLayer.addTo(map);
+            }
+            attachSVForestFireMarkerZoomSync(map, layers.vector[layerId]);
+            updateSVForestFireMarkerIconSizes(map, layers.vector[layerId]);
         } else if (config.renderMode === 'proportional-circles' && layers.vector[layerId]?._svAdminOutlineLayer) {
             layers.vector[layerId]._svAdminOutlineLayer.addTo(map);
         } else if (config.renderMode === 'edge-fade-ring' && layers.vector[layerId]?._svAdminOutlineLayer) {
@@ -3821,6 +3904,12 @@ async function loadSVLayer(layerId, map, layers, colorScales, addLegendEntry, re
             refreshSVDisplacementLayerCircles(layerId, layers, config, map);
         } else if (config.renderMode === 'service-symbol') {
             populateServiceSubindicatorSelect();
+            if (typeof window.syncSVSubindicatorPanelsVisibility === 'function') {
+                window.syncSVSubindicatorPanelsVisibility();
+            }
+            applySVLayerOpacity(layerId, layers, opacity, map, addLegendEntry);
+        } else if (config.renderMode === 'forest-fire-symbol') {
+            renderSVSubindicatorPanel(layerId);
             if (typeof window.syncSVSubindicatorPanelsVisibility === 'function') {
                 window.syncSVSubindicatorPanelsVisibility();
             }
@@ -3902,6 +3991,8 @@ async function loadSVLayer(layerId, map, layers, colorScales, addLegendEntry, re
             }
         }
         if (config.renderMode === 'sectarian-glyph' && layers.vector[layerId]?._svAdminOutlineLayer) {
+            updateSVHoverTooltips(layers.vector[layerId]._svAdminOutlineLayer, layerId, config);
+        } else if (config.renderMode === 'forest-fire-symbol' && layers.vector[layerId]?._svAdminOutlineLayer) {
             updateSVHoverTooltips(layers.vector[layerId]._svAdminOutlineLayer, layerId, config);
         } else if (config.renderMode === 'edge-fade-ring' && layers.vector[layerId]?._svAdminOutlineLayer) {
             updateSVHoverTooltips(layers.vector[layerId]._svAdminOutlineLayer, layerId, config);
@@ -4056,7 +4147,35 @@ function featureToCenterPointFeature(feature) {
     }
 }
 
-async function loadSVCircleLayer(config) {
+/** Point slightly off polygon center (default SE) to avoid stacking on service/displacement markers. */
+function featureToOffsetPointFeature(
+    feature,
+    { latFrac = FOREST_FIRE_OFFSET_LAT_FRAC, lngFrac = FOREST_FIRE_OFFSET_LNG_FRAC } = {}
+) {
+    try {
+        const tempLayer = L.geoJSON(feature);
+        const bounds = tempLayer.getBounds();
+        if (!bounds?.isValid?.() || !bounds.isValid()) return null;
+        const center = bounds.getCenter();
+        const latSpan = bounds.getNorth() - bounds.getSouth();
+        const lngSpan = bounds.getEast() - bounds.getWest();
+        return {
+            type: 'Feature',
+            properties: { ...(feature.properties || {}) },
+            geometry: {
+                type: 'Point',
+                coordinates: [
+                    center.lng + lngSpan * lngFrac,
+                    center.lat + latSpan * latFrac
+                ]
+            }
+        };
+    } catch (error) {
+        return null;
+    }
+}
+
+async function loadSVCircleLayer(config, map = null) {
     const response = await fetch(config.url);
     const data = await response.json();
     const sourceFeatures = data?.features || [];
@@ -4100,21 +4219,17 @@ async function loadSVCircleLayer(config) {
                     color: '#ffffff',
                     weight: 1,
                     fillOpacity: isNoData ? 0.65 : SV_DISPLACEMENT_FILL_OPACITY_MIN,
-                    opacity: 1
+                    opacity: 1,
+                    interactive: false,
+                    keyboard: false
                 });
             }
         }
     );
 
-    const adminOutlineLayer = L.geoJSON(data, {
-        style: () => ({
-            color: SV_OUTLINE_CADASTRE_COLOR,
-            weight: SV_OUTLINE_CADASTRE_WEIGHT,
-            opacity: SV_OUTLINE_CADASTRE_OPACITY,
-            fill: false,
-            fillOpacity: 0
-        }),
-        interactive: false
+    const adminOutlineLayer = createSVHitPolygonLayer(data, {
+        map,
+        thinBoundaries: Boolean(config?.thinBoundaries) || getActiveAdminResolution() === 'cadastre'
     });
 
     const clusterLayer = typeof L.markerClusterGroup === 'function'
@@ -4155,7 +4270,7 @@ async function loadSVCircleLayer(config) {
     return finalLayer;
 }
 
-async function loadSVServiceSymbolLayer(config) {
+async function loadSVServiceSymbolLayer(config, map = null) {
     const response = await fetch(config.url);
     const data = await response.json();
     const sourceFeatures = data?.features || [];
@@ -4177,7 +4292,9 @@ async function loadSVServiceSymbolLayer(config) {
             feature.properties = { ...(feature.properties || {}), __svServiceClassIndex: classIndex };
             return L.marker(latlng, {
                 icon: buildSVServiceMarkerIcon(color, markerSize),
-                opacity: 1
+                opacity: 1,
+                interactive: false,
+                keyboard: false
             });
         }
     });
@@ -4201,15 +4318,9 @@ async function loadSVServiceSymbolLayer(config) {
     const finalLayer = clusterLayer || markerLayer;
     if (clusterLayer) clusterLayer.addLayer(markerLayer);
 
-    const cadastreOutlineLayer = L.geoJSON(data, {
-        style: () => ({
-            color: SV_OUTLINE_CADASTRE_COLOR,
-            weight: SV_OUTLINE_CADASTRE_WEIGHT,
-            opacity: SV_OUTLINE_CADASTRE_OPACITY,
-            fill: false,
-            fillOpacity: 0
-        }),
-        interactive: false
+    const adminOutlineLayer = createSVHitPolygonLayer(data, {
+        map,
+        thinBoundaries: resolution === 'cadastre'
     });
 
     finalLayer.layerData = {
@@ -4224,7 +4335,78 @@ async function loadSVServiceSymbolLayer(config) {
     finalLayer._svServiceClusterLayer = clusterLayer;
     finalLayer._svServiceAllMarkers = allMarkers;
     finalLayer._svServicePriorityOnly = getDefaultServicePriorityOnly();
-    finalLayer._svCadastreOutlineLayer = cadastreOutlineLayer;
+    finalLayer._svAdminOutlineLayer = adminOutlineLayer;
+    finalLayer._svCadastreOutlineLayer = adminOutlineLayer;
+    finalLayer._svPolygonGeoJson = data;
+    return finalLayer;
+}
+
+async function loadSVForestFireSymbolLayer(config, map = null) {
+    const response = await fetch(config.url);
+    const data = await response.json();
+    const sourceFeatures = data?.features || [];
+    const pointFeatures = sourceFeatures.map(feature => featureToOffsetPointFeature(feature)).filter(Boolean);
+
+    const attr = getEffectiveChoroplethAttribute('svClimateLayer', config) || config.svAttribute;
+    const numericValues = pointFeatures
+        .map(feature => Number(feature.properties?.[attr]))
+        .filter(value => Number.isFinite(value));
+    const breaks = resolveClassificationBreaks(numericValues, FOREST_FIRE_CLASS_COUNT, getClassificationMode());
+    const iconUrls = config.forestFireIcons || FOREST_FIRE_ICON_URLS;
+    const resolution = getActiveAdminResolution();
+    const markerSize = getForestFireMarkerSize(null, resolution);
+
+    const markerLayer = L.geoJSON({ type: 'FeatureCollection', features: pointFeatures }, {
+        pointToLayer: (feature, latlng) => {
+            const raw = Number(feature.properties?.[attr]);
+            const classIndex = Number.isFinite(raw) ? getPatternClassIndex(raw, breaks) : 0;
+            feature.properties = { ...(feature.properties || {}), __svForestFireClassIndex: classIndex };
+            return L.marker(latlng, {
+                icon: buildForestFireMarkerIcon(classIndex, markerSize, iconUrls),
+                opacity: 1,
+                interactive: false,
+                keyboard: false
+            });
+        }
+    });
+
+    const clusterLayer = usesForestFireMarkerClustering(resolution) && typeof L.markerClusterGroup === 'function'
+        ? L.markerClusterGroup({
+            showCoverageOnHover: false,
+            spiderfyOnMaxZoom: true,
+            zoomToBoundsOnClick: true,
+            disableClusteringAtZoom: SV_SERVICE_DISABLE_CLUSTERING_AT_ZOOM,
+            maxClusterRadius: 52,
+            iconCreateFunction: cluster => createForestFireClusterIcon(cluster, iconUrls)
+        })
+        : null;
+
+    const allMarkers = [];
+    markerLayer.eachLayer(marker => {
+        allMarkers.push(marker);
+    });
+
+    const finalLayer = clusterLayer || markerLayer;
+    if (clusterLayer) clusterLayer.addLayer(markerLayer);
+
+    const adminOutlineLayer = createSVHitPolygonLayer(data, {
+        map,
+        thinBoundaries: resolution === 'cadastre'
+    });
+
+    finalLayer.layerData = {
+        raw: { type: 'FeatureCollection', features: pointFeatures },
+        propertyFields: Object.keys(pointFeatures[0]?.properties || {}),
+        selectedProperty: attr,
+        colorRamp: null
+    };
+    finalLayer._isSVForestFireSymbolLayer = true;
+    finalLayer._svForestFireMeta = { breaks, iconUrls, svAttribute: attr };
+    finalLayer._svForestFireMarkerLayer = markerLayer;
+    finalLayer._svForestFireClusterLayer = clusterLayer;
+    finalLayer._svForestFireAllMarkers = allMarkers;
+    finalLayer._svAdminOutlineLayer = adminOutlineLayer;
+    finalLayer._svCadastreOutlineLayer = adminOutlineLayer;
     finalLayer._svPolygonGeoJson = data;
     return finalLayer;
 }
@@ -4234,7 +4416,12 @@ const EDGE_FADE_CLASS_COUNT = 3;
 const EDGE_FADE_GYR_COLORS = ['#22c55e', '#eab308', '#dc2626'];
 /** Keep band count low for renderer cost; thin halo near the boundary only. */
 const EDGE_FADE_BAND_COUNT = 3;
-const EDGE_FADE_INNER_SCALE = 0.88;
+/**
+ * Homothety depth: inner ring scale = 1 - EDGE_FADE_INNER_FRAC.
+ * Applied in local meters (not raw lng/lat) so E/W sides don’t skew.
+ */
+const EDGE_FADE_INNER_FRAC = 0.12;
+const EDGE_FADE_INNER_SCALE = 1 - EDGE_FADE_INNER_FRAC;
 const EDGE_FADE_OUTER_OPACITY = 0.9;
 const EDGE_FADE_INNER_OPACITY = 0.18;
 
@@ -4244,9 +4431,8 @@ function buildEdgeFadeBands(bandCount = EDGE_FADE_BAND_COUNT) {
     for (let i = 0; i < n; i++) {
         const t0 = i / n;
         const t1 = (i + 1) / n;
-        const outerScale = 1 - (1 - EDGE_FADE_INNER_SCALE) * t0;
-        const innerScale = 1 - (1 - EDGE_FADE_INNER_SCALE) * t1;
-        // Ease opacity so outer bands stay stronger and the falloff looks continuous.
+        const outerScale = 1 - EDGE_FADE_INNER_FRAC * t0;
+        const innerScale = 1 - EDGE_FADE_INNER_FRAC * t1;
         const midT = (t0 + t1) / 2;
         const ease = Math.pow(1 - midT, 1.35);
         const baseOpacity =
@@ -4259,21 +4445,18 @@ function buildEdgeFadeBands(bandCount = EDGE_FADE_BAND_COUNT) {
 
 const EDGE_FADE_BANDS = buildEdgeFadeBands();
 
-function getGeoRingCentroid(ring) {
-    if (!Array.isArray(ring) || !ring.length) return null;
-    let sx = 0;
-    let sy = 0;
-    let n = 0;
-    for (const pt of ring) {
-        if (!Array.isArray(pt) || pt.length < 2) continue;
-        const lng = Number(pt[0]);
-        const lat = Number(pt[1]);
-        if (!Number.isFinite(lng) || !Number.isFinite(lat)) continue;
-        sx += lng;
-        sy += lat;
-        n += 1;
+function openGeoRing(ring) {
+    if (!Array.isArray(ring) || ring.length < 2) return [];
+    const pts = ring.map(pt => [Number(pt[0]), Number(pt[1])]).filter(pt =>
+        Number.isFinite(pt[0]) && Number.isFinite(pt[1])
+    );
+    if (pts.length < 2) return [];
+    const first = pts[0];
+    const last = pts[pts.length - 1];
+    if (first[0] === last[0] && first[1] === last[1]) {
+        return pts.slice(0, -1);
     }
-    return n ? [sx / n, sy / n] : null;
+    return pts;
 }
 
 function closeGeoRing(coords) {
@@ -4288,35 +4471,168 @@ function closeGeoRing(coords) {
     ) {
         return coords;
     }
-    return [...coords, [...first]];
+    return [...coords, [first[0], first[1]]];
 }
 
-function scaleGeoRingAbout(ring, centroid, scale) {
-    const [cx, cy] = centroid;
-    return ring.map(pt => {
-        if (!Array.isArray(pt) || pt.length < 2) return pt;
-        const lng = Number(pt[0]);
-        const lat = Number(pt[1]);
-        if (!Number.isFinite(lng) || !Number.isFinite(lat)) return pt;
-        const out = [cx + (lng - cx) * scale, cy + (lat - cy) * scale];
-        for (let i = 2; i < pt.length; i++) out.push(pt[i]);
-        return out;
-    });
+function lngLatToLocalMeters(lng, lat, originLng, originLat) {
+    const cosLat = Math.cos((originLat * Math.PI) / 180);
+    return [
+        (lng - originLng) * 111320 * Math.max(0.2, cosLat),
+        (lat - originLat) * 111320
+    ];
+}
+
+function localMetersToLngLat(x, y, originLng, originLat) {
+    const cosLat = Math.cos((originLat * Math.PI) / 180);
+    return [
+        originLng + x / (111320 * Math.max(0.2, cosLat)),
+        originLat + y / 111320
+    ];
+}
+
+function pointToSegmentDistanceSq(px, py, ax, ay, bx, by) {
+    const dx = bx - ax;
+    const dy = by - ay;
+    if (dx === 0 && dy === 0) {
+        const ex = px - ax;
+        const ey = py - ay;
+        return ex * ex + ey * ey;
+    }
+    const t = Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / (dx * dx + dy * dy)));
+    const qx = ax + dx * t;
+    const qy = ay + dy * t;
+    const ex = px - qx;
+    const ey = py - qy;
+    return ex * ex + ey * ey;
+}
+
+function pointInRingXY(pt, ring) {
+    // Ray cast; ring may be open or closed.
+    const x = pt[0];
+    const y = pt[1];
+    let inside = false;
+    const n = ring.length;
+    const limit = n > 1 && ring[0][0] === ring[n - 1][0] && ring[0][1] === ring[n - 1][1] ? n - 1 : n;
+    for (let i = 0, j = limit - 1; i < limit; j = i++) {
+        const xi = ring[i][0];
+        const yi = ring[i][1];
+        const xj = ring[j][0];
+        const yj = ring[j][1];
+        const intersect =
+            yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi + 0.0) + xi;
+        if (intersect) inside = !inside;
+    }
+    return inside;
+}
+
+function distanceToRingBoundaryXY(pt, ring) {
+    let minSq = Infinity;
+    const n = ring.length;
+    const limit = n > 1 && ring[0][0] === ring[n - 1][0] && ring[0][1] === ring[n - 1][1] ? n - 1 : n;
+    for (let i = 0; i < limit; i++) {
+        const a = ring[i];
+        const b = ring[(i + 1) % limit];
+        const dSq = pointToSegmentDistanceSq(pt[0], pt[1], a[0], a[1], b[0], b[1]);
+        if (dSq < minSq) minSq = dSq;
+    }
+    return Math.sqrt(minSq);
 }
 
 /**
- * Build a donut band between two centroid-scaled copies of a polygon's outer ring.
- * Interior stays empty so the fade reads as an edge halo.
+ * Visual center ≈ pole of inaccessibility (coarse grid + refine).
+ * Better than vertex-average centroid for elongated / irregular admin units.
+ */
+function getRingVisualCenterXY(ring) {
+    const pts = ring.length > 1 && ring[0][0] === ring[ring.length - 1][0] && ring[0][1] === ring[ring.length - 1][1]
+        ? ring.slice(0, -1)
+        : ring;
+    if (pts.length < 3) return null;
+
+    let minX = Infinity;
+    let maxX = -Infinity;
+    let minY = Infinity;
+    let maxY = -Infinity;
+    let sx = 0;
+    let sy = 0;
+    pts.forEach(([x, y]) => {
+        if (x < minX) minX = x;
+        if (x > maxX) maxX = x;
+        if (y < minY) minY = y;
+        if (y > maxY) maxY = y;
+        sx += x;
+        sy += y;
+    });
+    const centroid = [sx / pts.length, sy / pts.length];
+    if (!(maxX > minX) || !(maxY > minY)) return centroid;
+
+    const width = maxX - minX;
+    const height = maxY - minY;
+    let best = centroid;
+    let bestDist = pointInRingXY(centroid, pts) ? distanceToRingBoundaryXY(centroid, pts) : -1;
+
+    const refine = (x0, x1, y0, y1, steps) => {
+        const dx = (x1 - x0) / steps;
+        const dy = (y1 - y0) / steps;
+        for (let iy = 0; iy <= steps; iy++) {
+            for (let ix = 0; ix <= steps; ix++) {
+                const p = [x0 + dx * ix, y0 + dy * iy];
+                if (!pointInRingXY(p, pts)) continue;
+                const d = distanceToRingBoundaryXY(p, pts);
+                if (d > bestDist) {
+                    bestDist = d;
+                    best = p;
+                }
+            }
+        }
+    };
+
+    // Coarse then local refine around the best cell.
+    refine(minX, maxX, minY, maxY, 12);
+    const span = Math.max(width, height) * 0.15;
+    refine(best[0] - span, best[0] + span, best[1] - span, best[1] + span, 8);
+    return best;
+}
+
+function getRingScaleCenterLngLat(ring) {
+    const open = openGeoRing(ring);
+    if (open.length < 3) return null;
+    const originLng = open[0][0];
+    const originLat = open[0][1];
+    const local = open.map(([lng, lat]) => lngLatToLocalMeters(lng, lat, originLng, originLat));
+    const centerXY = getRingVisualCenterXY(local);
+    if (!centerXY) return null;
+    return localMetersToLngLat(centerXY[0], centerXY[1], originLng, originLat);
+}
+
+/**
+ * Scale a ring about an interior point in local meters (isotropic on the ground).
+ * This keeps nested rings clean (no offset self-intersections) while avoiding the
+ * lng/lat aspect skew that made E/W (“right”) sides look angled wrong.
+ */
+function scaleGeoRingAboutMetric(ring, centerLngLat, scale) {
+    const open = openGeoRing(ring);
+    if (!open.length || !centerLngLat) return null;
+    const [cxLng, cyLat] = centerLngLat;
+    const local = open.map(([lng, lat]) => lngLatToLocalMeters(lng, lat, cxLng, cyLat));
+    const scaled = local.map(([x, y]) => [x * scale, y * scale]);
+    return closeGeoRing(scaled.map(([x, y]) => localMetersToLngLat(x, y, cxLng, cyLat)));
+}
+
+/**
+ * Build a donut band between two metric-homothetic copies of a polygon's outer ring.
+ * Same clean topology as the original centroid-scale approach.
  */
 function buildInsetBandGeometry(geometry, outerScale, innerScale) {
     if (!geometry) return null;
     if (geometry.type === 'Polygon') {
         const outer = geometry.coordinates?.[0];
         if (!outer?.length) return null;
-        const centroid = getGeoRingCentroid(outer);
-        if (!centroid) return null;
-        const outerRing = closeGeoRing(scaleGeoRingAbout(outer, centroid, outerScale));
-        const innerRing = closeGeoRing(scaleGeoRingAbout(outer, centroid, innerScale)).slice().reverse();
+        const center = getRingScaleCenterLngLat(outer);
+        if (!center) return null;
+        const outerRing = scaleGeoRingAboutMetric(outer, center, outerScale);
+        const innerRingRaw = scaleGeoRingAboutMetric(outer, center, innerScale);
+        if (!outerRing?.length || !innerRingRaw?.length) return null;
+        const innerRing = innerRingRaw.slice().reverse();
         return { type: 'Polygon', coordinates: [outerRing, innerRing] };
     }
     if (geometry.type === 'MultiPolygon') {
@@ -4371,7 +4687,7 @@ function buildEdgeFadeRingFeatures(sourceFeatures, attr, breaks, colors) {
     return ringFeatures;
 }
 
-async function loadSVEdgeFadeRingLayer(config) {
+async function loadSVEdgeFadeRingLayer(config, map = null) {
     const response = await fetch(config.url);
     const data = await response.json();
     const sourceFeatures = data?.features || [];
@@ -4389,6 +4705,8 @@ async function loadSVEdgeFadeRingLayer(config) {
         { type: 'FeatureCollection', features: ringFeatures },
         {
             interactive: false,
+            // Canvas handles many small ribbon polygons far better than SVG paths.
+            renderer: typeof L.canvas === 'function' ? L.canvas({ padding: 0.5 }) : undefined,
             style: feature => {
                 const p = feature?.properties || {};
                 return {
@@ -4402,15 +4720,9 @@ async function loadSVEdgeFadeRingLayer(config) {
         }
     );
 
-    const adminOutlineLayer = L.geoJSON(data, {
-        style: () => ({
-            color: SV_OUTLINE_COLOR,
-            weight: SV_OUTLINE_WEIGHT,
-            opacity: SV_OUTLINE_OPACITY,
-            fill: false,
-            fillOpacity: 0
-        }),
-        interactive: true
+    const adminOutlineLayer = createSVHitPolygonLayer(data, {
+        map,
+        thinBoundaries: Boolean(config?.thinBoundaries)
     });
 
     const finalLayer = ringLayer;
@@ -4697,7 +5009,7 @@ function buildSectarianGlyphSvg(classIndex) {
     return `<svg width="28" height="28" viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">${lineEls}<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#111827" stroke-width="1.6"/></svg>`;
 }
 
-async function loadSVSectarianGlyphLayer(config) {
+async function loadSVSectarianGlyphLayer(config, map = null) {
     const response = await fetch(config.url);
     const data = await response.json();
     const sourceFeatures = data?.features || [];
@@ -4717,7 +5029,8 @@ async function loadSVSectarianGlyphLayer(config) {
                         iconSize: SECTARIAN_GLYPH_ICON_SIZE,
                         iconAnchor: SECTARIAN_GLYPH_ANCHOR
                     }),
-                    interactive: true
+                    interactive: false,
+                    keyboard: false
                 });
             }
         }
@@ -4738,15 +5051,9 @@ async function loadSVSectarianGlyphLayer(config) {
     if (clusterLayer) clusterLayer.addLayer(markerLayer);
 
     const isCadastre = Boolean(config?.thinBoundaries);
-    const adminOutlineLayer = L.geoJSON(data, {
-        style: () => ({
-            color: isCadastre ? SV_OUTLINE_CADASTRE_COLOR : SV_OUTLINE_COLOR,
-            weight: isCadastre ? SV_OUTLINE_CADASTRE_WEIGHT : SV_OUTLINE_WEIGHT,
-            opacity: isCadastre ? SV_OUTLINE_CADASTRE_OPACITY : SV_OUTLINE_OPACITY,
-            fill: false,
-            fillOpacity: 0
-        }),
-        interactive: true
+    const adminOutlineLayer = createSVHitPolygonLayer(data, {
+        map,
+        thinBoundaries: isCadastre
     });
 
     finalLayer.layerData = {
@@ -4827,8 +5134,8 @@ function refreshSVServiceSymbolLayer(map, layers, addLegendEntry, options = {}) 
 
     setSVServiceChoroplethOnMap(map, layer, false);
     setSVServiceMarkersOnMap(map, layer, true);
-    if (layer._svCadastreOutlineLayer) {
-        updateSVServiceCadastreOutlineVisibility(map, layer);
+    if (layer._svAdminOutlineLayer && map && !map.hasLayer(layer._svAdminOutlineLayer)) {
+        layer._svAdminOutlineLayer.addTo(map);
     }
 
     const attr = getEffectiveServiceAttribute(config);
@@ -4988,6 +5295,226 @@ function createSVServiceClusterIcon(cluster, symbolColors) {
     });
 }
 
+function getForestFireIconUrl(classIndex, iconUrls = FOREST_FIRE_ICON_URLS) {
+    const urls = iconUrls?.length ? iconUrls : FOREST_FIRE_ICON_URLS;
+    const idx = Math.max(0, Math.min(urls.length - 1, Number(classIndex) || 0));
+    return urls[idx] || urls[0];
+}
+
+function buildForestFireMarkerIcon(classIndex, sizePx = FOREST_FIRE_MARKER_SIZE_DEFAULT, iconUrls = FOREST_FIRE_ICON_URLS) {
+    const size = Math.max(16, Math.round(sizePx));
+    const anchor = Math.round(size / 2);
+    const url = getForestFireIconUrl(classIndex, iconUrls);
+    return L.divIcon({
+        className: 'sv-forest-fire-symbol-wrapper',
+        html: `<img src="${url}" alt="" width="${size}" height="${size}" style="width:${size}px;height:${size}px;display:block;pointer-events:none;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.35));">`,
+        iconSize: [size, size],
+        iconAnchor: [anchor, anchor]
+    });
+}
+
+function getForestFireMarkerSize(map, resolution = getActiveAdminResolution()) {
+    if (resolution === 'district' || resolution === 'governorate') {
+        return FOREST_FIRE_MARKER_SIZE_AGGREGATE;
+    }
+    if (!map || typeof map.getZoom !== 'function') {
+        return FOREST_FIRE_MARKER_SIZE_DEFAULT;
+    }
+    if (map.getZoom() >= SV_SERVICE_DISABLE_CLUSTERING_AT_ZOOM) {
+        return FOREST_FIRE_MARKER_SIZE_UNCLUSTERED_CADASTRE;
+    }
+    return FOREST_FIRE_MARKER_SIZE_DEFAULT;
+}
+
+function createForestFireClusterIcon(cluster, iconUrls = FOREST_FIRE_ICON_URLS) {
+    const children = cluster.getAllChildMarkers();
+    const classCounts = [0, 0, 0];
+    children.forEach(marker => {
+        const idxRaw = marker?.feature?.properties?.__svForestFireClassIndex;
+        const idx = Number.isFinite(Number(idxRaw)) ? Number(idxRaw) : 0;
+        if (idx >= 0 && idx < classCounts.length) classCounts[idx] += 1;
+    });
+    let dominantClass = 0;
+    for (let i = 1; i < classCounts.length; i++) {
+        if (classCounts[i] > classCounts[dominantClass]) dominantClass = i;
+    }
+    const count = Math.max(1, cluster.getChildCount());
+    const diameter = Math.max(34, Math.min(64, Math.round(28 + Math.sqrt(count) * 5.5)));
+    const iconSize = Math.round(diameter * 0.72);
+    const url = getForestFireIconUrl(dominantClass, iconUrls);
+    const countSize = Math.max(10, Math.min(14, Math.round(diameter * 0.22)));
+    return L.divIcon({
+        className: 'sv-forest-fire-cluster-wrapper',
+        html: `
+            <div style="position:relative;width:${diameter}px;height:${diameter}px;display:flex;align-items:center;justify-content:center;">
+                <img src="${url}" alt="" width="${iconSize}" height="${iconSize}" style="width:${iconSize}px;height:${iconSize}px;display:block;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.35));">
+                <span style="position:absolute;right:0;bottom:0;min-width:${countSize + 6}px;height:${countSize + 4}px;padding:0 4px;border-radius:999px;background:rgba(17,24,39,0.85);color:#fff;border:1px solid rgba(255,255,255,0.9);font-weight:700;font-size:${countSize}px;line-height:${countSize + 4}px;text-align:center;">${count}</span>
+            </div>
+        `,
+        iconSize: [diameter, diameter],
+        iconAnchor: [Math.round(diameter / 2), Math.round(diameter / 2)]
+    });
+}
+
+function updateSVForestFireMarkerIconSizes(map, layer) {
+    if (!layer?._isSVForestFireSymbolLayer) return;
+    const size = getForestFireMarkerSize(map);
+    const iconUrls = layer._svForestFireMeta?.iconUrls || FOREST_FIRE_ICON_URLS;
+    (layer._svForestFireAllMarkers || []).forEach(marker => {
+        const classIndex = Number(marker?.feature?.properties?.__svForestFireClassIndex);
+        if (typeof marker.setIcon === 'function') {
+            marker.setIcon(buildForestFireMarkerIcon(classIndex, size, iconUrls));
+        }
+    });
+}
+
+function attachSVForestFireMarkerZoomSync(map, layer) {
+    if (!map || !layer?._isSVForestFireSymbolLayer) return;
+    detachSVForestFireMarkerZoomSync(map, layer);
+    const handler = () => updateSVForestFireMarkerIconSizes(map, layer);
+    layer._svForestFireMarkerZoomHandler = handler;
+    map.on('zoomend', handler);
+}
+
+function detachSVForestFireMarkerZoomSync(map, layer) {
+    if (!map || !layer?._svForestFireMarkerZoomHandler) return;
+    map.off('zoomend', layer._svForestFireMarkerZoomHandler);
+    layer._svForestFireMarkerZoomHandler = null;
+}
+
+function setSVForestFireMarkersOnMap(map, layer, onMap) {
+    if (!map || !layer) return;
+    const markerHost = layer._svForestFireClusterLayer || layer._svForestFireMarkerLayer || layer;
+    if (onMap) {
+        if (!map.hasLayer(markerHost)) markerHost.addTo(map);
+    } else if (map.hasLayer(markerHost)) {
+        map.removeLayer(markerHost);
+    }
+}
+
+function refreshSVClimateSingleColorMode(map, layers, addLegendEntry) {
+    const layerId = 'svClimateLayer';
+    const config = layerConfig[layerId];
+    const layer = layers.vector[layerId];
+    if (!config || !layer || !layer._isSVForestFireSymbolLayer) return;
+
+    syncServicePolygonScoresFromMarkers(layer);
+    const choropleth = ensureSVServiceChoroplethLayer(layer, config);
+    if (!choropleth) return;
+
+    setSVForestFireMarkersOnMap(map, layer, false);
+    setSVServiceChoroplethOnMap(map, layer, true);
+    // Keep hit polygons available for AOI/info selection in color-only mode.
+    if (layer._svAdminOutlineLayer && map && !map.hasLayer(layer._svAdminOutlineLayer)) {
+        layer._svAdminOutlineLayer.addTo(map);
+    }
+
+    const attr = getEffectiveChoroplethAttribute(layerId, config);
+    const fixedRamp = getColorRamp(SV_SANDBOX_SINGLE_COLOR_RAMP_ID);
+    if (!fixedRamp) return;
+    const opacitySlider = document.getElementById(config.opacityControl);
+    const opacity = opacitySlider ? parseFloat(opacitySlider.value) : 0.6;
+
+    const updateLegendForLayer = (layerName, colorScheme, description, labels) => {
+        pushSVChoroplethLegendEntry(
+            layerId,
+            attr,
+            config,
+            layerName,
+            colorScheme,
+            `${description} Color-only mode.`,
+            labels,
+            addLegendEntry
+        );
+    };
+
+    if (choropleth.layerData) {
+        choropleth.layerData._styleSignature = null;
+        choropleth.layerData.selectedProperty = attr;
+    }
+    updateVectorLayerStyle(choropleth, attr, fixedRamp, opacity, updateLegendForLayer, { skipTooltips: true });
+    applySVPolygonOutlineStyle(choropleth, config, { hide: true });
+    updateSVHoverTooltips(choropleth, layerId, config);
+    reapplySelectedPolygonHighlight(layerId);
+    if (window.currentInfoPanel) {
+        window.currentInfoPanel.updateLayer(layerId, { selectedAttribute: attr, opacity });
+    }
+}
+
+function refreshSVForestFireSymbolLayer(map, layers, addLegendEntry, options = {}) {
+    const layerId = 'svClimateLayer';
+    const config = layerConfig[layerId];
+    const layer = layers.vector[layerId];
+    if (!config || !layer || !layer._isSVForestFireSymbolLayer) return;
+
+    if (options.singleColorMode) {
+        refreshSVClimateSingleColorMode(map, layers, addLegendEntry);
+        return;
+    }
+
+    setSVServiceChoroplethOnMap(map, layer, false);
+    setSVForestFireMarkersOnMap(map, layer, true);
+    if (layer._svAdminOutlineLayer && map && !map.hasLayer(layer._svAdminOutlineLayer)) {
+        layer._svAdminOutlineLayer.addTo(map);
+    }
+
+    const attr = getEffectiveChoroplethAttribute(layerId, config) || config.svAttribute;
+    const pointFeatures = layer.layerData?.raw?.features || [];
+    const numericValues = pointFeatures
+        .map(feature => Number(feature.properties?.[attr]))
+        .filter(value => Number.isFinite(value));
+    const breaks = resolveClassificationBreaks(numericValues, FOREST_FIRE_CLASS_COUNT, getClassificationMode());
+    const iconUrls = config.forestFireIcons || FOREST_FIRE_ICON_URLS;
+    const allMarkers = layer._svForestFireAllMarkers || [];
+
+    allMarkers.forEach(marker => {
+        if (!marker.feature?.properties) return;
+        const raw = Number(marker.feature.properties[attr]);
+        const classIndex = Number.isFinite(raw) ? getPatternClassIndex(raw, breaks) : 0;
+        marker.feature.properties.__svForestFireClassIndex = classIndex;
+    });
+
+    updateSVForestFireMarkerIconSizes(map, layer);
+
+    layer._svForestFireMeta = { breaks, iconUrls, svAttribute: attr };
+    if (layer.layerData) {
+        layer.layerData.selectedProperty = attr;
+    }
+
+    const clusterLayer = layer._svForestFireClusterLayer;
+    if (clusterLayer?.refreshClusters) {
+        clusterLayer.refreshClusters();
+    }
+
+    const pushLegend = addLegendEntry || window.addLegendEntry;
+    if (typeof pushLegend === 'function') {
+        const selected = getSelectedSubindicators(layerId);
+        const layerTitle =
+            selected.map(value => getThemeSubindicatorLegendTitle(layerId, value, config)).join(' · ') ||
+            getThemeSubindicatorLegendTitle(layerId, attr, config);
+        const terms = ['Low', 'Medium', 'High'];
+        const rangeLabels =
+            breaks.length >= 4
+                ? formatClassLegendRanges(breaks)
+                : ['—', '—', '—'];
+        pushLegend(layerId, {
+            layerName: layerTitle,
+            type: 'forest-fire-symbol',
+            items: terms.map((term, idx) => ({
+                label: `${term} (${rangeLabels[idx] || '—'})`,
+                iconUrl: getForestFireIconUrl(idx, iconUrls)
+            }))
+        });
+    }
+
+    updateSVHoverTooltips(layer._svAdminOutlineLayer || layer, layerId, config);
+    if (window.currentInfoPanel) {
+        const opacitySlider = document.getElementById(config.opacityControl);
+        const opacity = opacitySlider ? parseFloat(opacitySlider.value) : 0.6;
+        window.currentInfoPanel.updateLayer(layerId, { selectedAttribute: attr, opacity });
+    }
+}
+
 function toRgbaColor(color, alpha) {
     const a = Math.max(0, Math.min(1, alpha));
     if (typeof color !== 'string') return `rgba(17,24,39,${a})`;
@@ -5011,6 +5538,7 @@ function removeSVAuxiliaryLayers(map, layer) {
     removeSubindicatorMapExtras(map, layer);
     detachSVServiceCadastreOutlineZoom(map, layer);
     detachSVServiceMarkerZoomSync(map, layer);
+    detachSVForestFireMarkerZoomSync(map, layer);
     if (layer._svAdminOutlineLayer && map.hasLayer(layer._svAdminOutlineLayer)) map.removeLayer(layer._svAdminOutlineLayer);
     if (layer._svCadastreOutlineLayer && map.hasLayer(layer._svCadastreOutlineLayer)) map.removeLayer(layer._svCadastreOutlineLayer);
     if (layer._svChoroplethFillLayer && map.hasLayer(layer._svChoroplethFillLayer)) map.removeLayer(layer._svChoroplethFillLayer);
@@ -5268,7 +5796,7 @@ function setupSVColorRampSelector(map, layers, addLegendEntry, updateLegend) {
     setupColorRampSelector('svColorRamp', 'svColorPreview', (colorRamp) => {
         activeSVLayers.forEach(layerId => {
             const config = layerConfig[layerId];
-            if (!config || !layers.vector[layerId] || config.renderMode === 'proportional-circles' || config.renderMode === 'stripe-pattern' || config.renderMode === 'service-pattern' || config.renderMode === 'service-symbol' || config.renderMode === 'sectarian-glyph' || config.renderMode === 'edge-fade-ring') {
+            if (!config || !layers.vector[layerId] || config.renderMode === 'proportional-circles' || config.renderMode === 'stripe-pattern' || config.renderMode === 'service-pattern' || config.renderMode === 'service-symbol' || config.renderMode === 'forest-fire-symbol' || config.renderMode === 'sectarian-glyph' || config.renderMode === 'edge-fade-ring') {
                 return;
             }
 
@@ -5770,6 +6298,11 @@ function applySVLayerOpacity(layerId, layers, opacity, map = null, addLegendEntr
             if (typeof marker.setOpacity === 'function') marker.setOpacity(1);
         });
         refreshSVServiceSymbolLayer(map, layers, addLegendEntry);
+        return;
+    }
+
+    if (config.renderMode === 'forest-fire-symbol') {
+        refreshSVForestFireSymbolLayer(map, layers, addLegendEntry);
         return;
     }
 
@@ -7191,6 +7724,7 @@ function updateSVHoverTooltips(layer, layerId, config) {
         layer._svDisplacementMarkerLayer ||
         layer._svSectarianMarkerLayer ||
         (layer._isSVEdgeFadeRingLayer ? layer._svAdminOutlineLayer : null) ||
+        (layer._isSVForestFireSymbolLayer ? layer._svAdminOutlineLayer : null) ||
         layer;
 
     target.eachLayer(featureLayer => {
@@ -7220,6 +7754,12 @@ function getSVScoreLabelTarget(layer, layerId, config) {
             return layer._svChoroplethFillLayer;
         }
         return ensureSVScoreLabelHost(layer);
+    }
+    if (config.renderMode === 'forest-fire-symbol') {
+        if (isColorOnlyMode() && layer._svChoroplethFillLayer) {
+            return layer._svChoroplethFillLayer;
+        }
+        return layer._svAdminOutlineLayer || ensureSVScoreLabelHost(layer);
     }
     if (config.renderMode === 'edge-fade-ring') {
         if (isColorOnlyMode() && layer._svAdminOutlineLayer) {
@@ -7337,6 +7877,8 @@ function syncSVPermanentScoreLabels(map, layers) {
                 // e.g. service markers while labels sit on polygon host
                 if (lyr._isSVServiceSymbolLayer) {
                     bindSVHoverTooltipsOnLayer(lyr._svServiceMarkerLayer || lyr, id, cfg);
+                } else if (lyr._isSVForestFireSymbolLayer && lyr._svAdminOutlineLayer !== labelTarget) {
+                    bindSVHoverTooltipsOnLayer(lyr._svAdminOutlineLayer || lyr, id, cfg);
                 }
             }
             return;

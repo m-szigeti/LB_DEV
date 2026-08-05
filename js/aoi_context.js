@@ -471,14 +471,24 @@ export function getPrimaryLeafletLayerForSelection() {
     for (const infoLayer of infoLayers) {
         const leafletLayer = providers.getLeafletLayer?.(infoLayer);
         if (leafletLayer && typeof leafletLayer.eachLayer === 'function') {
-            return leafletLayer;
+            return (
+                leafletLayer._svAdminOutlineLayer ||
+                leafletLayer._svHitPolygonLayer ||
+                leafletLayer._svChoroplethFillLayer ||
+                leafletLayer
+            );
         }
     }
     const layers = providers.getLayers?.();
     const vector = layers?.vector || {};
     for (const layer of Object.values(vector)) {
         if (layer && typeof layer.eachLayer === 'function') {
-            return layer._svDisplacementMarkerLayer || layer._svAdminOutlineLayer || layer;
+            return (
+                layer._svAdminOutlineLayer ||
+                layer._svHitPolygonLayer ||
+                layer._svChoroplethFillLayer ||
+                layer
+            );
         }
     }
     return null;
