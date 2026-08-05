@@ -46,7 +46,7 @@ export const WELCOME_TAB_HTML = `
                 <div style="position:relative; border:1px solid #d8d8d8; border-radius:8px; background:#f7f7f7; padding:10px 12px 10px 46px;">
                     <span style="position:absolute; left:9px; top:12px; width:18px; height:18px; border-radius:50%; background:#dce9fa; color:#3f79c5; font-size:11px; line-height:18px; text-align:center; font-weight:700;">5</span>
                     <div style="font-size:14px; font-weight:700; color:#343434;">Add context layers</div>
-                    <div style="font-size:12px; color:#555; margin-top:4px;">Under <strong>Stressors</strong>, enable population, shelter, road-access, or perception layers for additional context. These are <em>not</em> part of the composite index.</div>
+                    <div style="font-size:12px; color:#555; margin-top:4px;">Under <strong>UNDP Intervention Mapping</strong>, explore project locations clustered by activity type. Under <strong>Stressors</strong>, enable population, shelter, road-access, or hotspot layers for additional context. These are <em>not</em> part of the composite index.</div>
                 </div>
             </div>
 

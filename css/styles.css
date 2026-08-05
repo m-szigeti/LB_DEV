@@ -370,7 +370,7 @@ body.analysis-selection-mode #map {
     margin-bottom: 10px;
 }
 
-/* Main layer panel section titles (Composite / Sub-Indicators / Stressors) — smaller than other sidebar dropdowns */
+/* Main layer panel section titles (Composite / Intervention Mapping / Stressors) — smaller than other sidebar dropdowns */
 .dropdown-btn.sv-sidebar-section-dropdown {
     font-size: 13px;
     padding: 9px 10px;
@@ -435,12 +435,14 @@ body.analysis-selection-mode #map {
     padding: 10px 10px 4px;
 }
 
-/* Stressors section reuses composite pill toggles */
-.sv-stressors-panel {
+/* Stressors / Intervention Mapping sections reuse composite pill toggles */
+.sv-stressors-panel,
+.sv-intervention-mapping-panel {
     padding-bottom: 10px;
 }
 
-.sv-stressor-layers {
+.sv-stressor-layers,
+.sv-intervention-mapping-layers {
     padding-top: 0;
 }
 
