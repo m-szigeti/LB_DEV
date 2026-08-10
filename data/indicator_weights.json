@@ -588,7 +588,7 @@
       "mode": "theme-subindicators",
       "indicators": [
         {
-          "field": "Faith in elections ",
+          "field": "Faith in elections",
           "label": "Lack of faith in elections",
           "defaultWeight": 0.074562,
           "inverted": false

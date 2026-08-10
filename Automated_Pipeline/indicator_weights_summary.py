@@ -29,6 +29,7 @@ THEME_SHEET_COLUMNS = [
     "Subindicator",
     "Mean_Abs_Kendall_tau",
     "Final_Weight",
+    "Weight_Source",
     "Composite_Scored",
     "Source_CSV",
 ]
@@ -81,6 +82,7 @@ def _collect_level_weights(level: str) -> pd.DataFrame:
                         "Subindicator": weight_row["Indicator"],
                         "Mean_Abs_Kendall_tau": weight_row.get("Mean_Abs_Kendall_tau"),
                         "Final_Weight": weight_row.get("Final_Weight"),
+                        "Weight_Source": weight_row.get("Weight_Source", "kendall"),
                         "Composite_Scored": "Yes",
                         "Source_CSV": csv_path.name,
                     }
@@ -97,6 +99,7 @@ def _collect_level_weights(level: str) -> pd.DataFrame:
                     "Subindicator": indicator,
                     "Mean_Abs_Kendall_tau": pd.NA,
                     "Final_Weight": pd.NA,
+                    "Weight_Source": pd.NA,
                     "Composite_Scored": "No",
                     "Source_CSV": csv_path.name,
                 }

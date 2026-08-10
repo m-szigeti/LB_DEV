@@ -159,11 +159,14 @@ def _metric_crs(gdf: gpd.GeoDataFrame) -> str:
         return "EPSG:32636"
 
 
-def _recompute_composite_score(gov_gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
+def _recompute_composite_score(
+    gov_gdf: gpd.GeoDataFrame,
+    custom_weights: dict[str, float] | None = None,
+) -> gpd.GeoDataFrame:
     """Recompute composite_score from spatially aggregated indicators (never mean district scores)."""
     attr_df = pd.DataFrame(gov_gdf.drop(columns="geometry"))
     attr_df = attr_df.rename(columns={GOV_GEO_KEY: GOV_ID_FOR_SCORING})
-    scored_df, _, _, _ = score_dataframe(attr_df)
+    scored_df, _, _, _ = score_dataframe(attr_df, custom_weights=custom_weights)
     score_lookup = scored_df[[GOV_ID_FOR_SCORING, "composite_score"]].rename(
         columns={GOV_ID_FOR_SCORING: GOV_GEO_KEY}
     )
@@ -175,7 +178,12 @@ def _recompute_composite_score(gov_gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     return gpd.GeoDataFrame(gov_out, geometry=gov_out.geometry, crs=gov_gdf.crs)
 
 
-def aggregate_dis_to_gov(dis_path: Path, gov_path: Path, theme: int) -> tuple[gpd.GeoDataFrame, dict]:
+def aggregate_dis_to_gov(
+    dis_path: Path,
+    gov_path: Path,
+    theme: int,
+    custom_weights: dict[str, float] | None = None,
+) -> tuple[gpd.GeoDataFrame, dict]:
     dis = gpd.read_file(dis_path)
     gov = gpd.read_file(gov_path)
 
@@ -246,8 +254,8 @@ def aggregate_dis_to_gov(dis_path: Path, gov_path: Path, theme: int) -> tuple[gp
 
     composite_action = "none"
     if theme in COMPOSITE_THEMES:
-        gov_out = _recompute_composite_score(gov_out)
-        composite_action = "recomputed"
+        gov_out = _recompute_composite_score(gov_out, custom_weights=custom_weights)
+        composite_action = "recomputed_custom" if custom_weights else "recomputed"
         plan["composite_score"] = composite_action
 
     method_log = "; ".join(f"{col}={plan[col]}" for col in (*value_cols, "composite_score") if col in plan)
@@ -344,7 +352,17 @@ def build_spatial_overall_vulnerability(
     }
 
 
-def run_dis_to_gov_spatial() -> list[dict]:
+def run_dis_to_gov_spatial(
+    weight_mode: str = "kendall",
+    custom_weights_dir: str | Path | None = None,
+) -> list[dict]:
+    from custom_weights import WEIGHT_MODE_CUSTOM, load_custom_weight_catalog
+
+    catalog = None
+    if weight_mode == WEIGHT_MODE_CUSTOM:
+        catalog = load_custom_weight_catalog(custom_weights_dir)
+        print(catalog.describe())
+
     gov_path = _base_gov_geojson()
     if gov_path is None:
         raise ValueError("No GOV base GeoJSON found in GEOJSON/GOV")
@@ -367,8 +385,23 @@ def run_dis_to_gov_spatial() -> list[dict]:
 
         out_stem = _gov_output_stem(theme, dis_path)
         out_path = out_dir / f"{out_stem}__from_dis_spatial.geojson"
+        custom_weights = None
+        if catalog is not None:
+            # Prefer GOV custom weights; fall back to DIS export for same theme.
+            weight_set = catalog.get("GOV", theme) or catalog.get("DIS", theme)
+            if weight_set is not None:
+                custom_weights = weight_set.weights
+                print(
+                    f"[T{theme}] Spatial recompute using custom weights from "
+                    f"{weight_set.source_path.name}"
+                )
         try:
-            gov_gdf, stats = aggregate_dis_to_gov(dis_path, gov_path, theme)
+            gov_gdf, stats = aggregate_dis_to_gov(
+                dis_path,
+                gov_path,
+                theme,
+                custom_weights=custom_weights,
+            )
             write_geojson_unicode(_to_geojson_dict(gov_gdf), out_path)
             spatial_outputs[theme] = out_path
             record = {

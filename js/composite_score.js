@@ -89,7 +89,7 @@ export function buildPrepCache(features, indicators) {
     features.forEach(feature => {
         const props = feature?.properties || {};
         fields.forEach(field => {
-            columns[field].push(toNumericBinaryAware(props[field]));
+            columns[field].push(toNumericBinaryAware(readFeatureProperty(props, field)));
         });
     });
 
@@ -111,8 +111,22 @@ export function buildPrepCache(features, indicators) {
     return { fields, medians, normParams, inverted };
 }
 
+function readFeatureProperty(props, field) {
+    if (!props || field == null) return undefined;
+    if (Object.prototype.hasOwnProperty.call(props, field)) return props[field];
+    const trimmed = String(field).trim();
+    if (trimmed !== field && Object.prototype.hasOwnProperty.call(props, trimmed)) {
+        return props[trimmed];
+    }
+    // Match GeoJSON keys that differ only by trailing/leading whitespace.
+    for (const key of Object.keys(props)) {
+        if (String(key).trim() === trimmed) return props[key];
+    }
+    return undefined;
+}
+
 function normalizedValue(props, field, prep) {
-    const raw = toNumericBinaryAware(props[field]);
+    const raw = toNumericBinaryAware(readFeatureProperty(props, field));
     const value = Number.isFinite(raw) ? raw : prep.medians[field];
     const params = prep.normParams[field];
     let norm = params.normalize(value);

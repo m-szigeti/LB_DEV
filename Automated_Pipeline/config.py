@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 import re
+from contextlib import contextmanager
+from contextvars import ContextVar
 from pathlib import Path
+from typing import Iterator
 
 PIPELINE_ROOT = Path(__file__).resolve().parent
 
@@ -11,6 +14,14 @@ LEVELS = ("GOV", "DIS", "CAD")
 COMPOSITE_THEMES = frozenset({2, 3, 4, 6, 7, 8})
 SKIP_COMPOSITE_THEMES = frozenset({1, 5})
 ALL_THEMES = frozenset({1, 2, 3, 4, 5, 6, 7, 8})
+
+# Output trees (never write joined/overall exports into the source GEOJSON/ folder).
+DEFAULT_OUTPUT_ROOT_NAME = "DEFAULT"
+CUSTOM_OUTPUT_ROOT_NAME = "CUSTOM"
+VARIANT_STANDARD = "standard"
+VARIANT_CUSTOM = "custom"
+VARIANT_BOTH = "both"
+PIPELINE_VARIANTS = (VARIANT_STANDARD, VARIANT_CUSTOM, VARIANT_BOTH)
 
 MASTER_SHEET_NAMES = ("Master Sheet", "Master_Sheet", "Master sheet")
 
@@ -52,53 +63,106 @@ LEVEL_JOIN_CONFIG = {
 THEME_PATTERN = re.compile(r"(?:theme|t)\s*(\d+)", re.IGNORECASE)
 LEVEL_PREFIX_PATTERN = re.compile(r"^(GOV|DIS|CAD)\b", re.IGNORECASE)
 
+_output_root: ContextVar[Path | None] = ContextVar("pipeline_output_root", default=None)
 
-def pipeline_dir(name: str, level: str | None = None) -> Path:
-    path = PIPELINE_ROOT / name
+
+def default_output_root() -> Path:
+    """Kendall / default pipeline outputs."""
+    return PIPELINE_ROOT / DEFAULT_OUTPUT_ROOT_NAME
+
+
+def custom_output_root() -> Path:
+    """Custom-weight pipeline outputs."""
+    return PIPELINE_ROOT / CUSTOM_OUTPUT_ROOT_NAME
+
+
+def get_output_root() -> Path:
+    """Active output root (DEFAULT/ or CUSTOM/). Inputs always use PIPELINE_ROOT."""
+    return _output_root.get() or default_output_root()
+
+
+def is_custom_output_root() -> bool:
+    return get_output_root().resolve() == custom_output_root().resolve()
+
+
+@contextmanager
+def using_output_root(root: Path) -> Iterator[Path]:
+    """Redirect composite/joined/overall/report outputs to ``root``."""
+    token = _output_root.set(Path(root).resolve())
+    try:
+        yield get_output_root()
+    finally:
+        _output_root.reset(token)
+
+
+def pipeline_dir(name: str, level: str | None = None, *, output: bool = False) -> Path:
+    """
+    Resolve a pipeline folder.
+
+    output=False → always under PIPELINE_ROOT (shared inputs / source GEOJSON).
+    output=True  → under the active output root (DEFAULT/ or CUSTOM/).
+    """
+    root = get_output_root() if output else PIPELINE_ROOT
+    path = root / name
     if level:
         path = path / level
     return path
 
 
 def input_excel_dir(level: str) -> Path:
-    return pipeline_dir("INPUT_EXCEL", level)
+    return pipeline_dir("INPUT_EXCEL", level, output=False)
 
 
 def raw_csv_dir(level: str) -> Path:
-    return pipeline_dir("RAW_CSV", level)
+    return pipeline_dir("RAW_CSV", level, output=False)
 
 
 def composite_csv_dir(level: str) -> Path:
-    return pipeline_dir("CSV_COMPOSITE", level)
+    return pipeline_dir("CSV_COMPOSITE", level, output=True)
 
 
 def geojson_dir(level: str) -> Path:
-    return pipeline_dir("GEOJSON", level)
+    """Source admin GeoJSON polygons only (shared input; never an export target)."""
+    return pipeline_dir("GEOJSON", level, output=False)
 
 
 def joined_geojson_dir(level: str) -> Path:
-    return pipeline_dir("GEOJSON", level) / "joined"
+    """
+    Joined theme GeoJSON exports under DEFAULT/GEOJSON/.../joined or CUSTOM/GEOJSON/.../joined.
+    Never writes into the source PIPELINE_ROOT/GEOJSON/ tree.
+    """
+    return pipeline_dir("GEOJSON", level, output=True) / "joined"
 
 
 def gov_dis_spatial_aggregate_dir() -> Path:
-    """GOV joined layers upscaled from DIS via spatial aggregation."""
+    """GOV layers upscaled from DIS via spatial aggregation."""
     return joined_geojson_dir("GOV") / "from_dis_spatial"
 
 
+def custom_weights_dir(path: str | Path | None = None) -> Path:
+    """Folder for sandbox *_weights_before_after.csv inputs (shared)."""
+    if path is None:
+        return pipeline_dir("CUSTOM WEIGHTS", output=False)
+    candidate = Path(path)
+    if not candidate.is_absolute():
+        candidate = PIPELINE_ROOT / candidate
+    return candidate
+
+
 def reports_dir() -> Path:
-    return pipeline_dir("REPORTS")
+    return pipeline_dir("REPORTS", output=True)
 
 
 def extracted_composite_dir(level: str) -> Path:
-    return pipeline_dir("EXTRACTED COMPOSITE SCORES", level)
+    return pipeline_dir("EXTRACTED COMPOSITE SCORES", level, output=True)
 
 
 def overall_vulnerability_dir(level: str) -> Path:
-    return pipeline_dir("OVERALL VULNERABILITY LAYERS", level)
+    return pipeline_dir("OVERALL VULNERABILITY LAYERS", level, output=True)
 
 
 def overall_vulnerability_geojson_dir(level: str) -> Path:
-    return pipeline_dir("OVERALL VULNERABILITY LAYERS", level) / "geojson"
+    return pipeline_dir("OVERALL VULNERABILITY LAYERS", level, output=True) / "geojson"
 
 
 OVERALL_INDEX_CSV_NAME = {

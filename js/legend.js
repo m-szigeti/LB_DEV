@@ -357,7 +357,16 @@ function renderColorScaleEntry(entry) {
         if (values && values[index]) {
             enhancedLabel = `${values[index]} ${unit || ''}`.trim();
         }
-        if (isVulnerabilityData && entry.scaleDirection !== 'yellow-orange-red' && entry.scaleDirection !== 'white-to-dark-blue') {
+        // Skip auto-wrapping when the entry already provides qualitative + range labels
+        // (scaleDirection themes / layers that combine "Low (0.1 - 0.2)" upstream).
+        const skipAutoQualitativeWrap =
+            entry.scaleDirection === 'yellow-orange-red' ||
+            entry.scaleDirection === 'white-to-dark-blue' ||
+            entry.scaleDirection === 'white-to-red' ||
+            entry.scaleDirection === 'white-to-orange' ||
+            entry.scaleDirection === 'white-to-pink' ||
+            /\(\s*[\d.]/.test(String(enhancedLabel || ''));
+        if (isVulnerabilityData && !skipAutoQualitativeWrap) {
             const vulnTerms = ['Very Low', 'Low', 'Medium', 'High', 'Very High'];
             if (index < vulnTerms.length) {
                 enhancedLabel = isPeaceSocialTensionsLayer

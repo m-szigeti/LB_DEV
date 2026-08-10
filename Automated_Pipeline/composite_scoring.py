@@ -21,6 +21,12 @@ from config import (
     raw_csv_dir,
     reports_dir,
 )
+from custom_weights import (
+    WEIGHT_MODE_CUSTOM,
+    WEIGHT_MODE_KENDALL,
+    CustomWeightCatalog,
+    load_custom_weight_catalog,
+)
 from io_utils import read_csv_flexible, write_csv_unicode
 from pipeline_sources import prune_stale_composite_outputs, raw_theme_csv_paths
 
@@ -29,7 +35,12 @@ def _theme_from_filename(path: Path) -> int | None:
     return parse_theme_number(None, path.stem)
 
 
-def process_csv_file(csv_path: Path, level: str) -> dict:
+def process_csv_file(
+    csv_path: Path,
+    level: str,
+    catalog: CustomWeightCatalog | None = None,
+    weight_mode: str = WEIGHT_MODE_KENDALL,
+) -> dict:
     theme = _theme_from_filename(csv_path)
     output_path = composite_csv_dir(level) / csv_path.name
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -44,11 +55,32 @@ def process_csv_file(csv_path: Path, level: str) -> dict:
             "theme": theme,
             "action": action,
             "output_csv": output_path.name,
+            "weight_mode": weight_mode,
         }
 
     df = read_csv_flexible(csv_path)
     col_dist, keep_id_cols, indicator_cols = detect_columns(df)
-    scored_df, weights_df, kendall_df, indicator_cols = score_dataframe(df)
+
+    custom_weights = None
+    custom_source = ""
+    if weight_mode == WEIGHT_MODE_CUSTOM and catalog is not None:
+        weight_set = catalog.get(level, theme)
+        if weight_set is not None:
+            custom_weights = weight_set.weights
+            custom_source = weight_set.source_path.name
+            print(
+                f"[T{theme}] Using custom weights from {custom_source} "
+                f"({len(custom_weights)} indicators)"
+            )
+        else:
+            print(
+                f"[T{theme}] No custom weight CSV for {level}; "
+                "using Kendall weights for this theme."
+            )
+
+    scored_df, weights_df, kendall_df, indicator_cols = score_dataframe(
+        df, custom_weights=custom_weights
+    )
     export_df = build_pipeline_export(
         scored_df, col_dist, keep_id_cols, indicator_cols, level
     )
@@ -59,18 +91,39 @@ def process_csv_file(csv_path: Path, level: str) -> dict:
     write_csv_unicode(weights_df, weights_path, index=False)
     write_csv_unicode(kendall_df, kendall_path, index=True)
 
+    used_custom = bool(
+        custom_weights
+        and "Weight_Source" in weights_df.columns
+        and (weights_df["Weight_Source"] == "custom").any()
+    )
     print(f"[T{theme}] Scored: {csv_path.name} -> {output_path.name}")
     return {
         "source_csv": csv_path.name,
         "level": level,
         "theme": theme,
-        "action": "composite_scored",
+        "action": "composite_scored_custom" if used_custom else "composite_scored",
         "output_csv": output_path.name,
         "indicator_count": len(indicator_cols),
+        "weight_mode": "custom" if used_custom else "kendall",
+        "custom_weights_file": custom_source if used_custom else "",
     }
 
 
-def run_composite_scoring(levels: tuple[str, ...] = LEVELS) -> list[dict]:
+def run_composite_scoring(
+    levels: tuple[str, ...] = LEVELS,
+    weight_mode: str = WEIGHT_MODE_KENDALL,
+    custom_weights_dir: str | Path | None = None,
+) -> list[dict]:
+    catalog = None
+    if weight_mode == WEIGHT_MODE_CUSTOM:
+        catalog = load_custom_weight_catalog(custom_weights_dir)
+        print(catalog.describe())
+        if not catalog.by_key:
+            print(
+                "[custom-weights] WARNING: custom mode selected but no usable CSVs were loaded. "
+                "All themes will fall back to Kendall weights."
+            )
+
     records: list[dict] = []
     for level in levels:
         csv_files = raw_theme_csv_paths(level)
@@ -80,7 +133,14 @@ def run_composite_scoring(levels: tuple[str, ...] = LEVELS) -> list[dict]:
         active_names: set[str] = set()
         for csv_path in csv_files:
             try:
-                records.append(process_csv_file(csv_path, level))
+                records.append(
+                    process_csv_file(
+                        csv_path,
+                        level,
+                        catalog=catalog,
+                        weight_mode=weight_mode,
+                    )
+                )
                 active_names.add(csv_path.name)
             except ValueError as exc:
                 print(f"Skipped {csv_path.name}: {exc}")
@@ -90,6 +150,7 @@ def run_composite_scoring(levels: tuple[str, ...] = LEVELS) -> list[dict]:
                     "theme": _theme_from_filename(csv_path),
                     "action": "error",
                     "error": str(exc),
+                    "weight_mode": weight_mode,
                 })
 
         removed = prune_stale_composite_outputs(level, active_names)

@@ -163,8 +163,17 @@ def detect_columns(df: pd.DataFrame) -> tuple[str, list[str], list[str]]:
     return col_dist, keep_id_cols, indicator_cols
 
 
-def score_dataframe(df: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, list[str]]:
-    """Return scored dataframe, weights table, kendall matrix, and indicator column names."""
+def score_dataframe(
+    df: pd.DataFrame,
+    custom_weights: dict[str, float] | None = None,
+) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, list[str]]:
+    """
+    Return scored dataframe, weights table, kendall matrix, and indicator column names.
+
+    If custom_weights is provided and matches indicator columns, those weights are
+    used for the composite (after renormalisation). Kendall statistics are still
+    computed for reporting.
+    """
     work = df.copy()
     col_dist, keep_id_cols, indicator_cols = detect_columns(work)
 
@@ -189,9 +198,20 @@ def score_dataframe(df: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame, pd.Da
 
     total_strength = sum(mean_abs_corr.values())
     if total_strength == 0:
-        weights = {col: 1.0 / len(indicator_cols) for col in indicator_cols}
+        kendall_weights = {col: 1.0 / len(indicator_cols) for col in indicator_cols}
     else:
-        weights = {col: mean_abs_corr[col] / total_strength for col in indicator_cols}
+        kendall_weights = {col: mean_abs_corr[col] / total_strength for col in indicator_cols}
+
+    weights = kendall_weights
+    weight_sources = {col: "kendall" for col in indicator_cols}
+    if custom_weights:
+        # Local import keeps composite_index_score usable as a standalone script.
+        from custom_weights import resolve_weights_for_indicators
+
+        resolved, source = resolve_weights_for_indicators(indicator_cols, custom_weights)
+        if resolved:
+            weights = resolved
+            weight_sources = {col: source for col in indicator_cols}
 
     for col in indicator_cols:
         work[f"weight_{col}"] = weights[col]
@@ -205,6 +225,7 @@ def score_dataframe(df: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame, pd.Da
         "Indicator": indicator_cols,
         "Mean_Abs_Kendall_tau": [mean_abs_corr[col] for col in indicator_cols],
         "Final_Weight": [weights[col] for col in indicator_cols],
+        "Weight_Source": [weight_sources[col] for col in indicator_cols],
     })
 
     return work, weights_table, kendall_matrix, indicator_cols

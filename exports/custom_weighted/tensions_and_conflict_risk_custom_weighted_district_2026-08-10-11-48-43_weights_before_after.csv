@@ -1,0 +1,7 @@
+indicator_field,indicator_label,weight_before_official,slider_raw,weight_after_normalized,delta,inverted,layer_id,resolution,theme_name,exported_at
+Fear of traveling within Lebanon safely,Fear of traveling within Lebanon safely,0.067121,0.067,0.033383,-0.033738,false,svAdmin3Layer,district,Tensions and Conflict Risk,2026-08-10T11:48:43.666Z
+Feeling lack of safety during the night,Feeling lack of safety during the night,0.164305,0.088,0.043847,-0.120458,false,svAdmin3Layer,district,Tensions and Conflict Risk,2026-08-10T11:48:43.666Z
+Inter-sectarian and inter-communal conflict incidents,Inter-sectarian and inter-communal conflict incidents,0.177783,0.405,0.201794,0.024011,false,svAdmin3Layer,district,Tensions and Conflict Risk,2026-08-10T11:48:43.666Z
+Number of crime incidents,Number of crime incidents,0.193884,0.369,0.183857,-0.010027,false,svAdmin3Layer,district,Tensions and Conflict Risk,2026-08-10T11:48:43.666Z
+Number of fatalities in tension incidents,Number of fatalities in tension incidents,0.230706,0.611,0.304434,0.073728,false,svAdmin3Layer,district,Tensions and Conflict Risk,2026-08-10T11:48:43.666Z
+Number of violent incidents,Number of violent incidents,0.166199,0.467,0.232686,0.066487,false,svAdmin3Layer,district,Tensions and Conflict Risk,2026-08-10T11:48:43.666Z

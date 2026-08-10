@@ -1,0 +1,22 @@
+﻿level,source_csv,theme,action
+GOV,GOV Theme 1 - Displacement Pressure.csv,1,extracted
+GOV,GOV Theme 2 - Tensions and Conflict Risk.csv,2,extracted
+GOV,GOV Theme 3 - Socioeconomic Vulnerability.csv,3,extracted
+GOV,GOV Theme 4 - Service & Infrastructure Vulnerability.csv,4,extracted
+GOV,GOV Theme 5 - Demographic Tension Stress.csv,5,extracted
+GOV,GOV Theme 6 - Climate and Environmental Risk.csv,6,extracted
+GOV,GOV Theme 7 - Political Vulnerability.csv,7,extracted
+GOV,GOV Theme 8 - Gender Based Vulnerabilities.csv,8,extracted
+DIS,DIS Theme 1 - Displacement Pressure.csv,1,extracted
+DIS,DIS Theme 2 - Tensions and Conflict Risk.csv,2,extracted
+DIS,DIS Theme 3 - Socioeconomic Vulnerability.csv,3,extracted
+DIS,DIS Theme 4 - Service & Infrastructure Vulnerability.csv,4,extracted
+DIS,DIS Theme 5 - Demographic Tension Stress.csv,5,extracted
+DIS,DIS Theme 6 - Climate Change and Environmental Risk.csv,6,extracted
+DIS,DIS Theme 7 - Political Vulnerability.csv,7,extracted
+DIS,DIS Theme 8 - Gender Based Vulnerabilities.csv,8,extracted
+CAD,CAD Theme 1 - Displacement Pressure.csv,1,extracted
+CAD,CAD Theme 2 - Tensions and Conflict Risk.csv,2,extracted
+CAD,CAD Theme 3 - Socioeconomic Vulnerability.csv,3,extracted
+CAD,CAD Theme 5 - Demographic Tension Stress.csv,5,extracted
+CAD,CAD Theme 6 - Climate Change and Environmental Risk.csv,6,extracted

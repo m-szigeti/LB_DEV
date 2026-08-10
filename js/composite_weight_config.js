@@ -17,6 +17,20 @@ const LAYER_TO_THEME = {
 /** Enabled resolutions for composite weight sandbox. */
 export const COMPOSITE_WEIGHT_ENABLED_RESOLUTIONS = new Set(['district', 'governorate']);
 
+/**
+ * Themes with full weight-sandbox support (sliders, create, before/after, export, delete).
+ * Must also have a matching entry in data/indicator_weights.json for the active resolution.
+ */
+export const COMPOSITE_WEIGHT_ENABLED_LAYERS = new Set([
+    'svOverallTensionLayer',
+    'svAdmin3Layer',
+    'svAdmin2Layer',
+    'svAdmin4Layer',
+    'svClimateLayer',
+    'svPoliticalLayer',
+    'svGenderLayer'
+]);
+
 let configPromise = null;
 let configCache = null;
 
@@ -57,6 +71,7 @@ export function getThemeConfig(layerId, resolution, config = configCache) {
 
 export function isCompositeWeightEligible(layerId, resolution = 'district', config = configCache) {
     if (!COMPOSITE_WEIGHT_ENABLED_RESOLUTIONS.has(resolution)) return false;
+    if (!COMPOSITE_WEIGHT_ENABLED_LAYERS.has(layerId)) return false;
     return Boolean(getThemeConfig(layerId, resolution, config));
 }
 

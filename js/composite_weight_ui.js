@@ -8,7 +8,8 @@ import {
     clearCustomCompositeFromGeoJson,
     slidersToWeights,
     attachOverallPillarsToFeatures,
-    buildJoinMapFromGeoJson
+    buildJoinMapFromGeoJson,
+    CUSTOM_COMPOSITE_FIELD
 } from './composite_score.js';
 import {
     loadIndicatorWeightsConfig,
@@ -27,6 +28,7 @@ import {
     getSandboxLayerId,
     getSandboxCompareView,
     setSandboxCompareView,
+    getSandboxState,
     SANDBOX_COMPARE_VIEWS
 } from './composite_sandbox_state.js';
 import { isColorOnlyMode } from './map_display_controls.js';
@@ -71,6 +73,10 @@ function bindPanelControls() {
             const panel = target.closest('[data-sandbox-layer]');
             const layerId = panel?.dataset?.sandboxLayer || activeLayerId;
             void createWeightedMap(layerId);
+            return;
+        }
+        if (target.closest('#compositeSandboxBannerExportBtn')) {
+            void exportWeightedMap();
             return;
         }
         if (target.closest('#compositeSandboxBannerDeleteBtn')) {
@@ -326,6 +332,451 @@ async function deleteWeightedMap() {
         await context.refreshSandboxLayer?.(layerId);
     }
     syncCompositeSandboxPanel(context.getCurrentCompositeLayerId?.(), context.getActiveResolution?.());
+}
+
+const EXPORT_DIR_IDB = {
+    dbName: 'lb-dev-exports',
+    storeName: 'directory-handles',
+    handleKey: 'custom-weighted'
+};
+
+/**
+ * Write sandbox GeoJSON + weights CSV into a project folder the user chooses
+ * (recommended: LB_DEV/exports/custom_weighted). The folder handle is remembered.
+ */
+async function exportWeightedMap() {
+    if (!context || !isSandboxActive()) return;
+
+    const exportBtn = document.getElementById('compositeSandboxBannerExportBtn');
+    const originalLabel = exportBtn?.textContent?.trim() || 'Export to folder';
+    if (exportBtn) {
+        exportBtn.disabled = true;
+        exportBtn.textContent = 'Exporting…';
+    }
+
+    try {
+        const sandbox = getSandboxState();
+        const layerId = sandbox.layerId || getSandboxLayerId();
+        const themeConfig = sandbox.themeConfig;
+        const resolution = sandbox.resolution || context.getActiveResolution?.() || 'district';
+        const sliderValues = Array.isArray(sandbox.sliderValues) ? sandbox.sliderValues : [];
+
+        if (!layerId || !themeConfig?.indicators?.length) {
+            throw new Error('Nothing to export yet.');
+        }
+
+        const rawGeoJson = context.getLayerGeoJson?.(layerId);
+        if (!rawGeoJson?.features?.length) {
+            throw new Error('Layer data is not loaded.');
+        }
+
+        const officialField = themeConfig.compositeField || 'composite_score';
+        const customWeights = slidersToWeights(sliderValues);
+        const weightRows = themeConfig.indicators.map((ind, index) => {
+            const before = Number(ind.defaultWeight) || 0;
+            const sliderRaw = Number(sliderValues[index]);
+            const after = Number(customWeights[index]) || 0;
+            return {
+                field: ind.field,
+                label: ind.label || ind.field,
+                weight_before_official: before,
+                slider_raw: Number.isFinite(sliderRaw) ? sliderRaw : before,
+                weight_after_normalized: after,
+                delta: after - before,
+                inverted: Boolean(ind.inverted)
+            };
+        });
+
+        const exportedAt = new Date().toISOString();
+        const slug = slugifyFilename(themeConfig.themeName || layerId);
+        const stamp = exportedAt.slice(0, 19).replace(/[:T]/g, '-');
+        const baseName = `${slug}_custom_weighted_${resolution}_${stamp}`;
+        const geoJsonName = `${baseName}.geojson`;
+        const csvName = `${baseName}_weights_before_after.csv`;
+
+        const csvHeader = [
+            'indicator_field',
+            'indicator_label',
+            'weight_before_official',
+            'slider_raw',
+            'weight_after_normalized',
+            'delta',
+            'inverted',
+            'layer_id',
+            'resolution',
+            'theme_name',
+            'exported_at'
+        ];
+        const csvRows = weightRows.map(row => [
+            row.field,
+            row.label,
+            formatExportNumber(row.weight_before_official),
+            formatExportNumber(row.slider_raw),
+            formatExportNumber(row.weight_after_normalized),
+            formatExportNumber(row.delta),
+            row.inverted ? 'true' : 'false',
+            layerId,
+            resolution,
+            themeConfig.themeName || '',
+            exportedAt
+        ]);
+        const csvText = `${[csvHeader, ...csvRows].map(line => line.map(csvEscape).join(',')).join('\n')}\n`;
+
+        const exportFeatures = rawGeoJson.features.map(feature => {
+            const props = { ...(feature.properties || {}) };
+            const beforeScore = Number(props[officialField]);
+            const afterScore = Number(props[CUSTOM_COMPOSITE_FIELD]);
+            props.score_before_official = Number.isFinite(beforeScore) ? beforeScore : null;
+            props.score_after_custom = Number.isFinite(afterScore) ? afterScore : null;
+            props.custom_weighted_score = props.score_after_custom;
+            return {
+                type: feature.type || 'Feature',
+                properties: props,
+                geometry: feature.geometry || null
+            };
+        });
+
+        const exportGeoJson = {
+            type: 'FeatureCollection',
+            metadata: {
+                exportType: 'custom-weighted-composite',
+                exportedAt,
+                layerId,
+                resolution,
+                themeName: themeConfig.themeName || layerId,
+                mode: themeConfig.mode || null,
+                officialScoreField: officialField,
+                customScoreField: CUSTOM_COMPOSITE_FIELD,
+                indicators: weightRows.map(row => ({
+                    field: row.field,
+                    label: row.label,
+                    weightBeforeOfficial: row.weight_before_official,
+                    sliderRaw: row.slider_raw,
+                    weightAfterNormalized: row.weight_after_normalized,
+                    delta: row.delta,
+                    inverted: row.inverted
+                }))
+            },
+            features: exportFeatures
+        };
+        const geoJsonText = JSON.stringify(exportGeoJson, null, 2);
+
+        if (exportBtn) exportBtn.textContent = 'Saving…';
+        const saved = await saveCustomWeightedExportFiles({
+            geoJsonName,
+            csvName,
+            geoJsonText,
+            csvText
+        });
+
+        if (exportBtn) exportBtn.textContent = 'Saved';
+        setExportBannerMessage(saved.message);
+        setTimeout(() => {
+            if (exportBtn && exportBtn.textContent === 'Saved') {
+                exportBtn.textContent = originalLabel;
+            }
+        }, 2500);
+    } catch (error) {
+        if (error?.name === 'AbortError') {
+            setExportBannerMessage('Export cancelled — no files written.');
+            if (exportBtn) exportBtn.textContent = originalLabel;
+            return;
+        }
+        const message = error?.message || 'Export failed.';
+        showSandboxError(getPanelForLayer(getSandboxLayerId()), message);
+        setExportBannerMessage(`Export failed: ${message}`);
+        if (exportBtn) exportBtn.textContent = 'Export failed';
+        setTimeout(() => {
+            if (exportBtn && exportBtn.textContent === 'Export failed') {
+                exportBtn.textContent = originalLabel;
+            }
+        }, 2500);
+        console.error('Weighted map export failed:', error);
+    } finally {
+        if (exportBtn) exportBtn.disabled = false;
+        if (
+            exportBtn &&
+            (exportBtn.textContent === 'Exporting…' ||
+                exportBtn.textContent === 'Choose folder…' ||
+                exportBtn.textContent === 'Saving…')
+        ) {
+            exportBtn.textContent = originalLabel;
+        }
+    }
+}
+
+/**
+ * Save order:
+ * 1) local Python helper → exports/custom_weighted
+ * 2) Chrome/Edge folder picker
+ * 3) browser download (zip) as last resort
+ */
+async function saveCustomWeightedExportFiles({ geoJsonName, csvName, geoJsonText, csvText }) {
+    const local = await tryLocalProjectExport([
+        { name: geoJsonName, content: geoJsonText },
+        { name: csvName, content: csvText }
+    ]);
+    if (local?.ok) {
+        const folder = local.exportDir || 'exports/custom_weighted';
+        return {
+            method: 'local-server',
+            message: `Saved to ${folder} (${geoJsonName} + CSV).`
+        };
+    }
+
+    if (typeof window.showDirectoryPicker === 'function') {
+        const dirHandle = await ensureCustomWeightedExportDirectory();
+        await writeTextFileToDirectory(dirHandle, geoJsonName, geoJsonText);
+        await writeTextFileToDirectory(dirHandle, csvName, csvText);
+        const folderLabel = dirHandle.name || 'exports/custom_weighted';
+        return {
+            method: 'directory-picker',
+            message: `Saved to ${folderLabel}/${geoJsonName} (+ weights CSV).`
+        };
+    }
+
+    // Last resort for browsers without folder write support.
+    const encoder = new TextEncoder();
+    const zipBlob = buildStoreZipBlob([
+        { name: csvName, bytes: encoder.encode(csvText) },
+        { name: geoJsonName, bytes: encoder.encode(geoJsonText) }
+    ]);
+    downloadBlob(`${geoJsonName.replace(/\.geojson$/i, '')}.zip`, zipBlob);
+    return {
+        method: 'download',
+        message:
+            'Downloaded a ZIP (folder write unavailable here). For direct project saves, run: python scripts/serve_custom_weighted_export.py'
+    };
+}
+
+async function tryLocalProjectExport(files) {
+    const endpoints = [
+        '/__lb_export__/custom_weighted',
+        'http://127.0.0.1:8765/__lb_export__/custom_weighted',
+        'http://localhost:8765/__lb_export__/custom_weighted'
+    ];
+
+    for (const url of endpoints) {
+        try {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ files })
+            });
+            if (!response.ok) continue;
+            const payload = await response.json();
+            if (payload?.ok) return payload;
+        } catch {
+            // Try next endpoint.
+        }
+    }
+    return null;
+}
+
+function setExportBannerMessage(message) {
+    const bannerText = document.getElementById('compositeSandboxBannerText');
+    if (!bannerText) return;
+    bannerText.dataset.prevText = bannerText.dataset.prevText || bannerText.textContent;
+    bannerText.textContent = message;
+    setTimeout(() => {
+        if (bannerText.dataset.prevText) {
+            bannerText.textContent = bannerText.dataset.prevText;
+            delete bannerText.dataset.prevText;
+        }
+    }, 8000);
+}
+
+async function ensureCustomWeightedExportDirectory() {
+    let handle = await loadExportDirectoryHandle();
+    if (handle) {
+        const permitted = await ensureDirectoryWritePermission(handle);
+        if (permitted) return handle;
+    }
+
+    handle = await window.showDirectoryPicker({
+        id: 'lb-custom-weighted-exports',
+        mode: 'readwrite',
+        startIn: 'documents'
+    });
+    await saveExportDirectoryHandle(handle);
+    return handle;
+}
+
+async function ensureDirectoryWritePermission(handle) {
+    const opts = { mode: 'readwrite' };
+    if ((await handle.queryPermission(opts)) === 'granted') return true;
+    if ((await handle.requestPermission(opts)) === 'granted') return true;
+    return false;
+}
+
+async function writeTextFileToDirectory(dirHandle, filename, text) {
+    const fileHandle = await dirHandle.getFileHandle(filename, { create: true });
+    const writable = await fileHandle.createWritable();
+    await writable.write(text);
+    await writable.close();
+}
+
+function openExportHandleDb() {
+    return new Promise((resolve, reject) => {
+        const request = indexedDB.open(EXPORT_DIR_IDB.dbName, 1);
+        request.onupgradeneeded = () => {
+            const db = request.result;
+            if (!db.objectStoreNames.contains(EXPORT_DIR_IDB.storeName)) {
+                db.createObjectStore(EXPORT_DIR_IDB.storeName);
+            }
+        };
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error || new Error('IndexedDB open failed.'));
+    });
+}
+
+async function loadExportDirectoryHandle() {
+    try {
+        const db = await openExportHandleDb();
+        return await new Promise((resolve, reject) => {
+            const tx = db.transaction(EXPORT_DIR_IDB.storeName, 'readonly');
+            const req = tx.objectStore(EXPORT_DIR_IDB.storeName).get(EXPORT_DIR_IDB.handleKey);
+            req.onsuccess = () => resolve(req.result || null);
+            req.onerror = () => reject(req.error);
+            tx.oncomplete = () => db.close();
+        });
+    } catch {
+        return null;
+    }
+}
+
+async function saveExportDirectoryHandle(handle) {
+    const db = await openExportHandleDb();
+    await new Promise((resolve, reject) => {
+        const tx = db.transaction(EXPORT_DIR_IDB.storeName, 'readwrite');
+        tx.objectStore(EXPORT_DIR_IDB.storeName).put(handle, EXPORT_DIR_IDB.handleKey);
+        tx.oncomplete = () => {
+            db.close();
+            resolve();
+        };
+        tx.onerror = () => reject(tx.error);
+    });
+}
+
+function downloadBlob(filename, blob) {
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = filename;
+    anchor.rel = 'noopener';
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+}
+
+/** Minimal ZIP (store / no compression) so CSV + GeoJSON download as one file. */
+function buildStoreZipBlob(files) {
+    const localParts = [];
+    const centralParts = [];
+    let offset = 0;
+
+    files.forEach(file => {
+        const nameBytes = new TextEncoder().encode(file.name);
+        const data = file.bytes;
+        const crc = crc32(data);
+        const local = new Uint8Array(30 + nameBytes.length + data.length);
+        const localView = new DataView(local.buffer);
+        localView.setUint32(0, 0x04034b50, true);
+        localView.setUint16(4, 20, true);
+        localView.setUint16(6, 0, true);
+        localView.setUint16(8, 0, true);
+        localView.setUint16(10, 0, true);
+        localView.setUint16(12, 0, true);
+        localView.setUint32(14, crc, true);
+        localView.setUint32(18, data.length, true);
+        localView.setUint32(22, data.length, true);
+        localView.setUint16(26, nameBytes.length, true);
+        localView.setUint16(28, 0, true);
+        local.set(nameBytes, 30);
+        local.set(data, 30 + nameBytes.length);
+        localParts.push(local);
+
+        const central = new Uint8Array(46 + nameBytes.length);
+        const centralView = new DataView(central.buffer);
+        centralView.setUint32(0, 0x02014b50, true);
+        centralView.setUint16(4, 20, true);
+        centralView.setUint16(6, 20, true);
+        centralView.setUint16(8, 0, true);
+        centralView.setUint16(10, 0, true);
+        centralView.setUint16(12, 0, true);
+        centralView.setUint16(14, 0, true);
+        centralView.setUint32(16, crc, true);
+        centralView.setUint32(20, data.length, true);
+        centralView.setUint32(24, data.length, true);
+        centralView.setUint16(28, nameBytes.length, true);
+        centralView.setUint16(30, 0, true);
+        centralView.setUint16(32, 0, true);
+        centralView.setUint16(34, 0, true);
+        centralView.setUint16(36, 0, true);
+        centralView.setUint32(38, 0, true);
+        centralView.setUint32(42, offset, true);
+        central.set(nameBytes, 46);
+        centralParts.push(central);
+
+        offset += local.length;
+    });
+
+    const centralSize = centralParts.reduce((sum, part) => sum + part.length, 0);
+    const end = new Uint8Array(22);
+    const endView = new DataView(end.buffer);
+    endView.setUint32(0, 0x06054b50, true);
+    endView.setUint16(4, 0, true);
+    endView.setUint16(6, 0, true);
+    endView.setUint16(8, files.length, true);
+    endView.setUint16(10, files.length, true);
+    endView.setUint32(12, centralSize, true);
+    endView.setUint32(16, offset, true);
+    endView.setUint16(20, 0, true);
+
+    return new Blob([...localParts, ...centralParts, end], { type: 'application/zip' });
+}
+
+function crc32(bytes) {
+    if (!crc32.table) {
+        const table = new Uint32Array(256);
+        for (let i = 0; i < 256; i += 1) {
+            let c = i;
+            for (let j = 0; j < 8; j += 1) {
+                c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+            }
+            table[i] = c;
+        }
+        crc32.table = table;
+    }
+    let crc = 0xffffffff;
+    const table = crc32.table;
+    for (let i = 0; i < bytes.length; i += 1) {
+        crc = table[(crc ^ bytes[i]) & 0xff] ^ (crc >>> 8);
+    }
+    return (crc ^ 0xffffffff) >>> 0;
+}
+
+function csvEscape(value) {
+    const text = value === null || value === undefined ? '' : String(value);
+    if (/[",\n\r]/.test(text)) {
+        return `"${text.replace(/"/g, '""')}"`;
+    }
+    return text;
+}
+
+function formatExportNumber(value, digits = 6) {
+    const num = Number(value);
+    if (!Number.isFinite(num)) return '';
+    return String(Number(num.toFixed(digits)));
+}
+
+function slugifyFilename(value) {
+    return String(value || 'layer')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '_')
+        .replace(/^_+|_+$/g, '')
+        .slice(0, 60) || 'layer';
 }
 
 async function switchCompareView(view) {

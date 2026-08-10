@@ -2076,6 +2076,9 @@ function getChoroplethLegendTitle(layerId, attributeKey, config) {
     if (attributeKey === CUSTOM_COMPOSITE_FIELD) {
         return `${config?.legendName || getLayerDisplayName(layerId, config)} (experimental weighted)`;
     }
+    if (layerId === 'svAdmin1Layer') {
+        return getDisplacementSubindicatorLegendTitle(attributeKey, config);
+    }
     if (layerId === 'svAdmin3Layer') {
         return getPeaceCadastreChoroplethLegendTitle(layerId, attributeKey, config);
     }
@@ -2094,31 +2097,33 @@ function getChoroplethLegendTitle(layerId, attributeKey, config) {
 const OVERALL_VULNERABILITY_LEGEND_LABELS = ['Low', 'Medium', 'High'];
 const DEMOGRAPHIC_SHOCK_LEGEND_LABELS = [
     'Low',
-    'Moderate',
+    'Medium',
     'High'
 ];
+const THREE_CLASS_LEGEND_LABELS = ['Low', 'Medium', 'High'];
+const FIVE_CLASS_LEGEND_LABELS = ['Very Low', 'Low', 'Medium', 'High', 'Very High'];
 
-function applyDemographicShockLegendLabels(labels) {
-    const hasNoData = Array.isArray(labels)
-        && labels.some(label => String(label || '').trim().toLowerCase() === ACS_CODE_NO_DATA_LEGEND_LABEL);
-    return hasNoData
-        ? [...DEMOGRAPHIC_SHOCK_LEGEND_LABELS, ACS_CODE_NO_DATA_LEGEND_LABEL]
-        : [...DEMOGRAPHIC_SHOCK_LEGEND_LABELS];
+function countScoreClassLabels(labels) {
+    const noData = ACS_CODE_NO_DATA_LEGEND_LABEL.toLowerCase();
+    return (labels || []).filter(
+        label => String(label || '').trim().toLowerCase() !== noData
+    ).length;
 }
 
-function applyCompositeIndexLegendLabels(labels) {
-    const hasNoData = Array.isArray(labels)
-        && labels.some(label => String(label || '').trim().toLowerCase() === ACS_CODE_NO_DATA_LEGEND_LABEL);
-    return hasNoData
-        ? [...OVERALL_VULNERABILITY_LEGEND_LABELS, ACS_CODE_NO_DATA_LEGEND_LABEL]
-        : [...OVERALL_VULNERABILITY_LEGEND_LABELS];
+function getQualitativeClassLabels(classCount) {
+    if (classCount <= 3) return THREE_CLASS_LEGEND_LABELS;
+    if (classCount === 4) return ['Low', 'Medium-Low', 'Medium-High', 'High'];
+    return FIVE_CLASS_LEGEND_LABELS.slice(0, classCount);
 }
 
 function combineQualitativeAndRangeLabels(qualitativeLabels, rangeLabels) {
     const noDataLabel = ACS_CODE_NO_DATA_LEGEND_LABEL;
     const combined = qualitativeLabels.map((term, index) => {
         const range = String(rangeLabels[index] || '').trim();
-        return range ? `${term} (${range})` : term;
+        if (!range || range.toLowerCase() === noDataLabel.toLowerCase()) {
+            return term;
+        }
+        return `${term} (${range})`;
     });
     const hasNoData = (rangeLabels || []).some(
         label => String(label || '').trim().toLowerCase() === noDataLabel.toLowerCase()
@@ -2130,27 +2135,27 @@ function combineQualitativeAndRangeLabels(qualitativeLabels, rangeLabels) {
 }
 
 function getChoroplethLegendLabels(layerId, labels) {
-    const subIndicatorSelected = Boolean(getPrimarySubindicator(layerId));
-
     if (layerId === 'svAdmin5Layer') {
-        if (subIndicatorSelected) {
-            return combineQualitativeAndRangeLabels(DEMOGRAPHIC_SHOCK_LEGEND_LABELS, labels);
-        }
-        return applyDemographicShockLegendLabels(labels);
+        return combineQualitativeAndRangeLabels(DEMOGRAPHIC_SHOCK_LEGEND_LABELS, labels);
     }
-    if (layerId === 'svAdmin3Layer') {
-        if (subIndicatorSelected) {
-            return combineQualitativeAndRangeLabels(OVERALL_VULNERABILITY_LEGEND_LABELS, labels);
-        }
-        return applyCompositeIndexLegendLabels(labels);
+    if (
+        layerId === 'svAdmin1Layer' ||
+        layerId === 'svAdmin3Layer' ||
+        layerId === 'svOverallTensionLayer' ||
+        layerId === CUSTOM_OVERALL_LAYER_ID
+    ) {
+        return combineQualitativeAndRangeLabels(OVERALL_VULNERABILITY_LEGEND_LABELS, labels);
     }
-    if (THEME_SUBINDICATOR_LAYER_IDS.includes(layerId)) {
-        return labels;
+    if (layerId === 'svGenderLayer' || THEME_SUBINDICATOR_LAYER_IDS.includes(layerId)) {
+        return combineQualitativeAndRangeLabels(
+            getQualitativeClassLabels(countScoreClassLabels(labels)),
+            labels
+        );
     }
     return labels;
 }
 
-function buildOverallVulnerabilityLegendEntry(config, colorScheme, rawGeoJson, opacity = 1) {
+function buildOverallVulnerabilityLegendEntry(config, colorScheme, rawGeoJson, opacity = 1, rangeLabels = null) {
     // Always start from the fixed overall ramp (not a possibly already-blended
     // colorScheme from updateVectorLegend) so opacity is applied exactly once.
     const ramp = getColorRamp(config?.fixedColorRamp || 'whiteToDarkBlue3');
@@ -2161,10 +2166,20 @@ function buildOverallVulnerabilityLegendEntry(config, colorScheme, rawGeoJson, o
               ? colorScheme
               : [];
     const scheme = legendColorsForMapOpacity(baseColors, opacity);
-    const labels = [...OVERALL_VULNERABILITY_LEGEND_LABELS];
-    if (layerHasAcsCodeNoData(rawGeoJson)) {
+    const labels = Array.isArray(rangeLabels) && rangeLabels.length
+        ? combineQualitativeAndRangeLabels(OVERALL_VULNERABILITY_LEGEND_LABELS, rangeLabels)
+        : [...OVERALL_VULNERABILITY_LEGEND_LABELS];
+    if (
+        layerHasAcsCodeNoData(rawGeoJson) &&
+        !labels.some(label => String(label || '').trim().toLowerCase() === ACS_CODE_NO_DATA_LEGEND_LABEL.toLowerCase())
+    ) {
         scheme.push(legendColorsForMapOpacity([ACS_CODE_NO_DATA_COLOR], opacity)[0]);
         labels.push(ACS_CODE_NO_DATA_LEGEND_LABEL);
+    } else if (
+        labels.some(label => String(label || '').trim().toLowerCase() === ACS_CODE_NO_DATA_LEGEND_LABEL.toLowerCase()) &&
+        scheme.length < labels.length
+    ) {
+        scheme.push(legendColorsForMapOpacity([ACS_CODE_NO_DATA_COLOR], opacity)[0]);
     }
     return {
         layerName: (config?.legendName || 'Overall Vulnerability Index').trim(),
@@ -2175,11 +2190,14 @@ function buildOverallVulnerabilityLegendEntry(config, colorScheme, rawGeoJson, o
     };
 }
 
-function pushOverallVulnerabilityLegend(layerId, config, colorScheme, addLegendEntry, rawGeoJson, opacity = 1) {
+function pushOverallVulnerabilityLegend(layerId, config, colorScheme, addLegendEntry, rawGeoJson, opacity = 1, rangeLabels = null) {
     if (!addLegendEntry || layerId !== 'svOverallTensionLayer') {
         return;
     }
-    addLegendEntry(layerId, buildOverallVulnerabilityLegendEntry(config, colorScheme, rawGeoJson, opacity));
+    addLegendEntry(
+        layerId,
+        buildOverallVulnerabilityLegendEntry(config, colorScheme, rawGeoJson, opacity, rangeLabels)
+    );
 }
 
 function refreshSVPeaceCadastreChoropleth(map, layers, addLegendEntry, options = {}) {
@@ -2659,7 +2677,8 @@ async function refreshSVLayerForDisplay(layerId, map, layers, addLegendEntry) {
                         fixedRamp.colors,
                         addLegendEntry,
                         rawGeoJson,
-                        opacity
+                        opacity,
+                        labels
                     );
                     return;
                 }
@@ -2849,7 +2868,8 @@ async function showCustomOverallLayer(geojson, map, layers, addLegendEntry, remo
                 layerName: legendName,
                 colorScheme,
                 description: description || legendDescription,
-                labels
+                labels: getChoroplethLegendLabels(layerId, labels),
+                scaleDirection: 'white-to-dark-blue'
             });
         };
         if (layers.vector[layerId].layerData) {
@@ -3290,7 +3310,10 @@ function setupSVRadioControls(map, layers, colorScales, addLegendEntry, removeLe
         getActiveResolution: getActiveAdminResolution,
         getCurrentCompositeLayerId: () => currentSVLayer,
         isLayerActive: layerId => activeSVLayers.has(layerId),
-        getLayerGeoJson: layerId => layers.vector[layerId]?.layerData?.raw,
+        getLayerGeoJson: layerId => {
+            const layer = layers.vector[layerId];
+            return layer?.layerData?.raw || layer?._svPolygonGeoJson || null;
+        },
         getSourceLayerGeoJson: (sourceLayerId, resolution) =>
             getSourceLayerGeoJson(sourceLayerId, resolution, layers),
         refreshSandboxLayer: layerId => refreshSandboxLayer(layerId, map, layers, addLegendEntry)
@@ -3944,7 +3967,8 @@ async function loadSVLayer(layerId, map, layers, colorScales, addLegendEntry, re
                             colorRamp.colors,
                             addLegendEntry,
                             rawGeoJson,
-                            opacity
+                            opacity,
+                            labels
                         );
                         return;
                     }
@@ -4760,6 +4784,11 @@ function refreshSVEdgeFadeRingLayer(map, layers, addLegendEntry, options = {}) {
         : 1;
 
     const glowLayer = layer._svEdgeFadeRingLayer || layer;
+    // Keep glow source in sync with sandbox-mutated feature properties.
+    if (layer.layerData?.raw) {
+        glowLayer._geojson = layer.layerData.raw;
+        layer._svPolygonGeoJson = layer.layerData.raw;
+    }
     if (typeof glowLayer.setClassification === 'function') {
         glowLayer.setClassification({ attr, breaks, colors, opacityScale });
     }
@@ -4770,6 +4799,10 @@ function refreshSVEdgeFadeRingLayer(map, layers, addLegendEntry, options = {}) {
         outline.addTo(map);
     }
     applySVHitPolygonStyle(outline, { thinBoundaries: Boolean(config?.thinBoundaries) });
+    if (outline?.layerData) {
+        outline.layerData.selectedProperty = attr;
+        outline.layerData._styleSignature = null;
+    }
 
     layer._svEdgeFadeMeta = { breaks, colors, svAttribute: attr };
     if (layer.layerData) {
@@ -5572,15 +5605,24 @@ function refreshSVDisplacementCircles(layerId, layers, config, map) {
     });
 
     if (window.addLegendEntry) {
+        const meta = layer._svCircleMeta || {};
+        const minValue = Number.isFinite(meta.minValue) ? meta.minValue : 0;
+        const maxValue = Number.isFinite(meta.maxValue) ? meta.maxValue : 1;
+        const span = Math.max(0, maxValue - minValue);
+        const breaks = span > 0
+            ? [minValue, minValue + span / 3, minValue + (2 * span) / 3, maxValue]
+            : [minValue, minValue, minValue, maxValue];
+        const rangeLabels = formatClassLegendRanges(breaks);
+        const classTerms = THREE_CLASS_LEGEND_LABELS;
         const circleItems = [
             {
-                label: 'Lower intensity',
+                label: `${classTerms[0]} (${rangeLabels[0] || '—'})`,
                 radius: SV_DISPLACEMENT_LEGEND_RADIUS_LOW,
                 color: SV_DISPLACEMENT_MARKER_COLOR_LIGHT,
                 fillOpacity
             },
             {
-                label: 'Medium intensity',
+                label: `${classTerms[1]} (${rangeLabels[1] || '—'})`,
                 radius: SV_DISPLACEMENT_LEGEND_RADIUS_MEDIUM,
                 color: lerpHexColor(
                     SV_DISPLACEMENT_MARKER_COLOR_LIGHT,
@@ -5590,7 +5632,7 @@ function refreshSVDisplacementCircles(layerId, layers, config, map) {
                 fillOpacity
             },
             {
-                label: 'Higher intensity',
+                label: `${classTerms[2]} (${rangeLabels[2] || '—'})`,
                 radius: SV_DISPLACEMENT_LEGEND_RADIUS_HIGH,
                 color: SV_DISPLACEMENT_MARKER_COLOR_DARK,
                 fillOpacity
@@ -5605,14 +5647,19 @@ function refreshSVDisplacementCircles(layerId, layers, config, map) {
             });
         }
         const selected = getSelectedSubindicators('svAdmin1Layer');
-        const layerTitle = selected
-            .map(value => getDisplacementSubindicatorLegendTitle(value, config))
-            .join(' · ');
+        const layerTitle =
+            selected
+                .map(value => getDisplacementSubindicatorLegendTitle(value, config))
+                .join(' · ') ||
+            getDisplacementSubindicatorLegendTitle(
+                getEffectiveDisplacementCircleAttribute(config),
+                config
+            );
         const overlayNote = buildSubindicatorLegendNote('svAdmin1Layer', value =>
             getDisplacementSubindicatorLegendTitle(value, config)
         );
         window.addLegendEntry(layerId, {
-            layerName: `${layerTitle} `,
+            layerName: layerTitle,
             type: 'proportional-circles',
             color: SV_DISPLACEMENT_MARKER_COLOR_DARK,
             fillOpacity,
@@ -5714,7 +5761,8 @@ function setupSVColorRampSelector(map, layers, addLegendEntry, updateLegend) {
                         fixedRamp.colors,
                         addLegendEntry,
                         rawGeoJson,
-                        opacity
+                        opacity,
+                        labels
                     );
                     return;
                 }
@@ -7918,6 +7966,10 @@ function getSelectionAttributeFromConfig(config, layerId = null) {
 
 function getSelectionAttributeLabel(layerId, config, attributeName) {
     if (!config) return attributeName;
+
+    if (attributeName === CUSTOM_COMPOSITE_FIELD) {
+        return `${getLayerDisplayName(layerId, config)} (experimental weighted)`;
+    }
 
     if (layerId === 'svAdmin5Layer') {
         const opt = getDemographicSubindicatorOptions().find(o => o.value === attributeName);

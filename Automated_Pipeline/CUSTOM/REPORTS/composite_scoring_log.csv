@@ -1,0 +1,22 @@
+﻿source_csv,level,theme,action,output_csv,weight_mode,indicator_count,custom_weights_file
+GOV Theme 1 - Displacement Pressure.csv,GOV,1,copied_unchanged,GOV Theme 1 - Displacement Pressure.csv,custom,,
+GOV Theme 2 - Tensions and Conflict Risk.csv,GOV,2,composite_scored,GOV Theme 2 - Tensions and Conflict Risk.csv,kendall,6.0,
+GOV Theme 3 - Socioeconomic Vulnerability.csv,GOV,3,composite_scored,GOV Theme 3 - Socioeconomic Vulnerability.csv,kendall,3.0,
+GOV Theme 4 - Service & Infrastructure Vulnerability.csv,GOV,4,composite_scored,GOV Theme 4 - Service & Infrastructure Vulnerability.csv,kendall,9.0,
+GOV Theme 5 - Demographic Tension Stress.csv,GOV,5,copied_unchanged,GOV Theme 5 - Demographic Tension Stress.csv,custom,,
+GOV Theme 6 - Climate and Environmental Risk.csv,GOV,6,composite_scored,GOV Theme 6 - Climate and Environmental Risk.csv,kendall,3.0,
+GOV Theme 7 - Political Vulnerability.csv,GOV,7,composite_scored,GOV Theme 7 - Political Vulnerability.csv,kendall,9.0,
+GOV Theme 8 - Gender Based Vulnerabilities.csv,GOV,8,composite_scored,GOV Theme 8 - Gender Based Vulnerabilities.csv,kendall,7.0,
+DIS Theme 1 - Displacement Pressure.csv,DIS,1,copied_unchanged,DIS Theme 1 - Displacement Pressure.csv,custom,,
+DIS Theme 2 - Tensions and Conflict Risk.csv,DIS,2,composite_scored_custom,DIS Theme 2 - Tensions and Conflict Risk.csv,custom,6.0,tensions_and_conflict_risk_custom_weighted_district_2026-08-10-11-48-43_weights_before_after.csv
+DIS Theme 3 - Socioeconomic Vulnerability.csv,DIS,3,composite_scored,DIS Theme 3 - Socioeconomic Vulnerability.csv,kendall,3.0,
+DIS Theme 4 - Service & Infrastructure Vulnerability.csv,DIS,4,composite_scored,DIS Theme 4 - Service & Infrastructure Vulnerability.csv,kendall,16.0,
+DIS Theme 5 - Demographic Tension Stress.csv,DIS,5,copied_unchanged,DIS Theme 5 - Demographic Tension Stress.csv,custom,,
+DIS Theme 6 - Climate Change and Environmental Risk.csv,DIS,6,composite_scored,DIS Theme 6 - Climate Change and Environmental Risk.csv,kendall,3.0,
+DIS Theme 7 - Political Vulnerability.csv,DIS,7,composite_scored_custom,DIS Theme 7 - Political Vulnerability.csv,custom,12.0,political_vulnerability_custom_weighted_district_2026-08-10-12-01-22_weights_before_after.csv
+DIS Theme 8 - Gender Based Vulnerabilities.csv,DIS,8,composite_scored,DIS Theme 8 - Gender Based Vulnerabilities.csv,kendall,7.0,
+CAD Theme 1 - Displacement Pressure.csv,CAD,1,copied_unchanged,CAD Theme 1 - Displacement Pressure.csv,custom,,
+CAD Theme 2 - Tensions and Conflict Risk.csv,CAD,2,composite_scored,CAD Theme 2 - Tensions and Conflict Risk.csv,kendall,6.0,
+CAD Theme 3 - Socioeconomic Vulnerability.csv,CAD,3,composite_scored,CAD Theme 3 - Socioeconomic Vulnerability.csv,kendall,3.0,
+CAD Theme 5 - Demographic Tension Stress.csv,CAD,5,copied_unchanged,CAD Theme 5 - Demographic Tension Stress.csv,custom,,
+CAD Theme 6 - Climate Change and Environmental Risk.csv,CAD,6,composite_scored,CAD Theme 6 - Climate Change and Environmental Risk.csv,kendall,3.0,

@@ -198,6 +198,20 @@
     background: #fef2f2;
 }
 
+.composite-sandbox-btn-secondary {
+    background: #fff;
+    color: #5b21b6;
+    border: 1px solid #ddd6fe;
+}
+
+.composite-sandbox-btn-secondary:hover:not(:disabled) {
+    background: #f5f3ff;
+}
+
+.composite-sandbox-banner .composite-sandbox-btn-secondary {
+    border-color: rgba(255, 255, 255, 0.55);
+}
+
 .composite-sandbox-btn:disabled {
     opacity: 0.55;
     cursor: not-allowed;
