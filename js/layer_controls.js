@@ -2992,9 +2992,9 @@ const FOREST_FIRE_ICON_URLS = [
 const FOREST_FIRE_MARKER_SIZE_DEFAULT = 28;
 const FOREST_FIRE_MARKER_SIZE_AGGREGATE = 42;
 const FOREST_FIRE_MARKER_SIZE_UNCLUSTERED_CADASTRE = 36;
-/** Push climate icons SE of polygon center so they clear service/displacement centers. */
-const FOREST_FIRE_OFFSET_LAT_FRAC = -0.16;
-const FOREST_FIRE_OFFSET_LNG_FRAC = 0.16;
+/** Service (!) and Climate (fire) icons: center when alone, left/right of centroid when both on. */
+const ICON_PAIR_LAYER_IDS = ['svAdmin4Layer', 'svClimateLayer'];
+const ICON_PAIR_SIDE_LNG_FRAC = 0.12;
 /** Pane above markers so AOI/info clicks hit polygons, not icons/clusters. */
 const SV_HIT_PANE_NAME = 'svHitPane';
 const SV_HIT_PANE_Z_INDEX = 625;
@@ -3249,6 +3249,9 @@ function setupSVRadioControls(map, layers, colorScales, addLegendEntry, removeLe
                 activeSVLayers.delete(layerId);
                 if (currentSVLayer === layerId) {
                     currentSVLayer = activeSVLayers.size ? Array.from(activeSVLayers).at(-1) : null;
+                }
+                if (ICON_PAIR_LAYER_IDS.includes(layerId)) {
+                    syncIconPairMarkerPositions(map, layers);
                 }
             }
 
@@ -4047,6 +4050,9 @@ async function loadSVLayer(layerId, map, layers, colorScales, addLegendEntry, re
     
     window.currentInfoPanel.addLayer(layerId, layerInfo);
     }
+    if (ICON_PAIR_LAYER_IDS.includes(layerId)) {
+        syncIconPairMarkerPositions(map, layers);
+    }
     void syncCompositeSandboxPanel(layerId, getActiveAdminResolution());
 }
 
@@ -4152,51 +4158,122 @@ function getDisplacementClusterFillColor(cluster, styleState) {
     return lerpHexColor(SV_DISPLACEMENT_MARKER_COLOR_LIGHT, SV_DISPLACEMENT_MARKER_COLOR_DARK, peakT);
 }
 
-function featureToCenterPointFeature(feature) {
+function getPolygonIconHome(feature) {
     try {
         const tempLayer = L.geoJSON(feature);
         const bounds = tempLayer.getBounds();
         if (!bounds?.isValid?.() || !bounds.isValid()) return null;
         const center = bounds.getCenter();
         return {
-            type: 'Feature',
-            properties: { ...(feature.properties || {}) },
-            geometry: {
-                type: 'Point',
-                coordinates: [center.lng, center.lat]
-            }
+            lat: center.lat,
+            lng: center.lng,
+            latSpan: Math.max(0, bounds.getNorth() - bounds.getSouth()),
+            lngSpan: Math.max(0, bounds.getEast() - bounds.getWest())
         };
     } catch (error) {
         return null;
     }
 }
 
-/** Point slightly off polygon center (default SE) to avoid stacking on service/displacement markers. */
-function featureToOffsetPointFeature(
-    feature,
-    { latFrac = FOREST_FIRE_OFFSET_LAT_FRAC, lngFrac = FOREST_FIRE_OFFSET_LNG_FRAC } = {}
-) {
-    try {
-        const tempLayer = L.geoJSON(feature);
-        const bounds = tempLayer.getBounds();
-        if (!bounds?.isValid?.() || !bounds.isValid()) return null;
-        const center = bounds.getCenter();
-        const latSpan = bounds.getNorth() - bounds.getSouth();
-        const lngSpan = bounds.getEast() - bounds.getWest();
-        return {
+function featureToCenterPointFeature(feature) {
+    const home = getPolygonIconHome(feature);
+    if (!home) return null;
+    return {
+        type: 'Feature',
+        properties: { ...(feature.properties || {}) },
+        geometry: {
+            type: 'Point',
+            coordinates: [home.lng, home.lat]
+        }
+    };
+}
+
+function buildCenteredIconPointFeatures(sourceFeatures) {
+    const pointFeatures = [];
+    const homes = [];
+    (sourceFeatures || []).forEach(feature => {
+        const home = getPolygonIconHome(feature);
+        if (!home) return;
+        pointFeatures.push({
             type: 'Feature',
             properties: { ...(feature.properties || {}) },
             geometry: {
                 type: 'Point',
-                coordinates: [
-                    center.lng + lngSpan * lngFrac,
-                    center.lat + latSpan * latFrac
-                ]
+                coordinates: [home.lng, home.lat]
             }
-        };
-    } catch (error) {
-        return null;
+        });
+        homes.push(home);
+    });
+    return { pointFeatures, homes };
+}
+
+function attachIconHomesToMarkers(markerLayer, homes) {
+    if (!markerLayer || !homes?.length) return;
+    let index = 0;
+    markerLayer.eachLayer(marker => {
+        if (homes[index]) {
+            marker._svIconHome = homes[index];
+        }
+        index += 1;
+    });
+}
+
+function isIconPairLayerShowingMarkers(layerId, layers) {
+    if (!activeSVLayers.has(layerId)) return false;
+    if (isColorOnlyMode()) return false;
+    const layer = layers?.vector?.[layerId];
+    if (!layer) return false;
+    if (layerId === 'svAdmin4Layer') {
+        return Boolean(layer._isSVServiceSymbolLayer);
     }
+    if (layerId === 'svClimateLayer') {
+        return Boolean(layer._isSVForestFireSymbolLayer);
+    }
+    return false;
+}
+
+/** -1 = left of centroid, 0 = center, 1 = right of centroid. */
+function getIconPairSlot(layerId, layers) {
+    const serviceOn = isIconPairLayerShowingMarkers('svAdmin4Layer', layers);
+    const climateOn = isIconPairLayerShowingMarkers('svClimateLayer', layers);
+    if (serviceOn && climateOn) {
+        if (layerId === 'svAdmin4Layer') return -1;
+        if (layerId === 'svClimateLayer') return 1;
+    }
+    return 0;
+}
+
+function latLngForIconPairSlot(home, slot) {
+    if (!home || !Number.isFinite(home.lat) || !Number.isFinite(home.lng)) return null;
+    const lngSpan = Number.isFinite(home.lngSpan) ? home.lngSpan : 0;
+    return L.latLng(home.lat, home.lng + slot * lngSpan * ICON_PAIR_SIDE_LNG_FRAC);
+}
+
+/**
+ * Service and Climate icons share polygon centroids: centered when alone,
+ * left (Service) / right (Climate) when both are visible.
+ */
+function syncIconPairMarkerPositions(map, layers) {
+    if (!layers?.vector) return;
+    ICON_PAIR_LAYER_IDS.forEach(layerId => {
+        const layer = layers.vector[layerId];
+        if (!layer || !isIconPairLayerShowingMarkers(layerId, layers)) return;
+        const slot = getIconPairSlot(layerId, layers);
+        const markers = layer._svServiceAllMarkers || layer._svForestFireAllMarkers || [];
+        markers.forEach(marker => {
+            const home = marker._svIconHome;
+            const latlng = latLngForIconPairSlot(home, slot);
+            if (!latlng || typeof marker.setLatLng !== 'function') return;
+            marker.setLatLng(latlng);
+            if (marker.feature?.geometry?.type === 'Point') {
+                marker.feature.geometry.coordinates = [latlng.lng, latlng.lat];
+            }
+        });
+        const cluster = layer._svServiceClusterLayer || layer._svForestFireClusterLayer;
+        if (cluster?.refreshClusters) {
+            cluster.refreshClusters();
+        }
+    });
 }
 
 async function loadSVCircleLayer(config, map = null) {
@@ -4298,7 +4375,7 @@ async function loadSVServiceSymbolLayer(config, map = null) {
     const response = await fetch(config.url);
     const data = await response.json();
     const sourceFeatures = data?.features || [];
-    const pointFeatures = sourceFeatures.map(featureToCenterPointFeature).filter(Boolean);
+    const { pointFeatures, homes } = buildCenteredIconPointFeatures(sourceFeatures);
 
     const numericValues = pointFeatures
         .map(feature => Number(feature.properties?.[config.svAttribute]))
@@ -4322,6 +4399,7 @@ async function loadSVServiceSymbolLayer(config, map = null) {
             });
         }
     });
+    attachIconHomesToMarkers(markerLayer, homes);
 
     const clusterLayer = usesServiceMarkerClustering(resolution) && typeof L.markerClusterGroup === 'function'
         ? L.markerClusterGroup({
@@ -4369,7 +4447,7 @@ async function loadSVForestFireSymbolLayer(config, map = null) {
     const response = await fetch(config.url);
     const data = await response.json();
     const sourceFeatures = data?.features || [];
-    const pointFeatures = sourceFeatures.map(feature => featureToOffsetPointFeature(feature)).filter(Boolean);
+    const { pointFeatures, homes } = buildCenteredIconPointFeatures(sourceFeatures);
 
     const attr = getEffectiveChoroplethAttribute('svClimateLayer', config) || config.svAttribute;
     const numericValues = pointFeatures
@@ -4393,6 +4471,7 @@ async function loadSVForestFireSymbolLayer(config, map = null) {
             });
         }
     });
+    attachIconHomesToMarkers(markerLayer, homes);
 
     const clusterLayer = usesForestFireMarkerClustering(resolution) && typeof L.markerClusterGroup === 'function'
         ? L.markerClusterGroup({
@@ -5134,6 +5213,7 @@ function refreshSVServiceSymbolLayer(map, layers, addLegendEntry, options = {}) 
         const opacity = opacitySlider ? parseFloat(opacitySlider.value) : 0.6;
         window.currentInfoPanel.updateLayer(layerId, { selectedAttribute: attr, opacity });
     }
+    syncIconPairMarkerPositions(map, layers);
 }
 
 function applySVServicePriorityFilter(layer, priorityOnlyHigh = true) {
@@ -5445,6 +5525,7 @@ function refreshSVForestFireSymbolLayer(map, layers, addLegendEntry, options = {
         const opacity = opacitySlider ? parseFloat(opacitySlider.value) : 0.6;
         window.currentInfoPanel.updateLayer(layerId, { selectedAttribute: attr, opacity });
     }
+    syncIconPairMarkerPositions(map, layers);
 }
 
 function toRgbaColor(color, alpha) {
