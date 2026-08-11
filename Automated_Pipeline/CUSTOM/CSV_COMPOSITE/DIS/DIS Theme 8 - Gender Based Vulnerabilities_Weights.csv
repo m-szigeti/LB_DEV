@@ -1,8 +1,8 @@
 ﻿Indicator,Mean_Abs_Kendall_tau,Final_Weight,Weight_Source
-Reported incidents of gender-based violence,0.17322259528128492,0.17269776966628578,kendall
-Service access difficulty (female),0.09246054332734031,0.0921804086172228,kendall
-Safety at night (female),0.19022490726957764,0.18964856846236952,kendall
-Fear of movement or travel (female),0.1793107796856119,0.17876750823726728,kendall
-Reports of harassment or violence,0.17260017935854644,0.17207723952420373,kendall
-Trust in the court system,0.09594788824793865,0.09565718766482001,kendall
-Female unemployment rate,0.09927208999672828,0.0989713178278309,kendall
+Reported incidents of gender-based violence,0.17322259528128492,0.114041,custom
+Service access difficulty (female),0.09246054332734031,0.265656,custom
+Safety at night (female),0.19022490726957764,0.125247,custom
+Fear of movement or travel (female),0.1793107796856119,0.117996,custom
+Reports of harassment or violence,0.17260017935854644,0.248517,custom
+Trust in the court system,0.09594788824793865,0.063283,custom
+Female unemployment rate,0.09927208999672828,0.06526,custom

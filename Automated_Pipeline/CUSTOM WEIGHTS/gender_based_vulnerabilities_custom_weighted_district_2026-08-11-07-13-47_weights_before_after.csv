@@ -1,0 +1,8 @@
+indicator_field,indicator_label,weight_before_official,slider_raw,weight_after_normalized,delta,inverted,layer_id,resolution,theme_name,exported_at
+Fear of movement or travel (female),Fear of movement or travel (female),0.178768,0.179,0.117996,-0.060772,FALSE,svGenderLayer,district,Gender Based Vulnerabilities,2026-08-11T07:13:47.960Z
+Female unemployment rate,Unemployment rate (female),0.098971,0.099,0.06526,-0.033711,FALSE,svGenderLayer,district,Gender Based Vulnerabilities,2026-08-11T07:13:47.960Z
+Reported incidents of gender-based violence,Reported incidents of gender-based violence,0.172698,0.173,0.114041,-0.058657,FALSE,svGenderLayer,district,Gender Based Vulnerabilities,2026-08-11T07:13:47.960Z
+Reports of harassment or violence,Reports of harassment or violence,0.172077,0.377,0.248517,0.07644,FALSE,svGenderLayer,district,Gender Based Vulnerabilities,2026-08-11T07:13:47.960Z
+Safety at night (female),lack of safety at night (female),0.189649,0.19,0.125247,-0.064402,FALSE,svGenderLayer,district,Gender Based Vulnerabilities,2026-08-11T07:13:47.960Z
+Service access difficulty (female),Service access difficulty (female),0.09218,0.403,0.265656,0.173476,FALSE,svGenderLayer,district,Gender Based Vulnerabilities,2026-08-11T07:13:47.960Z
+Trust in the court system,Distrust in the court system (female),0.095657,0.096,0.063283,-0.032374,FALSE,svGenderLayer,district,Gender Based Vulnerabilities,2026-08-11T07:13:47.960Z
