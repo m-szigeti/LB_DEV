@@ -6102,7 +6102,7 @@ function applySVStripePatternStyle(layerId, layer, config, opacity, map, addLege
     }
 
     if (layerId === 'svAdmin2Layer') {
-        keepSocioEconomicLayerAtBottom({ vector: { svAdmin2Layer: layer } });
+        keepSocioEconomicLayerOnTop({ vector: { svAdmin2Layer: layer } });
     }
 }
 
@@ -7305,24 +7305,24 @@ async function handlePolygonSelection(layerId, vectorLayer, selectedLayer, layer
     await updateSelectedPolygonInfoPanel(layerId, selectedLayer.feature?.properties || null, config, layers);
 }
 
-function keepSocioEconomicLayerAtBottom(layers) {
+function keepSocioEconomicLayerOnTop(layers) {
     const layerId = 'svAdmin2Layer';
     if (!activeSVLayers.has(layerId)) return;
     const layer = layers?.vector?.[layerId];
     if (!layer) return;
 
-    // Stripe fill first, then any socio sub-indicator overlays — all below other themes.
+    // Stripe fill and any socio sub-indicator overlays sit above other theme layers.
     const parts = [layer, ...(layer._svSubindicatorOverlays || [])].filter(Boolean);
-    [...parts].reverse().forEach(part => {
-        if (typeof part.bringToBack === 'function') {
-            part.bringToBack();
+    parts.forEach(part => {
+        if (typeof part.bringToFront === 'function') {
+            part.bringToFront();
         }
     });
 }
 
 function keepRoadLayerOnTop(layers) {
-    // Socio-economic stripe fill must sit under every other theme / stressor layer.
-    keepSocioEconomicLayerAtBottom(layers);
+    // Socioeconomic stripe fill sits above other theme layers when co-rendered.
+    keepSocioEconomicLayerOnTop(layers);
 
     const roadLayer = layers?.vector?.roadStatusLayer;
     if (roadLayer && typeof roadLayer.bringToFront === 'function') {
