@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <title>Gender vulnerability high</title>
+  <circle cx="64" cy="46" r="30" fill="#831843" stroke="#500724" stroke-width="3"/>
+  <path fill="none" stroke="#500724" stroke-width="10" stroke-linecap="round" d="M64 76 V116"/>
+  <path fill="none" stroke="#500724" stroke-width="10" stroke-linecap="round" d="M44 98 H84"/>
+</svg>

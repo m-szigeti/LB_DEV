@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gender icons — female symbol proposals</title>
+  <style>
+    body { font-family: system-ui, sans-serif; padding: 24px; background: #f1f5f9; color: #0f172a; margin: 0; }
+    h1 { font-size: 18px; margin: 0 0 8px; }
+    h2 { font-size: 15px; margin: 28px 0 8px; font-weight: 600; }
+    .hint { font-size: 13px; color: #64748b; margin: 0 0 14px; max-width: 48rem; line-height: 1.45; }
+    .row { display: flex; gap: 16px; flex-wrap: wrap; align-items: stretch; }
+    .card {
+      background: #fff; border: 1px solid #e2e8f0; border-radius: 10px;
+      padding: 14px; width: 150px; text-align: center;
+      box-shadow: 0 1px 3px rgba(0,0,0,.06);
+    }
+    .card svg { width: 88px; height: 88px; display: block; margin: 0 auto; }
+    .card.tiny { width: 110px; }
+    .card.tiny svg { width: 26px; height: 26px; }
+    .card strong { display: block; margin-top: 8px; font-size: 13px; }
+    .card .blurb { display: block; margin-top: 4px; font-size: 11px; color: #64748b; line-height: 1.35; }
+    .on-dark { background: #1e293b; }
+    .on-dark strong { color: #e2e8f0; }
+    .on-dark .blurb { color: #94a3b8; }
+    .on-map { background: #f5e6ef; }
+    .legend-strip {
+      display: flex; gap: 14px; align-items: center; flex-wrap: wrap;
+      background: #fff; border: 1px solid #e2e8f0; border-radius: 10px;
+      padding: 12px 16px; margin: 8px 0 0; max-width: 42rem;
+    }
+    .legend-strip .item { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #334155; }
+    .legend-strip svg { width: 22px; height: 22px; }
+    .note {
+      background: #fdf2f8; border: 1px solid #fbcfe8; border-radius: 8px;
+      padding: 10px 12px; font-size: 12px; color: #9d174d; max-width: 48rem; margin: 0 0 18px; line-height: 1.4;
+    }
+  </style>
+</head>
+<body>
+  <h1>Gender Based Vulnerabilities — ♀ symbol proposals</h1>
+  <p class="hint">
+    All concepts use the female gender symbol (Venus / ♀). Three intensity levels with the theme pink ramp.
+    Same silhouette, changing fill, weight, or surrounding cues.
+  </p>
+  <p class="note">
+    Best map readability: <strong>1 (fill intensity)</strong> and <strong>4 (badge weight)</strong>.
+    Strongest “risk rising” story: <strong>2 (alert ring)</strong> and <strong>5 (stress marks)</strong>.
+  </p>
+
+  <!-- 1: Fill intensity -->
+  <h2>1 — Fill intensity</h2>
+  <p class="hint">Outline → half-filled → solid. Cleanest progression; works well at 28px.</p>
+  <div class="row">
+    <div class="card">
+      <svg viewBox="0 0 128 128" aria-label="Low">
+        <circle cx="64" cy="46" r="30" fill="none" stroke="#F9A8D4" stroke-width="10"/>
+        <circle cx="64" cy="46" r="30" fill="none" stroke="#BE185D" stroke-width="3.5"/>
+        <path fill="none" stroke="#BE185D" stroke-width="10" stroke-linecap="round" d="M64 76 V116"/>
+        <path fill="none" stroke="#BE185D" stroke-width="10" stroke-linecap="round" d="M44 98 H84"/>
+      </svg>
+      <strong>Low</strong>
+      <span class="blurb">Outline only</span>
+    </div>
+    <div class="card">
+      <svg viewBox="0 0 128 128" aria-label="Medium">
+        <defs>
+          <clipPath id="halfClip"><rect x="34" y="61" width="60" height="30"/></clipPath>
+        </defs>
+        <circle cx="64" cy="46" r="30" fill="none" stroke="#FBCFE8" stroke-width="3.5"/>
+        <circle cx="64" cy="46" r="30" fill="#DB2777" stroke="#9D174D" stroke-width="3.5" clip-path="url(#halfClip)"/>
+        <circle cx="64" cy="46" r="30" fill="none" stroke="#9D174D" stroke-width="3.5"/>
+        <path fill="none" stroke="#9D174D" stroke-width="10" stroke-linecap="round" d="M64 76 V116"/>
+        <path fill="none" stroke="#9D174D" stroke-width="10" stroke-linecap="round" d="M44 98 H84"/>
+      </svg>
+      <strong>Medium</strong>
+      <span class="blurb">Half-filled circle</span>
+    </div>
+    <div class="card">
+      <svg viewBox="0 0 128 128" aria-label="High">
+        <circle cx="64" cy="46" r="30" fill="#9D174D" stroke="#831843" stroke-width="3.5"/>
+        <path fill="none" stroke="#831843" stroke-width="12" stroke-linecap="round" d="M64 76 V116"/>
+        <path fill="none" stroke="#831843" stroke-width="12" stroke-linecap="round" d="M42 98 H86"/>
+        <circle cx="64" cy="46" r="11" fill="#FCE7F3" opacity="0.3"/>
+      </svg>
+      <strong>High</strong>
+      <span class="blurb">Solid + heavier stem</span>
+    </div>
+  </div>
+  <div class="row" style="margin-top:8px">
+    <div class="card tiny on-map">
+      <svg viewBox="0 0 128 128"><circle cx="64" cy="46" r="30" fill="none" stroke="#BE185D" stroke-width="10"/><path fill="none" stroke="#BE185D" stroke-width="10" stroke-linecap="round" d="M64 76 V116 M44 98 H84"/></svg>
+      <strong>28px</strong>
+    </div>
+    <div class="card tiny on-map">
+      <svg viewBox="0 0 128 128"><circle cx="64" cy="46" r="30" fill="#DB2777" fill-opacity="0.55" stroke="#9D174D" stroke-width="4"/><path fill="none" stroke="#9D174D" stroke-width="10" stroke-linecap="round" d="M64 76 V116 M44 98 H84"/></svg>
+      <strong>28px</strong>
+    </div>
+    <div class="card tiny on-map">
+      <svg viewBox="0 0 128 128"><circle cx="64" cy="46" r="30" fill="#9D174D"/><path fill="none" stroke="#831843" stroke-width="12" stroke-linecap="round" d="M64 76 V116 M42 98 H86"/></svg>
+      <strong>28px</strong>
+    </div>
+  </div>
+
+  <!-- 2: Alert ring around glyph -->
+  <h2>2 — Alert ring around ♀</h2>
+  <p class="hint">Same solid-ish glyph; surrounding ring grows from calm → dashed → urgent triangle frame.</p>
+  <div class="row">
+    <div class="card">
+      <svg viewBox="0 0 128 128" aria-label="Low">
+        <circle cx="64" cy="64" r="54" fill="none" stroke="#F9A8D4" stroke-width="5"/>
+        <circle cx="64" cy="42" r="22" fill="none" stroke="#BE185D" stroke-width="7"/>
+        <path fill="none" stroke="#BE185D" stroke-width="7" stroke-linecap="round" d="M64 64 V108 M48 90 H80"/>
+      </svg>
+      <strong>Low</strong>
+      <span class="blurb">Soft outer ring</span>
+    </div>
+    <div class="card">
+      <svg viewBox="0 0 128 128" aria-label="Medium">
+        <circle cx="64" cy="64" r="54" fill="none" stroke="#DB2777" stroke-width="5" stroke-dasharray="12 8"/>
+        <circle cx="64" cy="42" r="22" fill="#DB2777" fill-opacity="0.35" stroke="#9D174D" stroke-width="7"/>
+        <path fill="none" stroke="#9D174D" stroke-width="7" stroke-linecap="round" d="M64 64 V108 M48 90 H80"/>
+      </svg>
+      <strong>Medium</strong>
+      <span class="blurb">Dashed warning ring</span>
+    </div>
+    <div class="card">
+      <svg viewBox="0 0 128 128" aria-label="High">
+        <path fill="none" stroke="#9D174D" stroke-width="6" stroke-linejoin="round"
+              d="M64 8 L120 118 H8 Z"/>
+        <circle cx="64" cy="48" r="18" fill="#9D174D" stroke="#831843" stroke-width="4"/>
+        <path fill="none" stroke="#831843" stroke-width="7" stroke-linecap="round" d="M64 66 V104 M50 88 H78"/>
+      </svg>
+      <strong>High</strong>
+      <span class="blurb">♀ inside alert triangle</span>
+    </div>
+  </div>
+
+  <!-- 3: Color step only -->
+  <h2>3 — Color step (same weight)</h2>
+  <p class="hint">Identical geometry; only the pink darkens. Very consistent silhouette for legends.</p>
+  <div class="row">
+    <div class="card">
+      <svg viewBox="0 0 128 128" aria-label="Low">
+        <circle cx="64" cy="46" r="30" fill="#F9A8D4" stroke="#F472B6" stroke-width="3"/>
+        <path fill="none" stroke="#F472B6" stroke-width="10" stroke-linecap="round" d="M64 76 V116 M44 98 H84"/>
+      </svg>
+      <strong>Low</strong>
+      <span class="blurb">Light pink</span>
+    </div>
+    <div class="card">
+      <svg viewBox="0 0 128 128" aria-label="Medium">
+        <circle cx="64" cy="46" r="30" fill="#DB2777" stroke="#BE185D" stroke-width="3"/>
+        <path fill="none" stroke="#BE185D" stroke-width="10" stroke-linecap="round" d="M64 76 V116 M44 98 H84"/>
+      </svg>
+      <strong>Medium</strong>
+      <span class="blurb">Mid pink</span>
+    </div>
+    <div class="card">
+      <svg viewBox="0 0 128 128" aria-label="High">
+        <circle cx="64" cy="46" r="30" fill="#831843" stroke="#500724" stroke-width="3"/>
+        <path fill="none" stroke="#500724" stroke-width="10" stroke-linecap="round" d="M64 76 V116 M44 98 H84"/>
+      </svg>
+      <strong>High</strong>
+      <span class="blurb">Deep wine</span>
+    </div>
+  </div>
+
+  <!-- 4: Badge / disc weight -->
+  <h2>4 — Badge weight</h2>
+  <p class="hint">♀ sits on a disc that grows heavier: pale chip → pink disc → dark disc with white glyph.</p>
+  <div class="row">
+    <div class="card">
+      <svg viewBox="0 0 128 128" aria-label="Low">
+        <circle cx="64" cy="64" r="52" fill="#FDF2F8" stroke="#F9A8D4" stroke-width="4"/>
+        <circle cx="64" cy="50" r="20" fill="none" stroke="#BE185D" stroke-width="6"/>
+        <path fill="none" stroke="#BE185D" stroke-width="6" stroke-linecap="round" d="M64 70 V102 M50 88 H78"/>
+      </svg>
+      <strong>Low</strong>
+      <span class="blurb">Light badge</span>
+    </div>
+    <div class="card">
+      <svg viewBox="0 0 128 128" aria-label="Medium">
+        <circle cx="64" cy="64" r="52" fill="#F9A8D4" stroke="#DB2777" stroke-width="4"/>
+        <circle cx="64" cy="50" r="20" fill="none" stroke="#9D174D" stroke-width="7"/>
+        <path fill="none" stroke="#9D174D" stroke-width="7" stroke-linecap="round" d="M64 70 V102 M48 88 H80"/>
+      </svg>
+      <strong>Medium</strong>
+      <span class="blurb">Filled badge</span>
+    </div>
+    <div class="card">
+      <svg viewBox="0 0 128 128" aria-label="High">
+        <circle cx="64" cy="64" r="52" fill="#9D174D" stroke="#831843" stroke-width="4"/>
+        <circle cx="64" cy="50" r="20" fill="none" stroke="#FCE7F3" stroke-width="7"/>
+        <path fill="none" stroke="#FCE7F3" stroke-width="7" stroke-linecap="round" d="M64 70 V102 M48 88 H80"/>
+      </svg>
+      <strong>High</strong>
+      <span class="blurb">Inverse (white on dark)</span>
+    </div>
+  </div>
+
+  <!-- 5: Stress marks -->
+  <h2>5 — Stress marks around ♀</h2>
+  <p class="hint">Bare symbol → small stress ticks → dense ticks. Glyph stays constant; ambient tension rises.</p>
+  <div class="row">
+    <div class="card">
+      <svg viewBox="0 0 128 128" aria-label="Low">
+        <circle cx="64" cy="46" r="28" fill="#F9A8D4" stroke="#BE185D" stroke-width="3"/>
+        <path fill="none" stroke="#BE185D" stroke-width="9" stroke-linecap="round" d="M64 74 V114 M46 96 H82"/>
+      </svg>
+      <strong>Low</strong>
+      <span class="blurb">No stress marks</span>
+    </div>
+    <div class="card">
+      <svg viewBox="0 0 128 128" aria-label="Medium">
+        <path fill="none" stroke="#F472B6" stroke-width="4" stroke-linecap="round"
+              d="M20 36 L32 48 M108 36 L96 48 M18 80 L32 72 M110 80 L96 72"/>
+        <circle cx="64" cy="46" r="28" fill="#DB2777" stroke="#9D174D" stroke-width="3"/>
+        <path fill="none" stroke="#9D174D" stroke-width="9" stroke-linecap="round" d="M64 74 V114 M46 96 H82"/>
+      </svg>
+      <strong>Medium</strong>
+      <span class="blurb">Few stress ticks</span>
+    </div>
+    <div class="card">
+      <svg viewBox="0 0 128 128" aria-label="High">
+        <path fill="none" stroke="#F472B6" stroke-width="4" stroke-linecap="round"
+              d="M16 30 L30 44 M112 30 L98 44 M14 64 L30 64 M114 64 L98 64
+                 M18 98 L32 86 M110 98 L96 86 M64 8 L64 20"/>
+        <circle cx="64" cy="46" r="28" fill="#831843" stroke="#500724" stroke-width="3"/>
+        <path fill="none" stroke="#500724" stroke-width="10" stroke-linecap="round" d="M64 74 V114 M44 96 H84"/>
+      </svg>
+      <strong>High</strong>
+      <span class="blurb">Dense stress ticks</span>
+    </div>
+  </div>
+
+  <!-- 6: Crossbar emphasis -->
+  <h2>6 — Crossbar emphasis</h2>
+  <p class="hint">The horizontal cross of ♀ thickens / multiplies as intensity rises (subtle but distinctive).</p>
+  <div class="row">
+    <div class="card">
+      <svg viewBox="0 0 128 128" aria-label="Low">
+        <circle cx="64" cy="46" r="30" fill="none" stroke="#BE185D" stroke-width="8"/>
+        <path fill="none" stroke="#BE185D" stroke-width="8" stroke-linecap="round" d="M64 76 V116"/>
+        <path fill="none" stroke="#BE185D" stroke-width="6" stroke-linecap="round" d="M50 96 H78"/>
+      </svg>
+      <strong>Low</strong>
+      <span class="blurb">Thin crossbar</span>
+    </div>
+    <div class="card">
+      <svg viewBox="0 0 128 128" aria-label="Medium">
+        <circle cx="64" cy="46" r="30" fill="#DB2777" fill-opacity="0.25" stroke="#9D174D" stroke-width="8"/>
+        <path fill="none" stroke="#9D174D" stroke-width="8" stroke-linecap="round" d="M64 76 V116"/>
+        <path fill="none" stroke="#9D174D" stroke-width="10" stroke-linecap="round" d="M42 96 H86"/>
+      </svg>
+      <strong>Medium</strong>
+      <span class="blurb">Heavy crossbar</span>
+    </div>
+    <div class="card">
+      <svg viewBox="0 0 128 128" aria-label="High">
+        <circle cx="64" cy="46" r="30" fill="#9D174D" stroke="#831843" stroke-width="8"/>
+        <path fill="none" stroke="#831843" stroke-width="10" stroke-linecap="round" d="M64 76 V116"/>
+        <path fill="none" stroke="#FCE7F3" stroke-width="8" stroke-linecap="round" d="M38 88 H90"/>
+        <path fill="none" stroke="#FCE7F3" stroke-width="8" stroke-linecap="round" d="M38 104 H90"/>
+      </svg>
+      <strong>High</strong>
+      <span class="blurb">Double crossbar</span>
+    </div>
+  </div>
+
+  <!-- 7: Size scale -->
+  <h2>7 — Size scale</h2>
+  <p class="hint">Same mark, larger footprint for higher vulnerability. Very obvious on a map; can crowd cadastre.</p>
+  <div class="row">
+    <div class="card">
+      <svg viewBox="0 0 128 128" aria-label="Low">
+        <g transform="translate(64 64) scale(0.72) translate(-64 -64)">
+          <circle cx="64" cy="46" r="30" fill="#F9A8D4" stroke="#BE185D" stroke-width="4"/>
+          <path fill="none" stroke="#BE185D" stroke-width="10" stroke-linecap="round" d="M64 76 V116 M44 98 H84"/>
+        </g>
+      </svg>
+      <strong>Low</strong>
+      <span class="blurb">Small</span>
+    </div>
+    <div class="card">
+      <svg viewBox="0 0 128 128" aria-label="Medium">
+        <g transform="translate(64 64) scale(0.88) translate(-64 -64)">
+          <circle cx="64" cy="46" r="30" fill="#DB2777" stroke="#9D174D" stroke-width="4"/>
+          <path fill="none" stroke="#9D174D" stroke-width="10" stroke-linecap="round" d="M64 76 V116 M44 98 H84"/>
+        </g>
+      </svg>
+      <strong>Medium</strong>
+      <span class="blurb">Medium</span>
+    </div>
+    <div class="card">
+      <svg viewBox="0 0 128 128" aria-label="High">
+        <circle cx="64" cy="46" r="30" fill="#831843" stroke="#500724" stroke-width="4"/>
+        <path fill="none" stroke="#500724" stroke-width="10" stroke-linecap="round" d="M64 76 V116 M44 98 H84"/>
+      </svg>
+      <strong>High</strong>
+      <span class="blurb">Large</span>
+    </div>
+  </div>
+
+  <h2>On dark / map wash</h2>
+  <div class="row">
+    <div class="card on-dark">
+      <svg viewBox="0 0 128 128"><circle cx="64" cy="46" r="30" fill="none" stroke="#F9A8D4" stroke-width="8"/><path fill="none" stroke="#F9A8D4" stroke-width="8" stroke-linecap="round" d="M64 76 V116 M44 98 H84"/></svg>
+      <strong>1 Low</strong>
+    </div>
+    <div class="card on-dark">
+      <svg viewBox="0 0 128 128"><circle cx="64" cy="46" r="30" fill="#DB2777"/><path fill="none" stroke="#FCE7F3" stroke-width="8" stroke-linecap="round" d="M64 76 V116 M44 98 H84"/></svg>
+      <strong>1 High*</strong>
+      <span class="blurb">alt inverse</span>
+    </div>
+    <div class="card on-dark">
+      <svg viewBox="0 0 128 128"><circle cx="64" cy="64" r="52" fill="#9D174D"/><circle cx="64" cy="50" r="20" fill="none" stroke="#FCE7F3" stroke-width="7"/><path fill="none" stroke="#FCE7F3" stroke-width="7" stroke-linecap="round" d="M64 70 V102 M48 88 H80"/></svg>
+      <strong>4 High</strong>
+    </div>
+    <div class="card on-map">
+      <svg viewBox="0 0 128 128"><path fill="none" stroke="#DB2777" stroke-width="5" stroke-linejoin="round" d="M64 8 L120 118 H8 Z"/><circle cx="64" cy="48" r="18" fill="#9D174D"/><path fill="none" stroke="#FCE7F3" stroke-width="6" stroke-linecap="round" d="M64 66 V100 M52 86 H76"/></svg>
+      <strong>2 High</strong>
+    </div>
+  </div>
+
+  <h2>Legend strip mocks</h2>
+  <div class="legend-strip">
+    <span style="font-size:12px;color:#64748b">1 · Fill</span>
+    <div class="item">
+      <svg viewBox="0 0 128 128"><circle cx="64" cy="46" r="30" fill="none" stroke="#BE185D" stroke-width="8"/><path fill="none" stroke="#BE185D" stroke-width="8" stroke-linecap="round" d="M64 76 V116 M44 98 H84"/></svg>
+      Low
+    </div>
+    <div class="item">
+      <svg viewBox="0 0 128 128"><circle cx="64" cy="46" r="30" fill="#DB2777" fill-opacity=".55" stroke="#9D174D" stroke-width="4"/><path fill="none" stroke="#9D174D" stroke-width="8" stroke-linecap="round" d="M64 76 V116 M44 98 H84"/></svg>
+      Medium
+    </div>
+    <div class="item">
+      <svg viewBox="0 0 128 128"><circle cx="64" cy="46" r="30" fill="#9D174D"/><path fill="none" stroke="#831843" stroke-width="10" stroke-linecap="round" d="M64 76 V116 M42 98 H86"/></svg>
+      High
+    </div>
+  </div>
+  <div class="legend-strip">
+    <span style="font-size:12px;color:#64748b">4 · Badge</span>
+    <div class="item">
+      <svg viewBox="0 0 128 128"><circle cx="64" cy="64" r="52" fill="#FDF2F8" stroke="#F9A8D4" stroke-width="4"/><circle cx="64" cy="50" r="20" fill="none" stroke="#BE185D" stroke-width="6"/><path fill="none" stroke="#BE185D" stroke-width="6" stroke-linecap="round" d="M64 70 V102 M50 88 H78"/></svg>
+      Low
+    </div>
+    <div class="item">
+      <svg viewBox="0 0 128 128"><circle cx="64" cy="64" r="52" fill="#F9A8D4"/><circle cx="64" cy="50" r="20" fill="none" stroke="#9D174D" stroke-width="6"/><path fill="none" stroke="#9D174D" stroke-width="6" stroke-linecap="round" d="M64 70 V102 M50 88 H78"/></svg>
+      Medium
+    </div>
+    <div class="item">
+      <svg viewBox="0 0 128 128"><circle cx="64" cy="64" r="52" fill="#9D174D"/><circle cx="64" cy="50" r="20" fill="none" stroke="#FCE7F3" stroke-width="6"/><path fill="none" stroke="#FCE7F3" stroke-width="6" stroke-linecap="round" d="M64 70 V102 M50 88 H78"/></svg>
+      High
+    </div>
+  </div>
+</body>
+</html>

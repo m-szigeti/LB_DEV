@@ -330,6 +330,12 @@ const layerConfig = {
         type: 'sv-vector',
         url: JUNE17_FILES.theme8.district,
         legendName: 'Gender Based Vulnerabilities',
+        renderMode: 'forest-fire-symbol',
+        classIcons: [
+            'assets/gender-symbol-low.svg',
+            'assets/gender-symbol-medium.svg',
+            'assets/gender-symbol-high.svg'
+        ],
         style: {
             color: '#2b83ba',
             weight: 2,
@@ -854,7 +860,12 @@ const SV_BASE_LAYER_CONFIG = {
     svGenderLayer: {
         fixedColorRamp: 'whiteToDarkPink',
         legendName: 'Gender Based Vulnerabilities',
-        renderMode: 'choropleth',
+        renderMode: 'forest-fire-symbol',
+        classIcons: [
+            'assets/gender-symbol-low.svg',
+            'assets/gender-symbol-medium.svg',
+            'assets/gender-symbol-high.svg'
+        ],
         svAttribute: 'composite_score'
     }
 };
@@ -2459,7 +2470,7 @@ async function refreshSVLayerForDisplay(layerId, map, layers, addLegendEntry) {
             refreshSVServiceSymbolLayer(map, layers, addLegendEntry);
         }
     } else if (config.renderMode === 'forest-fire-symbol') {
-        refreshSVForestFireSymbolLayer(map, layers, addLegendEntry, { singleColorMode });
+        refreshSVForestFireSymbolLayer(layerId, map, layers, addLegendEntry, { singleColorMode });
     } else if (config.renderMode === 'edge-fade-ring') {
         refreshSVEdgeFadeRingLayer(map, layers, addLegendEntry, { singleColorMode });
     } else if (config.renderMode === 'stripe-pattern' || config.renderMode === 'service-pattern') {
@@ -2808,12 +2819,31 @@ const FOREST_FIRE_ICON_URLS = [
     'assets/forest-fire-medium.svg',
     'assets/forest-fire-high.svg'
 ];
+function getClassIconUrls(config) {
+    if (Array.isArray(config?.classIcons) && config.classIcons.length) {
+        return config.classIcons;
+    }
+    if (Array.isArray(config?.forestFireIcons) && config.forestFireIcons.length) {
+        return config.forestFireIcons;
+    }
+    return FOREST_FIRE_ICON_URLS;
+}
 const FOREST_FIRE_MARKER_SIZE_DEFAULT = 28;
 const FOREST_FIRE_MARKER_SIZE_AGGREGATE = 42;
 const FOREST_FIRE_MARKER_SIZE_UNCLUSTERED_CADASTRE = 36;
-/** Service (!) and Climate (fire) icons: center when alone, left/right of centroid when both on. */
-const ICON_PAIR_LAYER_IDS = ['svAdmin4Layer', 'svClimateLayer'];
+/** Service (!), Climate (tree), Gender (♀): center when alone; side-by-side when several are on. */
+const ICON_PAIR_LAYER_IDS = ['svAdmin4Layer', 'svClimateLayer', 'svGenderLayer'];
 const ICON_PAIR_SIDE_LNG_FRAC = 0.12;
+/** Slightly wider geographic step when all three share a unit. */
+const ICON_PAIR_SIDE_LNG_FRAC_TRIPLE = 0.15;
+/** Zoom where paired icons reach full base size. */
+const ICON_SIZE_ZOOM_FULL = 11;
+/** Zoom at/below which paired icons use the minimum scale. */
+const ICON_SIZE_ZOOM_MIN = 7;
+const ICON_SIZE_ZOOM_SCALE_MIN = 0.42;
+/** Extra shrink when 2 or 3 icon layers share a unit (index = active count). */
+const ICON_MULTI_COUNT_SCALE = [1, 1, 0.82, 0.68];
+const ICON_PAIR_MIN_CENTER_GAP_FRAC = 0.92;
 /** Pane above markers so AOI/info clicks hit polygons, not icons/clusters. */
 const SV_HIT_PANE_NAME = 'svHitPane';
 const SV_HIT_PANE_Z_INDEX = 625;
@@ -3388,6 +3418,7 @@ async function applySVResolution(resolution, map, layers, colorScales, addLegend
         config.patternColor = base.patternColor;
         config.edgeFadeColors = base.edgeFadeColors;
         config.forestFireIcons = base.forestFireIcons;
+        config.classIcons = base.classIcons;
         config.serviceSymbolColors = base.serviceSymbolColors;
         config.minRadius = base.minRadius;
         config.maxRadius = base.maxRadius;
@@ -3655,7 +3686,7 @@ async function loadSVLayer(layerId, map, layers, colorScales, addLegendEntry, re
             } else if (config.renderMode === 'service-symbol') {
                 loadedLayer = await loadSVServiceSymbolLayer(config, map);
             } else if (config.renderMode === 'forest-fire-symbol') {
-                loadedLayer = await loadSVForestFireSymbolLayer(config, map);
+                loadedLayer = await loadSVForestFireSymbolLayer(layerId, config, map);
             } else if (config.renderMode === 'edge-fade-ring') {
                 loadedLayer = await loadSVEdgeFadeRingLayer(config, map);
             } else if (config.renderMode === 'sectarian-glyph') {
@@ -3711,14 +3742,14 @@ async function loadSVLayer(layerId, map, layers, colorScales, addLegendEntry, re
             if (layers.vector[layerId]?._svAdminOutlineLayer) {
                 layers.vector[layerId]._svAdminOutlineLayer.addTo(map);
             }
-            attachSVServiceMarkerZoomSync(map, layers.vector[layerId]);
-            updateSVServiceMarkerIconSizes(map, layers.vector[layerId]);
+            attachSVServiceMarkerZoomSync(map, layers.vector[layerId], layers);
+            updateSVServiceMarkerIconSizes(map, layers.vector[layerId], layers);
         } else if (config.renderMode === 'forest-fire-symbol') {
             if (layers.vector[layerId]?._svAdminOutlineLayer) {
                 layers.vector[layerId]._svAdminOutlineLayer.addTo(map);
             }
-            attachSVForestFireMarkerZoomSync(map, layers.vector[layerId]);
-            updateSVForestFireMarkerIconSizes(map, layers.vector[layerId]);
+            attachSVForestFireMarkerZoomSync(map, layers.vector[layerId], layers);
+            updateSVForestFireMarkerIconSizes(map, layers.vector[layerId], layers);
         } else if (config.renderMode === 'proportional-circles' && layers.vector[layerId]?._svAdminOutlineLayer) {
             layers.vector[layerId]._svAdminOutlineLayer.addTo(map);
         } else if (config.renderMode === 'edge-fade-ring' && layers.vector[layerId]?._svAdminOutlineLayer) {
@@ -4033,35 +4064,100 @@ function isIconPairLayerShowingMarkers(layerId, layers) {
     if (layerId === 'svAdmin4Layer') {
         return Boolean(layer._isSVServiceSymbolLayer);
     }
-    if (layerId === 'svClimateLayer') {
+    if (layerId === 'svClimateLayer' || layerId === 'svGenderLayer') {
         return Boolean(layer._isSVForestFireSymbolLayer);
     }
     return false;
 }
 
-/** -1 = left of centroid, 0 = center, 1 = right of centroid. */
-function getIconPairSlot(layerId, layers) {
-    const serviceOn = isIconPairLayerShowingMarkers('svAdmin4Layer', layers);
-    const climateOn = isIconPairLayerShowingMarkers('svClimateLayer', layers);
-    if (serviceOn && climateOn) {
-        if (layerId === 'svAdmin4Layer') return -1;
-        if (layerId === 'svClimateLayer') return 1;
-    }
-    return 0;
+function getActiveIconPairLayerIds(layers) {
+    return ICON_PAIR_LAYER_IDS.filter(id => isIconPairLayerShowingMarkers(id, layers));
 }
 
-function latLngForIconPairSlot(home, slot) {
-    if (!home || !Number.isFinite(home.lat) || !Number.isFinite(home.lng)) return null;
-    const lngSpan = Number.isFinite(home.lngSpan) ? home.lngSpan : 0;
-    return L.latLng(home.lat, home.lng + slot * lngSpan * ICON_PAIR_SIDE_LNG_FRAC);
+function getIconPairMultiCount(layers) {
+    if (!layers) return 1;
+    return Math.max(1, getActiveIconPairLayerIds(layers).length);
+}
+
+/** Shrink icons when zoomed out and when several icon layers share a unit. */
+function scalePairedIconSize(baseSize, map, layers = null) {
+    let size = baseSize;
+    if (map && typeof map.getZoom === 'function') {
+        const z = map.getZoom();
+        const span = Math.max(0.001, ICON_SIZE_ZOOM_FULL - ICON_SIZE_ZOOM_MIN);
+        const t = Math.max(0, Math.min(1, (z - ICON_SIZE_ZOOM_MIN) / span));
+        size *= ICON_SIZE_ZOOM_SCALE_MIN + (1 - ICON_SIZE_ZOOM_SCALE_MIN) * t;
+    }
+    const n = Math.min(3, getIconPairMultiCount(layers));
+    size *= ICON_MULTI_COUNT_SCALE[n] ?? 1;
+    return Math.max(10, Math.round(size));
+}
+
+function getPairedIconSpacingSizePx(map, layers) {
+    const resolution = getActiveAdminResolution();
+    return Math.max(
+        getSVServiceMarkerSize(map, resolution, layers),
+        getForestFireMarkerSize(map, resolution, layers)
+    );
 }
 
 /**
- * Service and Climate icons share polygon centroids: centered when alone,
- * left (Service) / right (Climate) when both are visible.
+ * Horizontal slot relative to the unit centroid.
+ * 1 icon → 0; 2 → -1 / +1; 3 → -1 / 0 / +1 (Service, Climate, Gender order).
+ */
+function getIconPairSlot(layerId, layers) {
+    const active = getActiveIconPairLayerIds(layers);
+    const idx = active.indexOf(layerId);
+    if (idx < 0) return 0;
+    const n = active.length;
+    if (n <= 1) return 0;
+    const halfSpan = (n - 1) / 2;
+    // Preserve the previous ±1 spacing when exactly two icon layers are on.
+    const step = n === 2 ? 2 : 1;
+    return (idx - halfSpan) * step;
+}
+
+function latLngForIconPairSlot(home, slot, activeCount = 1, map = null, layers = null) {
+    if (!home || !Number.isFinite(home.lat) || !Number.isFinite(home.lng)) return null;
+    const center = L.latLng(home.lat, home.lng);
+    if (!slot) return center;
+
+    const lngSpan = Number.isFinite(home.lngSpan) ? home.lngSpan : 0;
+    const frac = activeCount >= 3 ? ICON_PAIR_SIDE_LNG_FRAC_TRIPLE : ICON_PAIR_SIDE_LNG_FRAC;
+    let target = L.latLng(home.lat, home.lng + slot * lngSpan * frac);
+
+    // Geographic offsets shrink in screen space when zoomed out; enforce a
+    // minimum pixel gap so side-by-side icons do not stack.
+    if (map && typeof map.latLngToLayerPoint === 'function' && typeof map.layerPointToLatLng === 'function') {
+        const homePt = map.latLngToLayerPoint(center);
+        const geoPt = map.latLngToLayerPoint(target);
+        const minGap = getPairedIconSpacingSizePx(map, layers) * ICON_PAIR_MIN_CENTER_GAP_FRAC;
+        // Pair uses slots ±1 (gap 2); triple uses ±1 / 0 (adjacent gap 1).
+        const desiredDx = slot * minGap * (activeCount === 2 ? 0.5 : 1);
+        if (Math.abs(desiredDx) > Math.abs(geoPt.x - homePt.x)) {
+            target = map.layerPointToLatLng(L.point(homePt.x + desiredDx, homePt.y));
+        }
+    }
+    return target;
+}
+
+/**
+ * Service, Climate, and Gender icons share polygon centroids: centered when alone,
+ * spread left-to-right when multiple are visible.
  */
 function syncIconPairMarkerPositions(map, layers) {
     if (!layers?.vector) return;
+    // Re-apply zoom / multi-layer sizes so newly toggled siblings shrink together.
+    ICON_PAIR_LAYER_IDS.forEach(layerId => {
+        const layer = layers.vector[layerId];
+        if (!layer || !isIconPairLayerShowingMarkers(layerId, layers)) return;
+        if (layer._isSVServiceSymbolLayer) {
+            updateSVServiceMarkerIconSizes(map, layer, layers);
+        } else if (layer._isSVForestFireSymbolLayer) {
+            updateSVForestFireMarkerIconSizes(map, layer, layers);
+        }
+    });
+    const activeCount = getActiveIconPairLayerIds(layers).length;
     ICON_PAIR_LAYER_IDS.forEach(layerId => {
         const layer = layers.vector[layerId];
         if (!layer || !isIconPairLayerShowingMarkers(layerId, layers)) return;
@@ -4069,7 +4165,7 @@ function syncIconPairMarkerPositions(map, layers) {
         const markers = layer._svServiceAllMarkers || layer._svForestFireAllMarkers || [];
         markers.forEach(marker => {
             const home = marker._svIconHome;
-            const latlng = latLngForIconPairSlot(home, slot);
+            const latlng = latLngForIconPairSlot(home, slot, activeCount, map, layers);
             if (!latlng || typeof marker.setLatLng !== 'function') return;
             marker.setLatLng(latlng);
             if (marker.feature?.geometry?.type === 'Point') {
@@ -4250,18 +4346,18 @@ async function loadSVServiceSymbolLayer(config, map = null) {
     return finalLayer;
 }
 
-async function loadSVForestFireSymbolLayer(config, map = null) {
+async function loadSVForestFireSymbolLayer(layerId, config, map = null) {
     const response = await fetch(config.url);
     const data = await response.json();
     const sourceFeatures = data?.features || [];
     const { pointFeatures, homes } = buildCenteredIconPointFeatures(sourceFeatures);
 
-    const attr = getEffectiveChoroplethAttribute('svClimateLayer', config) || config.svAttribute;
+    const attr = getEffectiveChoroplethAttribute(layerId, config) || config.svAttribute;
     const numericValues = pointFeatures
         .map(feature => Number(feature.properties?.[attr]))
         .filter(value => Number.isFinite(value));
     const breaks = resolveClassificationBreaks(numericValues, FOREST_FIRE_CLASS_COUNT, getClassificationMode());
-    const iconUrls = config.forestFireIcons || FOREST_FIRE_ICON_URLS;
+    const iconUrls = getClassIconUrls(config);
     const resolution = getActiveAdminResolution();
     const markerSize = getForestFireMarkerSize(null, resolution);
 
@@ -4899,22 +4995,23 @@ function buildSVServiceMarkerIcon(color, sizePx = SV_SERVICE_MARKER_SIZE_DEFAULT
     });
 }
 
-function getSVServiceMarkerSize(map, resolution = getActiveAdminResolution()) {
+function getSVServiceMarkerSize(map, resolution = getActiveAdminResolution(), layers = null) {
+    let base;
     if (resolution === 'district' || resolution === 'governorate') {
-        return SV_SERVICE_MARKER_SIZE_AGGREGATE;
+        base = SV_SERVICE_MARKER_SIZE_AGGREGATE;
+    } else if (!map || typeof map.getZoom !== 'function') {
+        base = SV_SERVICE_MARKER_SIZE_DEFAULT;
+    } else if (map.getZoom() >= SV_SERVICE_DISABLE_CLUSTERING_AT_ZOOM) {
+        base = SV_SERVICE_MARKER_SIZE_UNCLUSTERED_CADASTRE;
+    } else {
+        base = SV_SERVICE_MARKER_SIZE_DEFAULT;
     }
-    if (!map || typeof map.getZoom !== 'function') {
-        return SV_SERVICE_MARKER_SIZE_DEFAULT;
-    }
-    if (map.getZoom() >= SV_SERVICE_DISABLE_CLUSTERING_AT_ZOOM) {
-        return SV_SERVICE_MARKER_SIZE_UNCLUSTERED_CADASTRE;
-    }
-    return SV_SERVICE_MARKER_SIZE_DEFAULT;
+    return scalePairedIconSize(base, map, layers);
 }
 
-function updateSVServiceMarkerIconSizes(map, layer) {
+function updateSVServiceMarkerIconSizes(map, layer, layers = null) {
     if (!layer?._isSVServiceSymbolLayer) return;
-    const size = getSVServiceMarkerSize(map);
+    const size = getSVServiceMarkerSize(map, getActiveAdminResolution(), layers);
     const symbolColors = layer._svServiceSymbolMeta?.symbolColors || ['#22c55e', '#f59e0b', '#dc2626'];
     (layer._svServiceAllMarkers || []).forEach(marker => {
         const classIndex = Number(marker?.feature?.properties?.__svServiceClassIndex);
@@ -4925,10 +5022,13 @@ function updateSVServiceMarkerIconSizes(map, layer) {
     });
 }
 
-function attachSVServiceMarkerZoomSync(map, layer) {
+function attachSVServiceMarkerZoomSync(map, layer, layers = null) {
     if (!map || !layer?._isSVServiceSymbolLayer) return;
     detachSVServiceMarkerZoomSync(map, layer);
-    const handler = () => updateSVServiceMarkerIconSizes(map, layer);
+    const handler = () => {
+        if (layers) syncIconPairMarkerPositions(map, layers);
+        else updateSVServiceMarkerIconSizes(map, layer, layers);
+    };
     layer._svServiceMarkerZoomHandler = handler;
     map.on('zoomend', handler);
 }
@@ -4975,7 +5075,7 @@ function refreshSVServiceSymbolLayer(map, layers, addLegendEntry, options = {}) 
         marker.feature.properties.__svServiceClassIndex = classIndex;
     });
 
-    updateSVServiceMarkerIconSizes(map, layer);
+    updateSVServiceMarkerIconSizes(map, layer, layers);
 
     layer._svServiceSymbolMeta = { breaks, symbolColors, svAttribute: attr };
     if (layer.layerData) {
@@ -5132,17 +5232,18 @@ function buildForestFireMarkerIcon(classIndex, sizePx = FOREST_FIRE_MARKER_SIZE_
     });
 }
 
-function getForestFireMarkerSize(map, resolution = getActiveAdminResolution()) {
+function getForestFireMarkerSize(map, resolution = getActiveAdminResolution(), layers = null) {
+    let base;
     if (resolution === 'district' || resolution === 'governorate') {
-        return FOREST_FIRE_MARKER_SIZE_AGGREGATE;
+        base = FOREST_FIRE_MARKER_SIZE_AGGREGATE;
+    } else if (!map || typeof map.getZoom !== 'function') {
+        base = FOREST_FIRE_MARKER_SIZE_DEFAULT;
+    } else if (map.getZoom() >= SV_SERVICE_DISABLE_CLUSTERING_AT_ZOOM) {
+        base = FOREST_FIRE_MARKER_SIZE_UNCLUSTERED_CADASTRE;
+    } else {
+        base = FOREST_FIRE_MARKER_SIZE_DEFAULT;
     }
-    if (!map || typeof map.getZoom !== 'function') {
-        return FOREST_FIRE_MARKER_SIZE_DEFAULT;
-    }
-    if (map.getZoom() >= SV_SERVICE_DISABLE_CLUSTERING_AT_ZOOM) {
-        return FOREST_FIRE_MARKER_SIZE_UNCLUSTERED_CADASTRE;
-    }
-    return FOREST_FIRE_MARKER_SIZE_DEFAULT;
+    return scalePairedIconSize(base, map, layers);
 }
 
 function createForestFireClusterIcon(cluster, iconUrls = FOREST_FIRE_ICON_URLS) {
@@ -5175,9 +5276,9 @@ function createForestFireClusterIcon(cluster, iconUrls = FOREST_FIRE_ICON_URLS) 
     });
 }
 
-function updateSVForestFireMarkerIconSizes(map, layer) {
+function updateSVForestFireMarkerIconSizes(map, layer, layers = null) {
     if (!layer?._isSVForestFireSymbolLayer) return;
-    const size = getForestFireMarkerSize(map);
+    const size = getForestFireMarkerSize(map, getActiveAdminResolution(), layers);
     const iconUrls = layer._svForestFireMeta?.iconUrls || FOREST_FIRE_ICON_URLS;
     (layer._svForestFireAllMarkers || []).forEach(marker => {
         const classIndex = Number(marker?.feature?.properties?.__svForestFireClassIndex);
@@ -5187,10 +5288,13 @@ function updateSVForestFireMarkerIconSizes(map, layer) {
     });
 }
 
-function attachSVForestFireMarkerZoomSync(map, layer) {
+function attachSVForestFireMarkerZoomSync(map, layer, layers = null) {
     if (!map || !layer?._isSVForestFireSymbolLayer) return;
     detachSVForestFireMarkerZoomSync(map, layer);
-    const handler = () => updateSVForestFireMarkerIconSizes(map, layer);
+    const handler = () => {
+        if (layers) syncIconPairMarkerPositions(map, layers);
+        else updateSVForestFireMarkerIconSizes(map, layer, layers);
+    };
     layer._svForestFireMarkerZoomHandler = handler;
     map.on('zoomend', handler);
 }
@@ -5211,8 +5315,7 @@ function setSVForestFireMarkersOnMap(map, layer, onMap) {
     }
 }
 
-function refreshSVClimateSingleColorMode(map, layers, addLegendEntry) {
-    const layerId = 'svClimateLayer';
+function refreshSVClassIconSingleColorMode(layerId, map, layers, addLegendEntry) {
     const config = layerConfig[layerId];
     const layer = layers.vector[layerId];
     if (!config || !layer || !layer._isSVForestFireSymbolLayer) return;
@@ -5260,14 +5363,13 @@ function refreshSVClimateSingleColorMode(map, layers, addLegendEntry) {
     }
 }
 
-function refreshSVForestFireSymbolLayer(map, layers, addLegendEntry, options = {}) {
-    const layerId = 'svClimateLayer';
+function refreshSVForestFireSymbolLayer(layerId, map, layers, addLegendEntry, options = {}) {
     const config = layerConfig[layerId];
     const layer = layers.vector[layerId];
     if (!config || !layer || !layer._isSVForestFireSymbolLayer) return;
 
     if (options.singleColorMode) {
-        refreshSVClimateSingleColorMode(map, layers, addLegendEntry);
+        refreshSVClassIconSingleColorMode(layerId, map, layers, addLegendEntry);
         return;
     }
 
@@ -5283,7 +5385,7 @@ function refreshSVForestFireSymbolLayer(map, layers, addLegendEntry, options = {
         .map(feature => Number(feature.properties?.[attr]))
         .filter(value => Number.isFinite(value));
     const breaks = resolveClassificationBreaks(numericValues, FOREST_FIRE_CLASS_COUNT, getClassificationMode());
-    const iconUrls = config.forestFireIcons || FOREST_FIRE_ICON_URLS;
+    const iconUrls = getClassIconUrls(config);
     const allMarkers = layer._svForestFireAllMarkers || [];
 
     allMarkers.forEach(marker => {
@@ -5293,7 +5395,7 @@ function refreshSVForestFireSymbolLayer(map, layers, addLegendEntry, options = {
         marker.feature.properties.__svForestFireClassIndex = classIndex;
     });
 
-    updateSVForestFireMarkerIconSizes(map, layer);
+    updateSVForestFireMarkerIconSizes(map, layer, layers);
 
     layer._svForestFireMeta = { breaks, iconUrls, svAttribute: attr };
     if (layer.layerData) {
@@ -6137,7 +6239,7 @@ function applySVLayerOpacity(layerId, layers, opacity, map = null, addLegendEntr
     }
 
     if (config.renderMode === 'forest-fire-symbol') {
-        refreshSVForestFireSymbolLayer(map, layers, addLegendEntry);
+        refreshSVForestFireSymbolLayer(layerId, map, layers, addLegendEntry);
         return;
     }
 

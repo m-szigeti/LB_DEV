@@ -194,7 +194,7 @@ function renderForestFireSymbolEntry(entry) {
     const desc = entry.description
         ? `<p style="margin: 8px 0 0 0; font-size: 10px; color: #666; line-height: 1.3;">${entry.description}</p>`
         : `<p style="margin: 8px 0 0 0; font-size: 10px; color: #666; line-height: 1.3;">
-                    Icons sit slightly off-center; at cadastre they cluster by majority class.
+                    Class icons at each unit. Service, Climate, and Gender sit side by side when several are on; at cadastre they cluster by majority class.
                 </p>`;
 
     return `
