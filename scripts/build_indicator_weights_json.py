@@ -59,14 +59,8 @@ OVERALL_PILLAR_META = {
         "sourceField": "composite_score",
         "pillarField": "_pillar_T4",
     },
-    5: {
-        "label": "Demographic Tension / Stress",
-        "sourceLayerId": "svAdmin5Layer",
-        "sourceField": "Demographic Factor",
-        "pillarField": "_pillar_T5",
-    },
     6: {
-        "label": "Climate and Environmental Risk",
+        "label": "Climate Risk",
         "sourceLayerId": "svClimateLayer",
         "sourceField": "composite_score",
         "pillarField": "_pillar_T6",

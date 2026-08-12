@@ -51,7 +51,6 @@ const PILLAR_SCORE_FIELDS = [
 const SV_LAYER_TYPE_TO_ID = {
     'sv-overall': 'svOverallTensionLayer',
     'sv-custom-overall': 'svCustomOverallLayer',
-    'sv-admin5': 'svAdmin5Layer',
     'sv-admin1': 'svAdmin1Layer',
     'sv-admin2': 'svAdmin2Layer',
     'sv-admin3': 'svAdmin3Layer',
@@ -68,7 +67,6 @@ const COMPOSITE_LAYER_TYPES = new Set([
     'sv-admin2',
     'sv-admin3',
     'sv-admin4',
-    'sv-admin5',
     'sv-climate',
     'sv-political',
     'sv-gender'
@@ -454,12 +452,7 @@ function generateEnrichedCompositePopup(properties, layerType, sourceLayer, enri
 function formatScoreHeroCategory(numericValue, attributeKey, layerType, sourceLayer) {
     if (!Number.isFinite(numericValue)) return '';
     const skipVulnCategory =
-        (attributeKey && String(attributeKey).startsWith('peace_si_')) ||
-        (layerType === 'sv-admin5' &&
-            (String(attributeKey).includes('Population') ||
-                String(attributeKey).includes('Heterogeneity') ||
-                String(attributeKey).includes('Displacement_Ratio') ||
-                String(attributeKey).includes('Demographic_Factor')));
+        attributeKey && String(attributeKey).startsWith('peace_si_');
     if (skipVulnCategory) return '';
     const categoryLabel =
         getSubindicatorCategoryLabel(numericValue, attributeKey, layerType, sourceLayer) ||
@@ -650,12 +643,7 @@ function generateSocialVulnerabilitySection(properties, layerType = 'default', s
         const numericValue = Number(rawValue);
         const svValue = formatValue(rawValue);
         const skipVulnCategory =
-            (primaryField && String(primaryField).startsWith('peace_si_')) ||
-            (layerType === 'sv-admin5' &&
-                (String(primaryField).includes('Population') ||
-                    String(primaryField).includes('Heterogeneity') ||
-                    String(primaryField).includes('Displacement_Ratio') ||
-                    String(primaryField).includes('Demographic_Factor')));
+            primaryField && String(primaryField).startsWith('peace_si_');
         let svCategory = '';
         if (!skipVulnCategory && Number.isFinite(numericValue)) {
             const categoryLabel =
@@ -738,41 +726,6 @@ function generateSocialVulnerabilitySection(properties, layerType = 'default', s
 
 function getPrimaryVulnerabilityField(properties, layerType = '') {
     if (!properties) return null;
-
-    if (layerType === 'sv-admin5') {
-        const key = getPrimarySubindicator('svAdmin5Layer');
-        if (key && properties[key] !== undefined && properties[key] !== null && properties[key] !== '') {
-            return key;
-        }
-        if (
-            properties.composite_score !== undefined &&
-            properties.composite_score !== null &&
-            properties.composite_score !== ''
-        ) {
-            return 'composite_score';
-        }
-        if (
-            properties['Demographic Factor'] !== undefined &&
-            properties['Demographic Factor'] !== null &&
-            properties['Demographic Factor'] !== ''
-        ) {
-            return 'Demographic Factor';
-        }
-        if (
-            properties['Demographic_Factor (DF = S*H)'] !== undefined &&
-            properties['Demographic_Factor (DF = S*H)'] !== null &&
-            properties['Demographic_Factor (DF = S*H)'] !== ''
-        ) {
-            return 'Demographic_Factor (DF = S*H)';
-        }
-        if (
-            properties['Demographic_Factor (DF = S*H)_mean'] !== undefined &&
-            properties['Demographic_Factor (DF = S*H)_mean'] !== null &&
-            properties['Demographic_Factor (DF = S*H)_mean'] !== ''
-        ) {
-            return 'Demographic_Factor (DF = S*H)_mean';
-        }
-    }
 
     if (layerType === 'sv-admin1') {
         const key = getPrimarySubindicator('svAdmin1Layer');
@@ -921,8 +874,7 @@ function getLayerScoreSectionTitle(layerType) {
     if (layerType === 'sv-admin1') return 'Displacement Pressure';
     if (layerType === 'sv-admin2') return 'Socioeconomic Vulnerability';
     if (layerType === 'sv-admin3') return 'Tensions and Conflict Risk';
-    if (layerType === 'sv-admin5') return 'Demographic Tension / Stress';
-    if (layerType === 'sv-climate') return 'Climate and Environmental Risk';
+    if (layerType === 'sv-climate') return 'Climate Risk';
     if (layerType === 'sv-political') return 'Political Vulnerability';
     if (layerType === 'sv-gender') return 'Gender Based Vulnerabilities';
     if (layerType === 'population') return 'Population';
@@ -951,14 +903,8 @@ function getPrimaryFieldDisplayLabel(fieldName, layerType) {
     if (layerType === 'sv-admin2' && fieldName === 'composite_score') {
         return 'Socioeconomic Vulnerability';
     }
-    if (layerType === 'sv-admin5' && fieldName === 'Demographic Factor') {
-        return 'Demographic Shock Factor';
-    }
-    if (layerType === 'sv-admin5' && fieldName === 'composite_score') {
-        return 'Demographic Tension / Stress';
-    }
     if (layerType === 'sv-climate' && fieldName === 'composite_score') {
-        return 'Climate and Environmental Risk';
+        return 'Climate Risk';
     }
     if (layerType === 'sv-political' && fieldName === 'composite_score') {
         return 'Political Vulnerability';
@@ -1064,7 +1010,6 @@ function getPrimaryFieldDisplayLabel(fieldName, layerType) {
     if (layerType === 'sv-admin1') return 'Displacement Pressure Score';
     if (layerType === 'sv-admin2') return 'Socioeconomic Vulnerability';
     if (layerType === 'sv-admin3') return 'Tensions and Conflict Risk';
-    if (layerType === 'sv-admin5') return 'Demographic Tension / Stress';
     return fieldName.replace(/_/g, ' ');
 }
 
@@ -1106,7 +1051,6 @@ const LAYER_TYPE_TO_MAP_LAYER_ID = {
     'sv-admin1': 'svAdmin1Layer',
     'sv-admin2': 'svAdmin2Layer',
     'sv-admin3': 'svAdmin3Layer',
-    'sv-admin5': 'svAdmin5Layer',
     'sv-climate': 'svClimateLayer',
     'sv-political': 'svPoliticalLayer',
     'sv-gender': 'svGenderLayer'
@@ -1129,12 +1073,7 @@ function getSubindicatorCategoryLabel(numericValue, fieldKey, layerType, sourceL
         return getClassLabelForLayerValue(numericValue, mapLayer, VULNERABILITY_CLASS_LABELS);
     }
     if (mapLayer?.layerData?.raw && fieldKey) {
-        const rampId =
-            layerType === 'sv-admin5'
-                ? 'whiteToDarkBlue3'
-                : layerType === 'sv-admin3'
-                  ? 'whiteToDarkPurple3'
-                  : null;
+        const rampId = layerType === 'sv-admin3' ? 'whiteToDarkPurple3' : null;
         if (rampId) {
             return getPillarScoreClassLabel(numericValue, fieldKey, rampId, mapLayer.layerData.raw);
         }

@@ -2,13 +2,6 @@
  * Sidebar sub-indicator chip panels (single-select).
  */
 
-/** Set to true to restore Demographic Tension / Stress sub-indicator chips. */
-export const DEMOGRAPHIC_SUBINDICATORS_ENABLED = false;
-
-export function supportsDemographicSubindicators() {
-    return DEMOGRAPHIC_SUBINDICATORS_ENABLED;
-}
-
 const selections = new Map();
 const selectionLabels = new Map();
 const PANEL_REGISTRY = new Map();
@@ -26,9 +19,6 @@ export function registerSVSubindicatorPanel(layerId, { wrapId, getOptions, getDe
 }
 
 export function getSelectedSubindicators(layerId) {
-    if (layerId === 'svAdmin5Layer' && !DEMOGRAPHIC_SUBINDICATORS_ENABLED) {
-        return [];
-    }
     const panel = PANEL_REGISTRY.get(layerId);
     if (!panel) return [];
     const stored = selections.get(layerId);

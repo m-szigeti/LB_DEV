@@ -105,25 +105,10 @@ export const CUSTOM_OVERALL_THEMES = [
         ]
     },
     {
-        themeNumber: 5,
-        layerId: 'svAdmin5Layer',
-        weightsKey: null,
-        title: 'Demographic Tension / Stress',
-        scoreField: 'Demographic Factor',
-        resolutions: ['governorate', 'district', 'cadastre'],
-        indicators: [
-            { field: 'Demographic Factor', label: 'Demographic Shock Factor' },
-            { field: 'Resident Population', label: 'Resident Population' },
-            { field: 'Displaced Population', label: 'Displaced Population' },
-            { field: 'Heterogeneity', label: 'Heterogeneity' },
-            { field: 'Displacement Ratio', label: 'Displacement Ratio' }
-        ]
-    },
-    {
         themeNumber: 6,
         layerId: 'svClimateLayer',
         weightsKey: '6',
-        title: 'Climate and Environmental Risk',
+        title: 'Climate Risk',
         scoreField: 'composite_score',
         resolutions: ['governorate', 'district', 'cadastre'],
         indicators: [
@@ -160,7 +145,8 @@ export const CUSTOM_OVERALL_THEMES = [
             {
                 field: 'ISF effect on quality of life: worsened life somewhat + alot',
                 label: 'ISF effect on quality of life'
-            }
+            },
+            { field: 'Demographic Factor', label: 'Demographic Shock Factor' }
         ]
     },
     {

@@ -17,8 +17,7 @@ THEME_TO_LAYER = {
     "Tensions and Conflict Risk": "svAdmin3Layer",
     "Socioeconomic Vulnerability": "svAdmin2Layer",
     "Service & Infrastructure Vulnerability": "svAdmin4Layer",
-    "Demographic Tension / Stress": "svAdmin5Layer",
-    "Climate and Environmental Risk": "svClimateLayer",
+    "Climate Risk": "svClimateLayer",
     "Political Vulnerability": "svPoliticalLayer",
     "Gender Based Vulnerabilities": "svGenderLayer",
 }

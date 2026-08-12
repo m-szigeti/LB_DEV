@@ -80,6 +80,14 @@ export const INDICATOR_DEFINITIONS_BY_LAYER = {
       "typeQuestion": "How often do state-citizen tensions break out into incidents of confrontation?",
       "themeName": "Political Vulnerability",
       "themeNumber": 7
+    },
+    {
+      "code": "PV17",
+      "indicator": "Demographic Shock Factor",
+      "definition": "Demographic pressure combining resident population scale and population heterogeneity (DF = S × H), used as a shock factor within Political Vulnerability.",
+      "typeQuestion": "How strongly do demographic scale and heterogeneity amplify local political vulnerability?",
+      "themeName": "Political Vulnerability",
+      "themeNumber": 7
     }
   ],
   "svGenderLayer": [
@@ -356,23 +364,13 @@ export const INDICATOR_DEFINITIONS_BY_LAYER = {
       "themeNumber": 4
     }
   ],
-  "svAdmin5Layer": [
-    {
-      "code": "T17",
-      "indicator": "Demographic Shock Factor",
-      "definition": "",
-      "typeQuestion": "",
-      "themeName": "Demographic Tension / Stress",
-      "themeNumber": 5
-    }
-  ],
   "svClimateLayer": [
     {
       "code": "E1",
       "indicator": "Mean annual hot days",
       "definition": "",
       "typeQuestion": "% change in number of consecutive hot days per year;",
-      "themeName": "Climate and Environmental Risk",
+      "themeName": "Climate Risk",
       "themeNumber": 6
     },
     {
@@ -380,7 +378,7 @@ export const INDICATOR_DEFINITIONS_BY_LAYER = {
       "indicator": "Forest fire risk",
       "definition": "",
       "typeQuestion": "% change in number of forest fires per district;",
-      "themeName": "Climate and Environmental Risk",
+      "themeName": "Climate Risk",
       "themeNumber": 6
     },
     {
@@ -388,7 +386,7 @@ export const INDICATOR_DEFINITIONS_BY_LAYER = {
       "indicator": "Annual Dry Spell Length",
       "definition": "",
       "typeQuestion": "Numbers of consecutive dry days per year",
-      "themeName": "Climate and Environmental Risk",
+      "themeName": "Climate Risk",
       "themeNumber": 6
     }
   ]
@@ -399,8 +397,7 @@ export const LAYER_THEME_NAMES = {
   "svAdmin3Layer": "Tensions and Conflict Risk",
   "svAdmin2Layer": "Socioeconomic Vulnerability",
   "svAdmin4Layer": "Service & Infrastructure Vulnerability",
-  "svAdmin5Layer": "Demographic Tension / Stress",
-  "svClimateLayer": "Climate and Environmental Risk",
+  "svClimateLayer": "Climate Risk",
   "svPoliticalLayer": "Political Vulnerability",
   "svGenderLayer": "Gender Based Vulnerabilities"
 };

@@ -182,7 +182,7 @@
     },
     "6": {
       "layerId": "svClimateLayer",
-      "themeName": "Climate and Environmental Risk",
+      "themeName": "Climate Risk",
       "compositeField": "composite_score",
       "mode": "theme-subindicators",
       "indicators": [
@@ -350,7 +350,7 @@
         {
           "field": "_pillar_T1",
           "label": "Displacement Pressure",
-          "defaultWeight": 0.149469,
+          "defaultWeight": 0.182834,
           "inverted": false,
           "sourceLayerId": "svAdmin1Layer",
           "sourceField": "Displacement Ratio",
@@ -359,7 +359,7 @@
         {
           "field": "_pillar_T2",
           "label": "Tensions and Conflict Risk",
-          "defaultWeight": 0.107017,
+          "defaultWeight": 0.130906,
           "inverted": false,
           "sourceLayerId": "svAdmin3Layer",
           "sourceField": "composite_score",
@@ -368,7 +368,7 @@
         {
           "field": "_pillar_T3",
           "label": "Socioeconomic Vulnerability",
-          "defaultWeight": 0.112913,
+          "defaultWeight": 0.138118,
           "inverted": false,
           "sourceLayerId": "svAdmin2Layer",
           "sourceField": "composite_score",
@@ -377,25 +377,16 @@
         {
           "field": "_pillar_T4",
           "label": "Service & Infrastructure Vulnerability",
-          "defaultWeight": 0.178361,
+          "defaultWeight": 0.218175,
           "inverted": false,
           "sourceLayerId": "svAdmin4Layer",
           "sourceField": "composite_score",
           "themeNumber": 4
         },
         {
-          "field": "_pillar_T5",
-          "label": "Demographic Tension / Stress",
-          "defaultWeight": 0.182488,
-          "inverted": false,
-          "sourceLayerId": "svAdmin5Layer",
-          "sourceField": "Demographic Factor",
-          "themeNumber": 5
-        },
-        {
           "field": "_pillar_T6",
-          "label": "Climate and Environmental Risk",
-          "defaultWeight": 0.060436,
+          "label": "Climate Risk",
+          "defaultWeight": 0.073927,
           "inverted": false,
           "sourceLayerId": "svClimateLayer",
           "sourceField": "composite_score",
@@ -404,7 +395,7 @@
         {
           "field": "_pillar_T7",
           "label": "Political Vulnerability",
-          "defaultWeight": 0.1023,
+          "defaultWeight": 0.125136,
           "inverted": false,
           "sourceLayerId": "svPoliticalLayer",
           "sourceField": "composite_score",
@@ -413,7 +404,7 @@
         {
           "field": "_pillar_T8",
           "label": "Gender Based Vulnerabilities",
-          "defaultWeight": 0.107017,
+          "defaultWeight": 0.130904,
           "inverted": false,
           "sourceLayerId": "svGenderLayer",
           "sourceField": "composite_score",
@@ -557,7 +548,7 @@
     },
     "6": {
       "layerId": "svClimateLayer",
-      "themeName": "Climate and Environmental Risk",
+      "themeName": "Climate Risk",
       "compositeField": "composite_score",
       "mode": "theme-subindicators",
       "indicators": [
@@ -707,7 +698,7 @@
         {
           "field": "_pillar_T1",
           "label": "Displacement Pressure",
-          "defaultWeight": 0.119835,
+          "defaultWeight": 0.144279,
           "inverted": false,
           "sourceLayerId": "svAdmin1Layer",
           "sourceField": "Displacement Ratio",
@@ -716,7 +707,7 @@
         {
           "field": "_pillar_T2",
           "label": "Tensions and Conflict Risk",
-          "defaultWeight": 0.086777,
+          "defaultWeight": 0.104478,
           "inverted": false,
           "sourceLayerId": "svAdmin3Layer",
           "sourceField": "composite_score",
@@ -725,7 +716,7 @@
         {
           "field": "_pillar_T3",
           "label": "Socioeconomic Vulnerability",
-          "defaultWeight": 0.194215,
+          "defaultWeight": 0.233831,
           "inverted": false,
           "sourceLayerId": "svAdmin2Layer",
           "sourceField": "composite_score",
@@ -734,25 +725,16 @@
         {
           "field": "_pillar_T4",
           "label": "Service & Infrastructure Vulnerability",
-          "defaultWeight": 0.095041,
+          "defaultWeight": 0.114427,
           "inverted": false,
           "sourceLayerId": "svAdmin4Layer",
           "sourceField": "composite_score",
           "themeNumber": 4
         },
         {
-          "field": "_pillar_T5",
-          "label": "Demographic Tension / Stress",
-          "defaultWeight": 0.169421,
-          "inverted": false,
-          "sourceLayerId": "svAdmin5Layer",
-          "sourceField": "Demographic Factor",
-          "themeNumber": 5
-        },
-        {
           "field": "_pillar_T6",
-          "label": "Climate and Environmental Risk",
-          "defaultWeight": 0.103306,
+          "label": "Climate Risk",
+          "defaultWeight": 0.124378,
           "inverted": false,
           "sourceLayerId": "svClimateLayer",
           "sourceField": "composite_score",
@@ -761,7 +743,7 @@
         {
           "field": "_pillar_T7",
           "label": "Political Vulnerability",
-          "defaultWeight": 0.078512,
+          "defaultWeight": 0.094527,
           "inverted": false,
           "sourceLayerId": "svPoliticalLayer",
           "sourceField": "composite_score",
@@ -770,7 +752,7 @@
         {
           "field": "_pillar_T8",
           "label": "Gender Based Vulnerabilities",
-          "defaultWeight": 0.152893,
+          "defaultWeight": 0.18408,
           "inverted": false,
           "sourceLayerId": "svGenderLayer",
           "sourceField": "composite_score",
@@ -852,7 +834,7 @@
     },
     "6": {
       "layerId": "svClimateLayer",
-      "themeName": "Climate and Environmental Risk",
+      "themeName": "Climate Risk",
       "compositeField": "composite_score",
       "mode": "theme-subindicators",
       "indicators": [
@@ -892,7 +874,7 @@
         {
           "field": "_pillar_T1",
           "label": "Displacement Pressure",
-          "defaultWeight": 0.256542,
+          "defaultWeight": 0.302406,
           "inverted": false,
           "sourceLayerId": "svAdmin1Layer",
           "sourceField": "Displacement Ratio",
@@ -901,7 +883,7 @@
         {
           "field": "_pillar_T2",
           "label": "Tensions and Conflict Risk",
-          "defaultWeight": 0.345327,
+          "defaultWeight": 0.407064,
           "inverted": false,
           "sourceLayerId": "svAdmin3Layer",
           "sourceField": "composite_score",
@@ -910,25 +892,16 @@
         {
           "field": "_pillar_T3",
           "label": "Socioeconomic Vulnerability",
-          "defaultWeight": 0.07412,
+          "defaultWeight": 0.087371,
           "inverted": false,
           "sourceLayerId": "svAdmin2Layer",
           "sourceField": "composite_score",
           "themeNumber": 3
         },
         {
-          "field": "_pillar_T5",
-          "label": "Demographic Tension / Stress",
-          "defaultWeight": 0.151664,
-          "inverted": false,
-          "sourceLayerId": "svAdmin5Layer",
-          "sourceField": "Demographic Factor",
-          "themeNumber": 5
-        },
-        {
           "field": "_pillar_T6",
-          "label": "Climate and Environmental Risk",
-          "defaultWeight": 0.172346,
+          "label": "Climate Risk",
+          "defaultWeight": 0.203159,
           "inverted": false,
           "sourceLayerId": "svClimateLayer",
           "sourceField": "composite_score",

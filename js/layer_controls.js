@@ -25,7 +25,6 @@ import {
     getPrimarySubindicator,
     renderSVSubindicatorPanels,
     renderSVSubindicatorPanel,
-    supportsDemographicSubindicators,
 } from './sv_subindicators.js';
 import {
     isAnalysisSelectionActive,
@@ -99,11 +98,6 @@ const JUNE17_FILES = {
         governorate: dataFile('GOV Theme 4 - Service & Infrastructure Vulnerability__from_dis_spatial.geojson'),
         district: dataFile('DIS Theme 4 - Service & Infrastructure Vulnerability__joined.geojson')
     },
-    theme5: {
-        governorate: dataFile('GOV Theme 5 - Demographic Tension Stress__from_dis_spatial.geojson'),
-        district: dataFile('DIS Theme 5 - Demographic Tension Stress__joined.geojson'),
-        cadastre: dataFile('CAD Theme 5 - Demographic Tension Stress__joined.geojson')
-    },
     theme6: {
         governorate: dataFile('GOV Theme 6 - Climate and Environmental Risk__from_dis_spatial.geojson'),
         district: dataFile('DIS Theme 6 - Climate Change and Environmental Risk__joined.geojson'),
@@ -121,7 +115,6 @@ const JUNE17_FILES = {
 
 const OVERALL_VULNERABILITY_SCORE_FIELD = 'overall_vulnerability_score';
 const DISPLACEMENT_RATIO_FIELD = 'Displacement Ratio';
-const DEMOGRAPHIC_DF_FIELD_CADASTRE = 'Demographic Factor';
 
 // Layer configuration - maps checkbox IDs to loading functions and parameters
 const layerConfig = {
@@ -288,29 +281,11 @@ const layerConfig = {
         svAttribute: 'composite_score',
         layerType: 'sv-admin4'
     },
-    svAdmin5Layer: {
-        fixedColorRamp: 'yellowOrangeRed3',
-        type: 'sv-vector',
-        url: JUNE17_FILES.theme5.cadastre,
-        legendName: 'Demographic Tension / Stress',
-        style: {
-            color: '#2b83ba',
-            weight: 2,
-            opacity: 1,
-            fillOpacity: 0.6
-        },
-        opacityControl: 'svOpacity',
-        opacityDisplay: 'svOpacityValue',
-        colorRampSelector: 'svColorRamp',
-        colorRampPreview: 'svColorPreview',
-        svAttribute: DEMOGRAPHIC_DF_FIELD_CADASTRE,
-        layerType: 'sv-admin5'
-    },
     svClimateLayer: {
         fixedColorRamp: 'whiteToDarkRed',
         type: 'sv-vector',
         url: JUNE17_FILES.theme6.district,
-        legendName: 'Climate and Environmental Risk',
+        legendName: 'Climate Risk',
         renderMode: 'forest-fire-symbol',
         forestFireIcons: [
             'assets/forest-fire-low.svg',
@@ -618,13 +593,8 @@ const SV_THEME_SCORE_DEFINITIONS = [
         color: '#8b5cf6'
     },
     {
-        layerId: 'svAdmin5Layer',
-        label: 'Demographic Tension / Stress',
-        color: '#d94701'
-    },
-    {
         layerId: 'svClimateLayer',
-        label: 'Climate and Environmental Risk',
+        label: 'Climate Risk',
         color: '#b2182b'
     },
     {
@@ -654,7 +624,6 @@ const SV_LAYER_IDS = [
     'svAdmin2Layer',
     'svAdmin3Layer',
     'svAdmin4Layer',
-    'svAdmin5Layer',
     'svClimateLayer',
     'svPoliticalLayer',
     'svGenderLayer'
@@ -864,15 +833,9 @@ const SV_BASE_LAYER_CONFIG = {
         serviceSymbolColors: ['#22c55e', '#f59e0b', '#dc2626'],
         svAttribute: 'composite_score'
     },
-    svAdmin5Layer: {
-        fixedColorRamp: 'yellowOrangeRed3',
-        legendName: 'Demographic Tension / Stress',
-        renderMode: 'choropleth',
-        svAttribute: DEMOGRAPHIC_DF_FIELD_CADASTRE
-    },
     svClimateLayer: {
         fixedColorRamp: 'whiteToDarkRed',
-        legendName: 'Climate and Environmental Risk',
+        legendName: 'Climate Risk',
         renderMode: 'forest-fire-symbol',
         forestFireIcons: [
             'assets/forest-fire-low.svg',
@@ -927,12 +890,6 @@ const SV_RESOLUTION_CONFIG = {
             url: JUNE17_FILES.theme4.district,
             available: true,
             svAttribute: 'composite_score',
-            thinBoundaries: false
-        },
-        svAdmin5Layer: {
-            url: JUNE17_FILES.theme5.district,
-            available: true,
-            svAttribute: DEMOGRAPHIC_DF_FIELD_CADASTRE,
             thinBoundaries: false
         },
         svClimateLayer: {
@@ -991,12 +948,6 @@ const SV_RESOLUTION_CONFIG = {
             svAttribute: 'composite_score',
             thinBoundaries: true
         },
-        svAdmin5Layer: {
-            url: JUNE17_FILES.theme5.cadastre,
-            available: true,
-            svAttribute: DEMOGRAPHIC_DF_FIELD_CADASTRE,
-            thinBoundaries: true
-        },
         svClimateLayer: {
             url: JUNE17_FILES.theme6.cadastre,
             available: true,
@@ -1046,12 +997,6 @@ const SV_RESOLUTION_CONFIG = {
             url: JUNE17_FILES.theme4.governorate,
             available: true,
             svAttribute: 'composite_score'
-        },
-        svAdmin5Layer: {
-            url: JUNE17_FILES.theme5.governorate,
-            available: true,
-            svAttribute: DEMOGRAPHIC_DF_FIELD_CADASTRE,
-            thinBoundaries: false
         },
         svClimateLayer: {
             url: JUNE17_FILES.theme6.governorate,
@@ -1106,40 +1051,6 @@ const DISPLACEMENT_SUBINDICATOR_OPTIONS_CADASTRE = [
 ];
 
 const DISPLACEMENT_SUBINDICATOR_OPTIONS = DISPLACEMENT_SUBINDICATOR_OPTIONS_CADASTRE;
-
-const DEMOGRAPHIC_DF_FIELD_AGG = 'Demographic_Factor (DF = S*H)_mean';
-
-const DEMOGRAPHIC_ID_FIELDS = new Set([
-    'adm3_name',
-    'adm3_pcode',
-    'ADM3_NAME',
-    'ACS Code',
-    'ACS_CODE',
-    'CODE',
-    'CODE_NEW',
-    'rank'
-]);
-
-const DEMOGRAPHIC_SUBINDICATOR_OPTIONS_CADASTRE = [
-    { value: 'Resident Population', label: 'Resident Population' },
-    { value: 'Displaced Population', label: 'Displaced Population' },
-    { value: 'Heterogeneity', label: 'Heterogeneity' },
-    { value: 'Displacement Ratio', label: 'Displacement Ratio' }
-];
-
-const DEMOGRAPHIC_SUBINDICATOR_OPTIONS_DISTRICT = [
-    { value: 'Resident_Population (R)', label: 'Resident Population' },
-    { value: 'Displaced_Population (D)', label: 'Displaced Population' },
-    { value: 'Heterogeneity (H)', label: 'Heterogeneity' },
-    { value: 'Displacement_Ratio (S = D/R)', label: 'Displacement Ratio' }
-];
-
-const DEMOGRAPHIC_SUBINDICATOR_OPTIONS_AGGREGATE = [
-    { value: 'Resident_Population (R)_mean', label: 'Resident Population (mean)' },
-    { value: 'Displaced_Population (D)_mean', label: 'Displaced Population (mean)' },
-    { value: 'Heterogeneity (H)_mean', label: 'Heterogeneity (mean)' },
-    { value: 'Displacement_Ratio (S = D/R)_mean', label: 'Displacement Ratio (mean)' }
-];
 
 const POPULATION_SCORE_FIELD = 'All Populations';
 
@@ -1366,7 +1277,6 @@ const SV_SUBINDICATOR_LAYER_IDS = new Set([
     'svAdmin2Layer',
     'svAdmin3Layer',
     'svAdmin4Layer',
-    'svAdmin5Layer',
     'svClimateLayer',
     'svPoliticalLayer',
     'svGenderLayer'
@@ -1399,6 +1309,10 @@ const POLITICAL_SUBINDICATOR_OPTIONS_DISTRICT = [
     {
         value: 'ISF effect on quality of life: worsened life somewhat + alot',
         label: 'ISF effect on quality of life'
+    },
+    {
+        value: 'Demographic Factor',
+        label: 'Demographic Shock Factor'
     }
 ];
 
@@ -1572,12 +1486,6 @@ registerSVSubindicatorPanel('svAdmin4Layer', {
     getDefaultValues: () => [],
     resolveLabelForValue: value => getServiceFieldLabel(value)
 });
-registerSVSubindicatorPanel('svAdmin5Layer', {
-    wrapId: 'svDemographicSubindicatorsWrap',
-    getOptions: () => getDemographicSubindicatorOptions(),
-    getDefaultValues: () => [],
-    resolveLabelForValue: value => getDemographicFieldLabel(value)
-});
 registerSVSubindicatorPanel('svClimateLayer', {
     wrapId: 'svClimateSubindicatorsWrap',
     getOptions: () => getThemeSubindicatorOptions('svClimateLayer'),
@@ -1607,31 +1515,6 @@ registerSVSubindicatorPanel('populationLayer', {
 
 const SUBINDICATOR_OVERLAY_OUTLINE = ['#7c3aed', '#0891b2', '#ca8a04', '#be185d'];
 const DISPLACEMENT_EXTRA_COLORS = ['#6366f1', '#0d9488', '#d97706', '#be185d'];
-
-function getDemographicFieldLabel(fieldKey) {
-    const labels = {
-        'Demographic Factor': 'Demographic Shock Factor',
-        'Demographic_Factor (DF = S*H)': 'Demographic Shock Factor',
-        'Demographic_Factor (DF = S*H)_mean': 'Demographic Shock Factor (mean)',
-        'Resident Population': 'Resident Population',
-        'Displaced Population': 'Displaced Population',
-        Heterogeneity: 'Heterogeneity',
-        'Displacement Ratio': 'Displacement Ratio',
-        'Resident_Population (R)': 'Resident Population',
-        'Displaced_Population (D)': 'Displaced Population',
-        'Displacement_Ratio (S = D/R)': 'Displacement Ratio',
-        'Heterogeneity (H)': 'Heterogeneity',
-        'Resident_Population (R)_mean': 'Resident Population (mean)',
-        'Displaced_Population (D)_mean': 'Displaced Population (mean)',
-        'Heterogeneity (H)_mean': 'Heterogeneity (mean)',
-        'Displacement_Ratio (S = D/R)_mean': 'Displacement Ratio (mean)'
-    };
-    return labels[fieldKey] || fieldKey;
-}
-
-function getDemographicSubindicatorOptions(resolution = getActiveAdminResolution()) {
-    return [];
-}
 
 function supportsPeaceSubindicators(config, resolution = getActiveAdminResolution()) {
     return Boolean(
@@ -1853,11 +1736,6 @@ function recomputeSVDisplacementCircleMeta(layer, attr, minRadius = 4, maxRadius
     };
 }
 
-function populateDemographicSubindicatorSelect(resolution = getActiveAdminResolution()) {
-    if (!supportsDemographicSubindicators()) return;
-    renderSVSubindicatorPanel('svAdmin5Layer');
-}
-
 function getPopulationSubindicatorOptions() {
     return POP_SUBINDICATOR_OPTIONS;
 }
@@ -1878,9 +1756,6 @@ function getEffectiveChoroplethAttribute(layerId, config) {
         return CUSTOM_COMPOSITE_FIELD;
     }
     if (layerId === 'svAdmin3Layer' && supportsPeaceSubindicators(config)) {
-        return getPrimarySubindicator(layerId) || config?.svAttribute;
-    }
-    if (layerId === 'svAdmin5Layer') {
         return getPrimarySubindicator(layerId) || config?.svAttribute;
     }
     if (THEME_SUBINDICATOR_LAYER_IDS.includes(layerId) && isActiveThemeLayer(layerId)) {
@@ -2036,15 +1911,6 @@ function getPeaceCadastreChoroplethLegendTitle(layerId, attributeKey, config) {
     return opt ? opt.label : config.legendName || 'Tensions and Conflict Risk';
 }
 
-function getDemographicChoroplethLegendTitle(layerId, attributeKey, config) {
-    if (layerId !== 'svAdmin5Layer') {
-        return config?.legendName || 'Layer';
-    }
-    const options = getDemographicSubindicatorOptions();
-    const opt = options.find(o => o.value === attributeKey);
-    return opt ? opt.label : config.legendName || 'Demographic Tension / Stress';
-}
-
 function getChoroplethLegendScaleOptions(layerId) {
     if (layerId === 'svAdmin3Layer') {
         return { scaleDirection: 'yellow-orange-red' };
@@ -2082,9 +1948,6 @@ function getChoroplethLegendTitle(layerId, attributeKey, config) {
     if (layerId === 'svAdmin3Layer') {
         return getPeaceCadastreChoroplethLegendTitle(layerId, attributeKey, config);
     }
-    if (layerId === 'svAdmin5Layer') {
-        return getDemographicChoroplethLegendTitle(layerId, attributeKey, config);
-    }
     if (THEME_SUBINDICATOR_LAYER_IDS.includes(layerId)) {
         return getThemeSubindicatorLegendTitle(layerId, attributeKey, config);
     }
@@ -2095,11 +1958,6 @@ function getChoroplethLegendTitle(layerId, attributeKey, config) {
 }
 
 const OVERALL_VULNERABILITY_LEGEND_LABELS = ['Low', 'Medium', 'High'];
-const DEMOGRAPHIC_SHOCK_LEGEND_LABELS = [
-    'Low',
-    'Medium',
-    'High'
-];
 const THREE_CLASS_LEGEND_LABELS = ['Low', 'Medium', 'High'];
 const FIVE_CLASS_LEGEND_LABELS = ['Very Low', 'Low', 'Medium', 'High', 'Very High'];
 
@@ -2135,9 +1993,6 @@ function combineQualitativeAndRangeLabels(qualitativeLabels, rangeLabels) {
 }
 
 function getChoroplethLegendLabels(layerId, labels) {
-    if (layerId === 'svAdmin5Layer') {
-        return combineQualitativeAndRangeLabels(DEMOGRAPHIC_SHOCK_LEGEND_LABELS, labels);
-    }
     if (
         layerId === 'svAdmin1Layer' ||
         layerId === 'svAdmin3Layer' ||
@@ -2263,40 +2118,6 @@ function refreshPopulationChoropleth(map, layers, addLegendEntry) {
     applySVPolygonOutlineStyle(layer, config);
     updateSVHoverTooltips(layer, layerId, config);
     reapplySelectedPolygonHighlight(layerId);
-}
-
-function refreshSVDemographicChoropleth(map, layers, addLegendEntry, options = {}) {
-    const layerId = 'svAdmin5Layer';
-    const config = layerConfig[layerId];
-    const layer = layers.vector[layerId];
-    if (!config || !layer || !activeSVLayers.has(layerId)) return;
-    if (config.renderMode) return;
-
-    const attr = getEffectiveChoroplethAttribute(layerId, config);
-    const opacitySlider = document.getElementById('svOpacity');
-    const opacity = opacitySlider ? parseFloat(opacitySlider.value) : 0.6;
-    const fixedRamp = options.singleColorMode
-        ? getColorRamp(SV_SANDBOX_SINGLE_COLOR_RAMP_ID)
-        : getColorRamp(config.fixedColorRamp);
-    if (!fixedRamp) return;
-
-    const legendTitle = getDemographicChoroplethLegendTitle(layerId, attr, config);
-    const overlayNote = buildSubindicatorLegendNote(layerId, value =>
-        getDemographicChoroplethLegendTitle(layerId, value, config)
-    );
-    const updateLegendForLayer = (layerName, colorScheme, description, labels) => {
-        addLegendEntry(layerId, {
-            layerName: legendTitle,
-            colorScheme,
-            description: [description, overlayNote].filter(Boolean).join(' '),
-            labels: getChoroplethLegendLabels(layerId, labels)
-        });
-    };
-    updateVectorLayerStyle(layer, attr, fixedRamp, opacity, updateLegendForLayer, { skipTooltips: true });
-    applySVPolygonOutlineStyle(layer, config, { hide: Boolean(options.singleColorMode) });
-    updateSVHoverTooltips(layer, layerId, config);
-    reapplySelectedPolygonHighlight(layerId);
-    syncChoroplethSubindicatorOverlays(map, layerId, layers, config);
 }
 
 function refreshSVThemeSubindicatorChoropleth(layerId, map, layers, addLegendEntry, options = {}) {
@@ -2658,8 +2479,6 @@ async function refreshSVLayerForDisplay(layerId, map, layers, addLegendEntry) {
         refreshSVPeaceCadastreChoropleth(map, layers, addLegendEntry, { singleColorMode });
     } else if (THEME_SUBINDICATOR_LAYER_IDS.includes(layerId)) {
         refreshSVThemeSubindicatorChoropleth(layerId, map, layers, addLegendEntry, { singleColorMode });
-    } else if (layerId === 'svAdmin5Layer') {
-        refreshSVDemographicChoropleth(map, layers, addLegendEntry, { singleColorMode });
     } else {
         const chAttr = getEffectiveChoroplethAttribute(layerId, config);
         const fixedRamp = singleColorMode
@@ -3170,8 +2989,6 @@ function syncSVSubindicatorPanelsVisibility() {
             layerId !== 'svAdmin4Layer' || supportsServiceSubindicators();
         const displacementApplicable =
             layerId !== 'svAdmin1Layer' || getDisplacementSubindicatorOptions().length > 0;
-        const demographicApplicable =
-            layerId !== 'svAdmin5Layer' || supportsDemographicSubindicators();
         const themeApplicable =
             !THEME_SUBINDICATOR_LAYER_IDS.includes(layerId) || supportsThemeSubindicators(layerId);
         wrap.hidden =
@@ -3181,7 +2998,6 @@ function syncSVSubindicatorPanelsVisibility() {
             !economicApplicable ||
             !serviceApplicable ||
             !displacementApplicable ||
-            !demographicApplicable ||
             !themeApplicable;
         if (!wrap.hidden) {
             renderSVSubindicatorPanel(layerId);
@@ -3291,7 +3107,6 @@ function setupSVRadioControls(map, layers, colorScales, addLegendEntry, removeLe
         'svAdmin1Layer',
         'svAdmin2Layer',
         'svAdmin4Layer',
-        'svAdmin5Layer',
         ...THEME_SUBINDICATOR_LAYER_IDS
     ].forEach(layerId => {
         const cb = document.getElementById(layerId);
@@ -3613,7 +3428,6 @@ async function applySVResolution(resolution, map, layers, colorScales, addLegend
     }
 
     syncSVServicePriorityControl();
-    populateDemographicSubindicatorSelect(selectedResolution);
     populateDisplacementSubindicatorSelect();
     populateEconomicSubindicatorSelect(selectedResolution);
     populateServiceSubindicatorSelect(selectedResolution);
@@ -3770,7 +3584,6 @@ async function autoLoadSVAdmin1(map, layers, colorScales, addLegendEntry, remove
         'svAdmin2Layer',
         'svAdmin3Layer',
         'svAdmin4Layer',
-        'svAdmin5Layer',
         'svClimateLayer',
         'svPoliticalLayer',
         'svGenderLayer'
@@ -4002,12 +3815,6 @@ async function loadSVLayer(layerId, map, layers, colorScales, addLegendEntry, re
                         window.syncSVSubindicatorPanelsVisibility();
                     }
                     refreshSVPeaceCadastreChoropleth(map, layers, addLegendEntry);
-                } else if (layerId === 'svAdmin5Layer') {
-                    populateDemographicSubindicatorSelect();
-                    if (typeof window.syncSVSubindicatorPanelsVisibility === 'function') {
-                        window.syncSVSubindicatorPanelsVisibility();
-                    }
-                    refreshSVDemographicChoropleth(map, layers, addLegendEntry);
                 } else if (isActiveThemeLayer(layerId)) {
                     renderSVSubindicatorPanel(layerId);
                     if (typeof window.syncSVSubindicatorPanelsVisibility === 'function') {
@@ -6420,7 +6227,6 @@ function applySVLayerOpacity(layerId, layers, opacity, map = null, addLegendEntr
     if (
         map &&
         (layerId === 'svAdmin3Layer' ||
-            layerId === 'svAdmin5Layer' ||
             isActiveThemeLayer(layerId))
     ) {
         syncChoroplethSubindicatorOverlays(map, layerId, layers, config);
@@ -7417,8 +7223,7 @@ function getLayerDisplayName(layerId, config) {
         'svAdmin2Layer': 'Socioeconomic Vulnerability',
         'svAdmin3Layer': 'Tensions and Conflict Risk',
         'svAdmin4Layer': 'Service & Infrastructure Vulnerability',
-        'svAdmin5Layer': 'Demographic Tension / Stress',
-        'svClimateLayer': 'Climate and Environmental Risk',
+        'svClimateLayer': 'Climate Risk',
         'svPoliticalLayer': 'Political Vulnerability',
         'svGenderLayer': 'Gender Based Vulnerabilities',
         'streetNetworkLayer': 'Street Network',
@@ -8015,7 +7820,6 @@ function getSelectionAttributeFromConfig(config, layerId = null) {
     if (
         layerId === 'svAdmin2Layer' ||
         layerId === 'svAdmin3Layer' ||
-        layerId === 'svAdmin5Layer' ||
         layerId === 'svClimateLayer' ||
         layerId === 'svPoliticalLayer' ||
         layerId === 'svGenderLayer'
@@ -8052,10 +7856,6 @@ function getSelectionAttributeLabel(layerId, config, attributeName) {
         return `${getLayerDisplayName(layerId, config)} (experimental weighted)`;
     }
 
-    if (layerId === 'svAdmin5Layer') {
-        const opt = getDemographicSubindicatorOptions().find(o => o.value === attributeName);
-        if (opt) return opt.label;
-    }
     if (layerId === 'svAdmin2Layer') {
         const opt = getEconomicSubindicatorOptions().find(o => o.value === attributeName);
         if (opt) return opt.label;
@@ -8247,9 +8047,6 @@ function getActiveLayerPopupScoreLabel(layerId, config, attributeKey) {
     }
     if (layerId === 'svAdmin3Layer') {
         return getPeaceCadastreChoroplethLegendTitle(layerId, attributeKey, config);
-    }
-    if (layerId === 'svAdmin5Layer') {
-        return getDemographicChoroplethLegendTitle(layerId, attributeKey, config);
     }
     return config?.legendName || getLayerDisplayName(layerId, config);
 }

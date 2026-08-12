@@ -40,16 +40,10 @@ const EXPORT_PANEL_WIDTH = 720;
 const EXPORT_PANEL_HEIGHT = 900;
 
 /** Themes that enter Overall as a single official metric (not a Kendall sub-composite). */
-const DIRECT_PILLAR_THEME_NUMBERS = new Set([1, 5]);
+const DIRECT_PILLAR_THEME_NUMBERS = new Set([1]);
 
 const SCORE_FIELD_ALIASES = {
     'Displacement Ratio': ['Displacement Ratio', 'T1 Displacement Ratio', 'Displacement_Ratio'],
-    'Demographic Factor': [
-        'Demographic Factor',
-        'Demographic Shock Factor',
-        'T5 Demographic Shock Factor',
-        'Demographic Tension / Stress'
-    ],
     composite_score: ['composite_score']
 };
 
@@ -582,7 +576,7 @@ function featureMatchesAoiKeys(properties, aoiKeys) {
 
 /**
  * Build per-unit theme pillar scores the same way the pipeline feeds Overall:
- * - Themes 1 & 5: official scoreField when selected (Displacement Ratio / Demographic Factor)
+ * - Theme 1: official scoreField when selected (Displacement Ratio)
  * - Composite themes with a full indicator selection: stored composite_score (national only)
  * - Otherwise: Kendall composite of the selected sub-indicators
  * When aoiOnly: recompute / read only over AOI units so min–max is local to the selection.
