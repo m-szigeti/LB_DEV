@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Service &amp; Infrastructure icons — proposals</title>
+  <style>
+    body { font-family: system-ui, sans-serif; padding: 24px; background: #f1f5f9; color: #0f172a; margin: 0; }
+    h1 { font-size: 18px; margin: 0 0 8px; }
+    h2 { font-size: 15px; margin: 28px 0 8px; font-weight: 600; }
+    .hint { font-size: 13px; color: #64748b; margin: 0 0 14px; max-width: 48rem; line-height: 1.45; }
+    .row { display: flex; gap: 16px; flex-wrap: wrap; align-items: stretch; }
+    .card {
+      background: #fff; border: 1px solid #e2e8f0; border-radius: 10px;
+      padding: 14px; width: 150px; text-align: center;
+      box-shadow: 0 1px 3px rgba(0,0,0,.06);
+    }
+    .card svg { width: 88px; height: 88px; display: block; margin: 0 auto; }
+    .card.tiny { width: 110px; }
+    .card.tiny svg { width: 26px; height: 26px; }
+    .card strong { display: block; margin-top: 8px; font-size: 13px; }
+    .card .blurb { display: block; margin-top: 4px; font-size: 11px; color: #64748b; line-height: 1.35; }
+    .on-dark { background: #1e293b; }
+    .on-dark strong { color: #e2e8f0; }
+    .on-dark .blurb { color: #94a3b8; }
+    .on-map { background: #ede9fe; }
+    .legend-strip {
+      display: flex; gap: 14px; align-items: center; flex-wrap: wrap;
+      background: #fff; border: 1px solid #e2e8f0; border-radius: 10px;
+      padding: 12px 16px; margin: 8px 0 0; max-width: 42rem;
+    }
+    .legend-strip .item { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #334155; }
+    .legend-strip svg { width: 22px; height: 22px; }
+    .note {
+      background: #f5f3ff; border: 1px solid #ddd6fe; border-radius: 8px;
+      padding: 10px 12px; font-size: 12px; color: #5b21b6; max-width: 48rem; margin: 0 0 18px; line-height: 1.4;
+    }
+    .baseline {
+      background: #fff; border: 1px dashed #cbd5e1; border-radius: 10px;
+      padding: 12px 16px; margin: 0 0 20px; max-width: 48rem;
+    }
+    .baseline h2 { margin-top: 0; }
+  </style>
+</head>
+<body>
+  <h1>Service &amp; Infrastructure Vulnerability — icon proposals</h1>
+  <p class="hint">
+    Parallel to Climate (pine color step) and Gender (♀ color step).
+    Class colors stay traffic-light: <strong>Low</strong> <code>#22c55e</code> ·
+    <strong>Medium</strong> <code>#f59e0b</code> ·
+    <strong>High</strong> <code>#dc2626</code>.
+    Theme accent in the tool is purple (<code>#8b5cf6</code>); concepts 6–7 explore a purple ramp instead.
+  </p>
+  <p class="note">
+    Best map fit next to Climate/Gender class icons:
+    <strong>3 (color-step building)</strong> and <strong>1 (refined ! badge)</strong>.
+    Strongest “services failing” story: <strong>4 (crack / break)</strong>.
+    Closest to Gender #3 pattern: <strong>3</strong> or <strong>5 (wrench color step)</strong>.
+  </p>
+
+  <div class="baseline">
+    <h2>0 — Current (baseline)</h2>
+    <p class="hint" style="margin-bottom:10px">White disc + colored “!” — readable, but generic and not infrastructure-specific.</p>
+    <div class="row">
+      <div class="card">
+        <svg viewBox="0 0 128 128" aria-label="Low">
+          <circle cx="64" cy="64" r="52" fill="#fff" stroke="rgba(17,24,39,0.35)" stroke-width="4"/>
+          <text x="64" y="82" text-anchor="middle" font-size="72" font-weight="800" font-family="system-ui,sans-serif" fill="#22c55e">!</text>
+        </svg>
+        <strong>Low</strong>
+        <span class="blurb">Green !</span>
+      </div>
+      <div class="card">
+        <svg viewBox="0 0 128 128" aria-label="Medium">
+          <circle cx="64" cy="64" r="52" fill="#fff" stroke="rgba(17,24,39,0.35)" stroke-width="4"/>
+          <text x="64" y="82" text-anchor="middle" font-size="72" font-weight="800" font-family="system-ui,sans-serif" fill="#f59e0b">!</text>
+        </svg>
+        <strong>Medium</strong>
+        <span class="blurb">Amber !</span>
+      </div>
+      <div class="card">
+        <svg viewBox="0 0 128 128" aria-label="High">
+          <circle cx="64" cy="64" r="52" fill="#fff" stroke="rgba(17,24,39,0.35)" stroke-width="4"/>
+          <text x="64" y="82" text-anchor="middle" font-size="72" font-weight="800" font-family="system-ui,sans-serif" fill="#dc2626">!</text>
+        </svg>
+        <strong>High</strong>
+        <span class="blurb">Red !</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 1: Refined ! badge -->
+  <h2>1 — Refined ! badge (color step)</h2>
+  <p class="hint">Same idea as now, but solid badge fill + white mark (Gender #3 pattern). Stronger at 26–28px than outline-on-white.</p>
+  <div class="row">
+    <div class="card">
+      <svg viewBox="0 0 128 128" aria-label="Low">
+        <circle cx="64" cy="64" r="54" fill="#86EFAC" stroke="#16A34A" stroke-width="4"/>
+        <path fill="#14532D" d="M58 28h12v52H58z"/>
+        <circle cx="64" cy="98" r="8" fill="#14532D"/>
+      </svg>
+      <strong>Low</strong>
+      <span class="blurb">Light green fill</span>
+    </div>
+    <div class="card">
+      <svg viewBox="0 0 128 128" aria-label="Medium">
+        <circle cx="64" cy="64" r="54" fill="#F59E0B" stroke="#B45309" stroke-width="4"/>
+        <path fill="#fff" d="M58 28h12v52H58z"/>
+        <circle cx="64" cy="98" r="8" fill="#fff"/>
+      </svg>
+      <strong>Medium</strong>
+      <span class="blurb">Amber fill</span>
+    </div>
+    <div class="card">
+      <svg viewBox="0 0 128 128" aria-label="High">
+        <circle cx="64" cy="64" r="54" fill="#DC2626" stroke="#7F1D1D" stroke-width="4"/>
+        <path fill="#fff" d="M58 28h12v52H58z"/>
+        <circle cx="64" cy="98" r="8" fill="#fff"/>
+      </svg>
+      <strong>High</strong>
+      <span class="blurb">Deep red fill</span>
+    </div>
+  </div>
+  <div class="row" style="margin-top:8px">
+    <div class="card tiny on-map">
+      <svg viewBox="0 0 128 128"><circle cx="64" cy="64" r="54" fill="#86EFAC" stroke="#16A34A" stroke-width="6"/><path fill="#14532D" d="M58 28h12v52H58z"/><circle cx="64" cy="98" r="8" fill="#14532D"/></svg>
+      <strong>28px</strong>
+    </div>
+    <div class="card tiny on-map">
+      <svg viewBox="0 0 128 128"><circle cx="64" cy="64" r="54" fill="#F59E0B" stroke="#B45309" stroke-width="6"/><path fill="#fff" d="M58 28h12v52H58z"/><circle cx="64" cy="98" r="8" fill="#fff"/></svg>
+      <strong>28px</strong>
+    </div>
+    <div class="card tiny on-map">
+      <svg viewBox="0 0 128 128"><circle cx="64" cy="64" r="54" fill="#DC2626" stroke="#7F1D1D" stroke-width="6"/><path fill="#fff" d="M58 28h12v52H58z"/><circle cx="64" cy="98" r="8" fill="#fff"/></svg>
+      <strong>28px</strong>
+    </div>
+  </div>
+
+  <!-- 2: Fill intensity on ! -->
+  <h2>2 — Fill intensity on !</h2>
+  <p class="hint">Outline → half-filled → solid. Keeps the familiar “!” language while adding a clearer Low→High story.</p>
+  <div class="row">
+    <div class="card">
+      <svg viewBox="0 0 128 128" aria-label="Low">
+        <circle cx="64" cy="64" r="52" fill="none" stroke="#22c55e" stroke-width="8"/>
+        <path fill="none" stroke="#16A34A" stroke-width="10" stroke-linecap="round" d="M64 30 V78"/>
+        <circle cx="64" cy="96" r="7" fill="none" stroke="#16A34A" stroke-width="8"/>
+      </svg>
+      <strong>Low</strong>
+      <span class="blurb">Outline only</span>
+    </div>
+    <div class="card">
+      <svg viewBox="0 0 128 128" aria-label="Medium">
+        <defs><clipPath id="svcHalf"><rect x="12" y="64" width="104" height="60"/></clipPath></defs>
+        <circle cx="64" cy="64" r="52" fill="#FCD34D" stroke="#B45309" stroke-width="5" clip-path="url(#svcHalf)"/>
+        <circle cx="64" cy="64" r="52" fill="none" stroke="#B45309" stroke-width="5"/>
+        <path fill="none" stroke="#92400E" stroke-width="10" stroke-linecap="round" d="M64 30 V78"/>
+        <circle cx="64" cy="96" r="7" fill="#92400E"/>
+      </svg>
+      <strong>Medium</strong>
+      <span class="blurb">Half-filled</span>
+    </div>
+    <div class="card">
+      <svg viewBox="0 0 128 128" aria-label="High">
+        <circle cx="64" cy="64" r="52" fill="#DC2626" stroke="#7F1D1D" stroke-width="5"/>
+        <path fill="none" stroke="#FEF2F2" stroke-width="12" stroke-linecap="round" d="M64 28 V76"/>
+        <circle cx="64" cy="96" r="8" fill="#FEF2F2"/>
+      </svg>
+      <strong>High</strong>
+      <span class="blurb">Solid + white !</span>
+    </div>
+  </div>
+
+  <!-- 3: Building / facility glyph -->
+  <h2>3 — Building / facility (color step) ★ recommended</h2>
+  <p class="hint">Same public-facility silhouette; only color changes — same recipe as Gender #3 and Climate pine. Reads as “services / infrastructure,” not generic alert.</p>
+  <div class="row">
+    <div class="card">
+      <svg viewBox="0 0 128 128" aria-label="Low">
+        <rect x="22" y="40" width="84" height="68" rx="4" fill="#86EFAC" stroke="#16A34A" stroke-width="4"/>
+        <path fill="#16A34A" d="M18 44 L64 14 L110 44 Z"/>
+        <rect x="40" y="70" width="16" height="20" rx="2" fill="#14532D"/>
+        <rect x="72" y="70" width="16" height="20" rx="2" fill="#14532D"/>
+        <rect x="54" y="88" width="20" height="20" rx="2" fill="#14532D"/>
+      </svg>
+      <strong>Low</strong>
+      <span class="blurb">Light green facility</span>
+    </div>
+    <div class="card">
+      <svg viewBox="0 0 128 128" aria-label="Medium">
+        <rect x="22" y="40" width="84" height="68" rx="4" fill="#F59E0B" stroke="#B45309" stroke-width="4"/>
+        <path fill="#B45309" d="M18 44 L64 14 L110 44 Z"/>
+        <rect x="40" y="70" width="16" height="20" rx="2" fill="#FFFBEB"/>
+        <rect x="72" y="70" width="16" height="20" rx="2" fill="#FFFBEB"/>
+        <rect x="54" y="88" width="20" height="20" rx="2" fill="#78350F"/>
+      </svg>
+      <strong>Medium</strong>
+      <span class="blurb">Amber facility</span>
+    </div>
+    <div class="card">
+      <svg viewBox="0 0 128 128" aria-label="High">
+        <rect x="22" y="40" width="84" height="68" rx="4" fill="#991B1B" stroke="#450A0A" stroke-width="4"/>
+        <path fill="#7F1D1D" d="M18 44 L64 14 L110 44 Z"/>
+        <rect x="40" y="70" width="16" height="20" rx="2" fill="#FECACA"/>
+        <rect x="72" y="70" width="16" height="20" rx="2" fill="#FECACA"/>
+        <rect x="54" y="88" width="20" height="20" rx="2" fill="#450A0A"/>
+      </svg>
+      <strong>High</strong>
+      <span class="blurb">Deep red facility</span>
+    </div>
+  </div>
+  <div class="legend-strip">
+    <div class="item">
+      <svg viewBox="0 0 128 128"><rect x="22" y="40" width="84" height="68" rx="4" fill="#86EFAC" stroke="#16A34A" stroke-width="6"/><path fill="#16A34A" d="M18 44 L64 14 L110 44 Z"/></svg>
+      Low
+    </div>
+    <div class="item">
+      <svg viewBox="0 0 128 128"><rect x="22" y="40" width="84" height="68" rx="4" fill="#F59E0B" stroke="#B45309" stroke-width="6"/><path fill="#B45309" d="M18 44 L64 14 L110 44 Z"/></svg>
+      Medium
+    </div>
+    <div class="item">
+      <svg viewBox="0 0 128 128"><rect x="22" y="40" width="84" height="68" rx="4" fill="#991B1B" stroke="#450A0A" stroke-width="6"/><path fill="#7F1D1D" d="M18 44 L64 14 L110 44 Z"/></svg>
+      High
+    </div>
+  </div>
+
+  <!-- 4: Crack / break -->
+  <h2>4 — Crack / service break</h2>
+  <p class="hint">Intact building → hairline crack → split. Extra storytelling; slightly busier at small sizes.</p>
+  <div class="row">
+    <div class="card">
+      <svg viewBox="0 0 128 128" aria-label="Low">
+        <rect x="24" y="36" width="80" height="72" rx="4" fill="#BBF7D0" stroke="#16A34A" stroke-width="4"/>
+        <rect x="52" y="78" width="24" height="30" rx="2" fill="#166534"/>
+        <rect x="36" y="48" width="14" height="14" rx="1" fill="#166534" opacity="0.35"/>
+        <rect x="78" y="48" width="14" height="14" rx="1" fill="#166534" opacity="0.35"/>
+      </svg>
+      <strong>Low</strong>
+      <span class="blurb">Intact</span>
+    </div>
+    <div class="card">
+      <svg viewBox="0 0 128 128" aria-label="Medium">
+        <rect x="24" y="36" width="80" height="72" rx="4" fill="#FCD34D" stroke="#B45309" stroke-width="4"/>
+        <rect x="52" y="78" width="24" height="30" rx="2" fill="#78350F"/>
+        <path fill="none" stroke="#92400E" stroke-width="3.5" stroke-linecap="round"
+              d="M58 40 L62 58 L56 72 L64 90 L60 108"/>
+      </svg>
+      <strong>Medium</strong>
+      <span class="blurb">Hairline crack</span>
+    </div>
+    <div class="card">
+      <svg viewBox="0 0 128 128" aria-label="High">
+        <path fill="#FECACA" stroke="#991B1B" stroke-width="4"
+              d="M24 40 L58 36 L54 108 L28 108 Z"/>
+        <path fill="#DC2626" stroke="#7F1D1D" stroke-width="4"
+              d="M70 36 L104 40 L100 108 L74 108 Z"/>
+        <path fill="none" stroke="#450A0A" stroke-width="4" stroke-linecap="round"
+              d="M62 34 L58 70 L66 108"/>
+      </svg>
+      <strong>High</strong>
+      <span class="blurb">Split / failed</span>
+    </div>
+  </div>
+
+  <!-- 5: Wrench color step -->
+  <h2>5 — Wrench / maintenance (color step)</h2>
+  <p class="hint">Infrastructure maintenance metaphor. Same wrench geometry; color only — Gender #3 style.</p>
+  <div class="row">
+    <div class="card">
+      <svg viewBox="0 0 128 128" aria-label="Low">
+        <g transform="translate(64 64) rotate(-40) translate(-64 -64)">
+          <path fill="#86EFAC" stroke="#16A34A" stroke-width="3"
+                d="M78 22c-10 0-18 8-18 18 0 3 .7 6 2 8L30 80l10 10 32-32c2 1.2 5 2 8 2 10 0 18-8 18-18 0-4-1.2-7-3.2-10L82 52 70 40l13.2-12C80.5 25 79.3 22 78 22z"/>
+          <circle cx="78" cy="40" r="7" fill="#14532D"/>
+        </g>
+      </svg>
+      <strong>Low</strong>
+      <span class="blurb">Light green wrench</span>
+    </div>
+    <div class="card">
+      <svg viewBox="0 0 128 128" aria-label="Medium">
+        <g transform="translate(64 64) rotate(-40) translate(-64 -64)">
+          <path fill="#F59E0B" stroke="#B45309" stroke-width="3"
+                d="M78 22c-10 0-18 8-18 18 0 3 .7 6 2 8L30 80l10 10 32-32c2 1.2 5 2 8 2 10 0 18-8 18-18 0-4-1.2-7-3.2-10L82 52 70 40l13.2-12C80.5 25 79.3 22 78 22z"/>
+          <circle cx="78" cy="40" r="7" fill="#FFFBEB"/>
+        </g>
+      </svg>
+      <strong>Medium</strong>
+      <span class="blurb">Amber wrench</span>
+    </div>
+    <div class="card">
+      <svg viewBox="0 0 128 128" aria-label="High">
+        <g transform="translate(64 64) rotate(-40) translate(-64 -64)">
+          <path fill="#991B1B" stroke="#450A0A" stroke-width="3"
+                d="M78 22c-10 0-18 8-18 18 0 3 .7 6 2 8L30 80l10 10 32-32c2 1.2 5 2 8 2 10 0 18-8 18-18 0-4-1.2-7-3.2-10L82 52 70 40l13.2-12C80.5 25 79.3 22 78 22z"/>
+          <circle cx="78" cy="40" r="7" fill="#FECACA"/>
+        </g>
+      </svg>
+      <strong>High</strong>
+      <span class="blurb">Deep red wrench</span>
+    </div>
+  </div>
+
+  <!-- 6: Purple theme ramp -->
+  <h2>6 — Purple theme ramp (optional palette)</h2>
+  <p class="hint">Matches the Service theme purple in the UI instead of green/amber/red. Use if you want Service to feel distinct from Climate/Gender traffic-light coding.</p>
+  <div class="row">
+    <div class="card">
+      <svg viewBox="0 0 128 128" aria-label="Low">
+        <rect x="22" y="40" width="84" height="68" rx="4" fill="#E9D5FF" stroke="#A78BFA" stroke-width="4"/>
+        <path fill="#A78BFA" d="M18 44 L64 14 L110 44 Z"/>
+        <rect x="40" y="70" width="16" height="20" rx="2" fill="#5B21B6"/>
+        <rect x="72" y="70" width="16" height="20" rx="2" fill="#5B21B6"/>
+        <rect x="54" y="88" width="20" height="20" rx="2" fill="#5B21B6"/>
+      </svg>
+      <strong>Low</strong>
+      <span class="blurb">#E9D5FF</span>
+    </div>
+    <div class="card">
+      <svg viewBox="0 0 128 128" aria-label="Medium">
+        <rect x="22" y="40" width="84" height="68" rx="4" fill="#8B5CF6" stroke="#6D28D9" stroke-width="4"/>
+        <path fill="#6D28D9" d="M18 44 L64 14 L110 44 Z"/>
+        <rect x="40" y="70" width="16" height="20" rx="2" fill="#F5F3FF"/>
+        <rect x="72" y="70" width="16" height="20" rx="2" fill="#F5F3FF"/>
+        <rect x="54" y="88" width="20" height="20" rx="2" fill="#4C1D95"/>
+      </svg>
+      <strong>Medium</strong>
+      <span class="blurb">#8B5CF6</span>
+    </div>
+    <div class="card">
+      <svg viewBox="0 0 128 128" aria-label="High">
+        <rect x="22" y="40" width="84" height="68" rx="4" fill="#4C1D95" stroke="#2E1065" stroke-width="4"/>
+        <path fill="#2E1065" d="M18 44 L64 14 L110 44 Z"/>
+        <rect x="40" y="70" width="16" height="20" rx="2" fill="#DDD6FE"/>
+        <rect x="72" y="70" width="16" height="20" rx="2" fill="#DDD6FE"/>
+        <rect x="54" y="88" width="20" height="20" rx="2" fill="#1E1B4B"/>
+      </svg>
+      <strong>High</strong>
+      <span class="blurb">#4C1D95</span>
+    </div>
+  </div>
+
+  <!-- 7: Utility stack -->
+  <h2>7 — Utility stack (water / power / facility)</h2>
+  <p class="hint">Adds one utility cue per class. Memorable, but denser — risk of clutter next to Climate + Gender icons.</p>
+  <div class="row">
+    <div class="card">
+      <svg viewBox="0 0 128 128" aria-label="Low">
+        <path fill="#4ADE80" stroke="#16A34A" stroke-width="3"
+              d="M64 18 C64 18 36 52 36 72 a28 28 0 0 0 56 0 C92 52 64 18 64 18z"/>
+        <path fill="#14532D" opacity="0.35" d="M52 70 h24 v8 h-24z M56 82 h16 v6 h-16z"/>
+      </svg>
+      <strong>Low</strong>
+      <span class="blurb">Water only</span>
+    </div>
+    <div class="card">
+      <svg viewBox="0 0 128 128" aria-label="Medium">
+        <path fill="#FBBF24" stroke="#B45309" stroke-width="3"
+              d="M70 14 L42 70 H60 L52 114 L90 52 H70 Z"/>
+      </svg>
+      <strong>Medium</strong>
+      <span class="blurb">Power bolt</span>
+    </div>
+    <div class="card">
+      <svg viewBox="0 0 128 128" aria-label="High">
+        <rect x="28" y="48" width="72" height="56" rx="3" fill="#991B1B" stroke="#450A0A" stroke-width="3"/>
+        <path fill="#7F1D1D" d="M24 52 L64 20 L104 52 Z"/>
+        <path fill="none" stroke="#FECACA" stroke-width="4" stroke-linecap="round" d="M48 72 L80 100 M80 72 L48 100"/>
+      </svg>
+      <strong>High</strong>
+      <span class="blurb">Facility + X</span>
+    </div>
+  </div>
+
+  <!-- 8: Alert ring around building -->
+  <h2>8 — Alert ring around building</h2>
+  <p class="hint">Constant building glyph; surrounding cue escalates (Gender #2 pattern).</p>
+  <div class="row">
+    <div class="card">
+      <svg viewBox="0 0 128 128" aria-label="Low">
+        <circle cx="64" cy="64" r="56" fill="none" stroke="#86EFAC" stroke-width="5"/>
+        <rect x="40" y="52" width="48" height="40" rx="2" fill="#BBF7D0" stroke="#16A34A" stroke-width="3"/>
+        <path fill="#16A34A" d="M36 54 L64 32 L92 54 Z"/>
+      </svg>
+      <strong>Low</strong>
+      <span class="blurb">Soft ring</span>
+    </div>
+    <div class="card">
+      <svg viewBox="0 0 128 128" aria-label="Medium">
+        <circle cx="64" cy="64" r="56" fill="none" stroke="#F59E0B" stroke-width="5" stroke-dasharray="12 8"/>
+        <rect x="40" y="52" width="48" height="40" rx="2" fill="#FCD34D" stroke="#B45309" stroke-width="3"/>
+        <path fill="#B45309" d="M36 54 L64 32 L92 54 Z"/>
+      </svg>
+      <strong>Medium</strong>
+      <span class="blurb">Dashed ring</span>
+    </div>
+    <div class="card">
+      <svg viewBox="0 0 128 128" aria-label="High">
+        <path fill="none" stroke="#DC2626" stroke-width="6" stroke-linejoin="round"
+              d="M64 8 L118 112 H10 Z"/>
+        <rect x="42" y="58" width="44" height="36" rx="2" fill="#FECACA" stroke="#991B1B" stroke-width="3"/>
+        <path fill="#991B1B" d="M40 60 L64 40 L88 60 Z"/>
+      </svg>
+      <strong>High</strong>
+      <span class="blurb">Warning triangle</span>
+    </div>
+  </div>
+
+  <!-- Tiny on map / dark -->
+  <h2>Map-scale check (concept 3)</h2>
+  <p class="hint">How the recommended building color-step reads at marker size, on purple-tinted map chrome and on dark basemap.</p>
+  <div class="row">
+    <div class="card tiny on-map">
+      <svg viewBox="0 0 128 128"><rect x="22" y="40" width="84" height="68" rx="4" fill="#86EFAC" stroke="#16A34A" stroke-width="8"/><path fill="#16A34A" d="M18 44 L64 14 L110 44 Z"/></svg>
+      <strong>L</strong>
+    </div>
+    <div class="card tiny on-map">
+      <svg viewBox="0 0 128 128"><rect x="22" y="40" width="84" height="68" rx="4" fill="#F59E0B" stroke="#B45309" stroke-width="8"/><path fill="#B45309" d="M18 44 L64 14 L110 44 Z"/></svg>
+      <strong>M</strong>
+    </div>
+    <div class="card tiny on-map">
+      <svg viewBox="0 0 128 128"><rect x="22" y="40" width="84" height="68" rx="4" fill="#991B1B" stroke="#450A0A" stroke-width="8"/><path fill="#7F1D1D" d="M18 44 L64 14 L110 44 Z"/></svg>
+      <strong>H</strong>
+    </div>
+    <div class="card tiny on-dark">
+      <svg viewBox="0 0 128 128"><rect x="22" y="40" width="84" height="68" rx="4" fill="#86EFAC" stroke="#16A34A" stroke-width="8"/><path fill="#16A34A" d="M18 44 L64 14 L110 44 Z"/></svg>
+      <strong>L dark</strong>
+    </div>
+    <div class="card tiny on-dark">
+      <svg viewBox="0 0 128 128"><rect x="22" y="40" width="84" height="68" rx="4" fill="#F59E0B" stroke="#B45309" stroke-width="8"/><path fill="#B45309" d="M18 44 L64 14 L110 44 Z"/></svg>
+      <strong>M dark</strong>
+    </div>
+    <div class="card tiny on-dark">
+      <svg viewBox="0 0 128 128"><rect x="22" y="40" width="84" height="68" rx="4" fill="#991B1B" stroke="#450A0A" stroke-width="8"/><path fill="#7F1D1D" d="M18 44 L64 14 L110 44 Z"/></svg>
+      <strong>H dark</strong>
+    </div>
+  </div>
+
+  <p class="hint" style="margin-top:28px">
+    Open this file in a browser: <code>assets/service-icon-preview.html</code>.
+    Pick a concept number (same workflow as Gender #3) and we can wire SVG assets into the Service layer.
+  </p>
+</body>
+</html>

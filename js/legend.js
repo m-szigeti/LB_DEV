@@ -276,7 +276,7 @@ function renderStripeIntensityEntry(entry) {
             <div class="color-scheme">
                 <div class="color-boxes">${itemsHtml}</div>
                 <p style="margin: 8px 0 0 0; font-size: 10px; color: #666; line-height: 1.3;">
-                    Patterns densify with intensity (dots → stripes → cross-hatch). Ranges are data quintiles.
+                    Patterns densify with intensity (dots → stripes → cross-hatch). Ranges are Low / Medium / High.
                 </p>
             </div>
         </div>

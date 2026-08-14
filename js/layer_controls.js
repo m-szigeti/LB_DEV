@@ -5791,8 +5791,8 @@ function setupSVColorRampSelector(map, layers, addLegendEntry, updateLegend) {
     });
 }
 
-/** Number of intensity classes for socio-economic stripe/pattern fill (quintiles → 5 classes, 6 breakpoints). */
-const SOCIO_STRIPE_CLASS_COUNT = 5;
+/** Number of intensity classes for socio-economic stripe/pattern fill (Low / Medium / High). */
+const SOCIO_STRIPE_CLASS_COUNT = 3;
 /** Service-symbol and sectarian-glyph layers keep 3 classes (matching their 3-color symbol scheme). */
 const SERVICE_SYMBOL_CLASS_COUNT = 3;
 
@@ -5909,10 +5909,8 @@ function socioStripeSwatchInlineStyle(specIndex, patternColor) {
 }
 
 function buildSocioStripeLegendItems(breaks, patternColor, invert = false) {
-    const terms5 = ['Negligible', 'Low', 'Moderate', 'High', 'Critical'];
-    const terms3 = ['Low', 'Medium', 'High'];
+    const terms = ['Low', 'Medium', 'High'];
     const n = SOCIO_STRIPE_CLASS_COUNT;
-    const terms = n >= 5 ? terms5 : terms3;
 
     const makeItem = (label, idx) => {
         const specIdx = invert ? (n - 1 - idx) : idx;
@@ -5940,9 +5938,7 @@ function buildSocioStripeLegendItems(breaks, patternColor, invert = false) {
  */
 const SOCIO_STRIPE_CLASS_SPECS = [
     { type: 'dot', dotRadius: 1.6, dotSpacing: 12, patternOpacity: 1.0, fillOpacity: 1.0, color: '#9ca3af' },
-    { angle: 45,  weight: 1.2, spaceWeight: 8,   patternOpacity: 1.0, fillOpacity: 1.0, color: '#7b8794' },
     { angle: 45,  weight: 1.6, spaceWeight: 4,   patternOpacity: 1.0, fillOpacity: 1.0, color: '#4b5563' },
-    { angle: 135, weight: 2.0, spaceWeight: 2.5, patternOpacity: 1.0, fillOpacity: 1.0, color: '#2d3748' },
     { type: 'crosshatch', angle: 45, weight: 1.4, spaceWeight: 3.5, patternOpacity: 1.0, fillOpacity: 1.0, color: '#111827' }
 ];
 
