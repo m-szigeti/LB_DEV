@@ -4,6 +4,10 @@ import { WELCOME_TAB_HTML } from './welcome_tab_content.js';
 import { OVERALL_VULNERABILITY_INDEX_DESCRIPTION_HTML } from './overall_vulnerability_index_content.js';
 import { getIndicatorDefinitionsForLayer } from './indicator_definitions.js';
 import {
+    INTERVENTION_MAPPING_DESCRIPTION_HTML,
+    INTERVENTION_MAPPING_LAYER_ID
+} from './intervention_mapping.js';
+import {
     clearAnalysisSelection,
     getAnalysisSelectionCount,
     getAnalysisSelectionItems,
@@ -864,6 +868,10 @@ setupEventListeners() {
     generateLayerDetails(layer) {
         if (layer.id === 'svOverallTensionLayer') {
             return OVERALL_VULNERABILITY_INDEX_DESCRIPTION_HTML;
+        }
+
+        if (layer.id === INTERVENTION_MAPPING_LAYER_ID) {
+            return INTERVENTION_MAPPING_DESCRIPTION_HTML;
         }
 
         if (layer.type === 'sv-vector' || layer.id?.startsWith?.('sv')) {

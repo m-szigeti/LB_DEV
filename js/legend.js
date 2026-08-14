@@ -106,6 +106,9 @@ function renderEntry(entry) {
     if (entry.type === 'categorical' && entry.items) {
         return renderCategoricalEntry(entry);
     }
+    if (entry.type === 'line') {
+        return renderLineEntry(entry);
+    }
     return renderColorScaleEntry(entry);
 }
 
@@ -333,12 +336,38 @@ function renderCategoricalEntry(entry) {
             </div>
         `)
         .join('');
-    
+
+    const desc = entry.description
+        ? `<p style="margin: 8px 0 0 0; font-size: 10px; color: #666; line-height: 1.35;">${entry.description}</p>`
+        : '';
+
     return `
         <div class="legend-entry" style="margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid #eee;">
             <h4 style="margin: 0 0 8px 0; font-size: 14px; color: #333;">${entry.layerName}</h4>
             <div class="color-scheme">
                 <div class="color-boxes">${itemsHtml}</div>
+                ${desc}
+            </div>
+        </div>
+    `;
+}
+
+function renderLineEntry(entry) {
+    const color = entry.color || '#eab308';
+    const weight = Math.max(3, Number(entry.weight) || 5);
+    const desc = entry.description
+        ? `<p style="margin: 8px 0 0 0; font-size: 10px; color: #666; line-height: 1.35;">${entry.description}</p>`
+        : '';
+    return `
+        <div class="legend-entry" style="margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid #eee;">
+            <h4 style="margin: 0 0 8px 0; font-size: 14px; color: #333;">${entry.layerName}</h4>
+            <div class="color-scheme">
+                <div class="color-boxes">
+                    <div style="display:flex; align-items:center; margin-bottom:4px;">
+                        <div style="width:28px; height:${weight}px; background:${color}; border-radius:999px; box-shadow:0 0 6px ${color}; flex-shrink:0;"></div>
+                    </div>
+                </div>
+                ${desc}
             </div>
         </div>
     `;

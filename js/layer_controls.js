@@ -311,12 +311,12 @@ const layerConfig = {
         layerType: 'sv-climate'
     },
     svPoliticalLayer: {
-        fixedColorRamp: 'whiteToDarkOrange',
+        fixedColorRamp: 'whiteToDarkBlue3',
         type: 'sv-vector',
         url: JUNE17_FILES.theme7.district,
         legendName: 'Political Vulnerability',
         renderMode: 'edge-fade-ring',
-        edgeFadeColors: ['#22c55e', '#eab308', '#dc2626'],
+        edgeFadeColors: ['#ffffff', '#93c5fd', '#1e3a8a'],
         style: {
             color: '#2b83ba',
             weight: 2,
@@ -390,6 +390,18 @@ const layerConfig = {
             fillOpacity: 0.72
         }),
         layerType: 'ttf-hotspots'
+    },
+    pilotZonesLayer: {
+        type: 'vector',
+        url: 'data/Pilot_Zones.geojson',
+        legendName: 'Pilot Zones',
+        layerType: 'pilot-zones'
+    },
+    yellowLineLayer: {
+        type: 'vector',
+        url: 'data/Yellow_line.geojson',
+        legendName: 'Areas affected by Israel’s continued presence and restricted access in southern Lebanon',
+        layerType: 'yellow-line'
     },
     populationLayer: {
         type: 'sv-vector',
@@ -861,10 +873,10 @@ const SV_BASE_LAYER_CONFIG = {
         svAttribute: 'composite_score'
     },
     svPoliticalLayer: {
-        fixedColorRamp: 'whiteToDarkOrange',
+        fixedColorRamp: 'whiteToDarkBlue3',
         legendName: 'Political Vulnerability',
         renderMode: 'edge-fade-ring',
-        edgeFadeColors: ['#22c55e', '#eab308', '#dc2626'],
+        edgeFadeColors: ['#ffffff', '#93c5fd', '#1e3a8a'],
         svAttribute: 'composite_score'
     },
     svGenderLayer: {
@@ -1940,7 +1952,7 @@ function getChoroplethLegendScaleOptions(layerId) {
         return { scaleDirection: 'white-to-red' };
     }
     if (layerId === 'svPoliticalLayer') {
-        return { scaleDirection: 'white-to-orange' };
+        return { scaleDirection: 'white-to-dark-blue' };
     }
     if (layerId === 'svGenderLayer') {
         return { scaleDirection: 'white-to-pink' };
@@ -3225,7 +3237,7 @@ function setupSVRadioControls(map, layers, colorScales, addLegendEntry, removeLe
         getActiveInfoLayers: () => window.currentInfoPanel?.activeLayers?.values?.() ?? [],
         getScoreAttribute: infoLayer => {
             if (!infoLayer) return null;
-            if (['escalationLayer', 'roadStatusLayer', 'ttfHotspotsLayer', INTERVENTION_MAPPING_LAYER_ID].includes(infoLayer.id)) {
+            if (['escalationLayer', 'roadStatusLayer', 'ttfHotspotsLayer', 'pilotZonesLayer', 'yellowLineLayer', INTERVENTION_MAPPING_LAYER_ID].includes(infoLayer.id)) {
                 return null;
             }
             return (
@@ -4439,9 +4451,9 @@ async function loadSVForestFireSymbolLayer(layerId, config, map = null) {
     return finalLayer;
 }
 
-/** GYR edge glow: class color stroked along the boundary, clipped to polygon interior. */
+/** Class colors for the inward edge glow (Low / Medium / High). */
 const EDGE_FADE_CLASS_COUNT = 3;
-const EDGE_FADE_GYR_COLORS = ['#22c55e', '#eab308', '#dc2626'];
+const EDGE_FADE_DEFAULT_COLORS = ['#ffffff', '#93c5fd', '#1e3a8a'];
 /** Soft glow passes — widest / faintest first, then tighter / stronger. */
 const EDGE_FADE_GLOW_PASSES = [
     { widthPx: 24, alpha: 0.14 },
@@ -4453,7 +4465,7 @@ const EDGE_FADE_GLOW_PASSES = [
 function getEdgeFadeColors(config) {
     return config?.edgeFadeColors?.length
         ? config.edgeFadeColors
-        : EDGE_FADE_GYR_COLORS;
+        : EDGE_FADE_DEFAULT_COLORS;
 }
 
 function latLngsFromRing(ring) {
@@ -4508,7 +4520,7 @@ const SVEdgeFadeGlowLayer = L.Layer.extend({
         this._geojson = geojson;
         this._attr = options?.svAttribute || 'composite_score';
         this._breaks = options?.breaks || [];
-        this._colors = options?.colors || EDGE_FADE_GYR_COLORS;
+        this._colors = options?.colors || EDGE_FADE_DEFAULT_COLORS;
         this._opacityScale = Number.isFinite(options?.opacityScale) ? options.opacityScale : 1;
         this._items = [];
         this._rebuildItems();
@@ -4558,7 +4570,7 @@ const SVEdgeFadeGlowLayer = L.Layer.extend({
 
     _rebuildItems() {
         const features = this._geojson?.features || [];
-        const colors = this._colors || EDGE_FADE_GYR_COLORS;
+        const colors = this._colors || EDGE_FADE_DEFAULT_COLORS;
         const attr = this._attr;
         const breaks = this._breaks || [];
         this._items = features
@@ -4754,7 +4766,7 @@ function pushEdgeFadeRingLegend(layerId, config, attr, breaks, colors, addLegend
             'Green / yellow / red glow along each unit boundary, visible only inside the polygon. Color-only mode uses the theme orange choropleth instead.',
         items: terms.map((term, idx) => ({
             label: `${term} (${rangeLabels[idx] || '—'})`,
-            color: colors[idx] || EDGE_FADE_GYR_COLORS[idx]
+            color: colors[idx] || EDGE_FADE_DEFAULT_COLORS[idx]
         }))
     });
 }
@@ -4838,7 +4850,7 @@ function refreshSVEdgeFadeSingleColorMode(map, layers, addLegendEntry) {
 
     // Keep Political Color mode on the theme orange ramp (not the global sandbox red).
     const attr = getEffectiveChoroplethAttribute(layerId, config);
-    const fixedRamp = getColorRamp(config.fixedColorRamp || 'whiteToDarkOrange');
+    const fixedRamp = getColorRamp(config.fixedColorRamp || 'whiteToDarkBlue3');
     if (!fixedRamp) return;
     const opacitySlider = document.getElementById(config.opacityControl || 'svOpacity');
     const opacity = opacitySlider ? parseFloat(opacitySlider.value) : 0.6;
@@ -6925,6 +6937,123 @@ function getTTFHotspotsLegendConfig() {
         ]
     };
 }
+
+const PILOT_ZONE_GLOW_YELLOW = '#facc15';
+const PILOT_ZONE_CORE_YELLOW = '#eab308';
+const YELLOW_LINE_COLOR = '#eab308';
+
+async function fetchGeoJson(url) {
+    const response = await fetch(url);
+    if (!response.ok) {
+        throw new Error(`Failed to load ${url} (${response.status})`);
+    }
+    return response.json();
+}
+
+async function loadPilotZonesLayer(url) {
+    const data = await fetchGeoJson(url);
+    const glowOuter = L.geoJSON(data, {
+        interactive: false,
+        style: {
+            color: PILOT_ZONE_GLOW_YELLOW,
+            weight: 16,
+            opacity: 0.22,
+            fill: false,
+            lineJoin: 'round',
+            lineCap: 'round'
+        }
+    });
+    const glowMid = L.geoJSON(data, {
+        interactive: false,
+        style: {
+            color: PILOT_ZONE_GLOW_YELLOW,
+            weight: 8,
+            opacity: 0.4,
+            fill: false,
+            lineJoin: 'round',
+            lineCap: 'round'
+        }
+    });
+    const fillLayer = L.geoJSON(data, {
+        style: {
+            color: PILOT_ZONE_CORE_YELLOW,
+            weight: 2.5,
+            opacity: 1,
+            fillColor: PILOT_ZONE_GLOW_YELLOW,
+            fillOpacity: 0.16,
+            lineJoin: 'round'
+        },
+        onEachFeature: (feature, layer) => {
+            const name = feature?.properties?.adm3_name;
+            const ar = feature?.properties?.adm3_name1;
+            if (name) {
+                layer.bindTooltip(ar ? `${name} (${ar})` : name, { sticky: true });
+            }
+        }
+    });
+    const group = L.featureGroup([glowOuter, glowMid, fillLayer]);
+    group.layerData = {
+        raw: data,
+        propertyFields: Object.keys(data.features?.[0]?.properties || {})
+    };
+    return group;
+}
+
+async function loadYellowLineLayer(url) {
+    const data = await fetchGeoJson(url);
+    const halo = L.geoJSON(data, {
+        interactive: false,
+        style: {
+            color: PILOT_ZONE_GLOW_YELLOW,
+            weight: 12,
+            opacity: 0.35,
+            fill: false,
+            lineJoin: 'round',
+            lineCap: 'round'
+        }
+    });
+    const core = L.geoJSON(data, {
+        style: {
+            color: YELLOW_LINE_COLOR,
+            weight: 5,
+            opacity: 1,
+            fill: false,
+            lineJoin: 'round',
+            lineCap: 'round'
+        }
+    });
+    core.bindTooltip(
+        'Areas affected by Israel’s continued presence and restricted access in southern Lebanon',
+        { sticky: true }
+    );
+    const group = L.featureGroup([halo, core]);
+    group.layerData = {
+        raw: data,
+        propertyFields: Object.keys(data.features?.[0]?.properties || {})
+    };
+    return group;
+}
+
+function getPilotZonesLegendConfig() {
+    return {
+        layerName: 'Pilot Zones',
+        type: 'categorical',
+        description: 'Yellow glowing outline of the three pilot cadastres, with a light yellow fill.',
+        items: [
+            { label: 'Pilot cadastre', color: PILOT_ZONE_CORE_YELLOW }
+        ]
+    };
+}
+
+function getYellowLineLegendConfig() {
+    return {
+        layerName: 'Areas affected by Israel’s continued presence and restricted access in southern Lebanon',
+        type: 'line',
+        color: YELLOW_LINE_COLOR,
+        weight: 5,
+        description: 'Thick yellow line marking areas affected by Israel’s continued presence and restricted access in southern Lebanon.'
+    };
+}
 /**
  * Setup vector layer attribute controls
  */
@@ -7110,6 +7239,24 @@ async function loadLayer(layerId, map, layers, colorScales, addLegendEntry) {
     
     switch (config.type) {
         case 'vector':
+            if (layerId === 'pilotZonesLayer') {
+                if (!layers.vector[layerId]) {
+                    layers.vector[layerId] = await loadPilotZonesLayer(config.url);
+                }
+                layers.vector[layerId].addTo(map);
+                addLegendEntry(layerId, getPilotZonesLegendConfig());
+                keepRoadLayerOnTop(layers);
+                break;
+            }
+            if (layerId === 'yellowLineLayer') {
+                if (!layers.vector[layerId]) {
+                    layers.vector[layerId] = await loadYellowLineLayer(config.url);
+                }
+                layers.vector[layerId].addTo(map);
+                addLegendEntry(layerId, getYellowLineLegendConfig());
+                keepRoadLayerOnTop(layers);
+                break;
+            }
             if (!layers.vector[layerId]) {
                 layers.vector[layerId] = await loadVectorLayer(config.url, { style: config.style });
                 
@@ -7363,6 +7510,8 @@ function getLayerDisplayName(layerId, config) {
         'roadStatusLayer': 'Road Access Status',
         'ttfHotspotsLayer': 'TTF Hotspots (Q1 2026)',
         'populationLayer': 'Population',
+        'pilotZonesLayer': 'Pilot Zones',
+        'yellowLineLayer': 'Areas affected by Israel’s continued presence and restricted access in southern Lebanon',
         'vulnerabilityCadastreLayer': 'Vulnerability: Cadastre',
         'pointLayer': 'Household Survey Statistics',
         'pointLayer2': 'Cities',
@@ -7464,6 +7613,14 @@ function keepRoadLayerOnTop(layers) {
     const ttfLayer = layers?.vector?.ttfHotspotsLayer;
     if (ttfLayer && typeof ttfLayer.bringToFront === 'function') {
         ttfLayer.bringToFront();
+    }
+    const pilotLayer = layers?.vector?.pilotZonesLayer;
+    if (pilotLayer && typeof pilotLayer.bringToFront === 'function') {
+        pilotLayer.bringToFront();
+    }
+    const yellowLine = layers?.vector?.yellowLineLayer;
+    if (yellowLine && typeof yellowLine.bringToFront === 'function') {
+        yellowLine.bringToFront();
     }
 }
 

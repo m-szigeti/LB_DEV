@@ -481,6 +481,21 @@
     margin-bottom: 12px;
 }
 
+.layer-description-block {
+    font-size: 12px;
+    line-height: 1.5;
+    color: #3e3e3e;
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 12px;
+}
+
+.layer-description-block p {
+    margin: 0;
+}
+
 .overall-tension-description p {
     margin: 0 0 8px;
 }

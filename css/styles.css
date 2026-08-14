@@ -589,6 +589,10 @@ body.analysis-selection-mode #map {
     min-width: 0;
 }
 
+.sv-stressor-layers .sv-layer-toggle-text {
+    white-space: normal;
+}
+
 .sv-layer-toggle-check {
     flex: 0 0 auto;
     width: 1.35em;

@@ -6,7 +6,18 @@ import { loadPointLayer } from './vector_layers.js';
 
 export const INTERVENTION_MAPPING_LAYER_ID = 'interventionMappingLayer';
 export const INTERVENTION_ACTIVITY_FIELD = 'Type of Activity';
+export const INTERVENTION_STATUS_FIELD = 'Project Status';
+export const INTERVENTION_ONGOING_STATUS = 'Ongoing';
 export const INTERVENTION_GEOJSON_URL = 'data/LB_Intervention_Mapping.geojson';
+
+export const INTERVENTION_MAPPING_DESCRIPTION =
+    'This layer maps ongoing UNDP activities across Lebanon by location and type of intervention. Projects are grouped into clusters based on geographic proximity, with each cluster showing the number and breakdown of nearby activities. Click a cluster and zoom in to explore individual project locations and details. This layer is considered a “Live Layer”, which will be updated as soon as UNDP Projects and Programmes provide updates on activities.';
+
+export const INTERVENTION_MAPPING_DESCRIPTION_HTML = `
+    <div class="layer-description-block">
+        <p>${INTERVENTION_MAPPING_DESCRIPTION}</p>
+    </div>
+`;
 
 /** Stable palette + short codes for map markers / legend. */
 export const INTERVENTION_ACTIVITY_STYLES = [
@@ -25,8 +36,7 @@ export const INTERVENTION_ACTIVITY_STYLES = [
         label: 'Equipment and training for state institutions',
         color: '#4527a0',
         code: 'EQ'
-    },
-    { match: 'TBD', label: 'TBD', color: '#757575', code: 'TB' }
+    }
 ];
 
 const UNSPECIFIED_STYLE = {
@@ -383,21 +393,28 @@ export function buildInterventionClusterSummaryHtml(cluster) {
 }
 
 export function getInterventionLegendConfig() {
+    const hiddenLegendLabels = new Set(['tbd', 'unspecified']);
     return {
         layerName: 'UNDP Intervention Mapping',
         type: 'categorical',
-        items: [
-            ...INTERVENTION_ACTIVITY_STYLES.map(entry => ({
+        description: INTERVENTION_MAPPING_DESCRIPTION,
+        items: INTERVENTION_ACTIVITY_STYLES
+            .filter(entry => !hiddenLegendLabels.has(String(entry.label || '').trim().toLowerCase()))
+            .map(entry => ({
                 label: entry.label,
                 color: entry.color
-            })),
-            { label: UNSPECIFIED_STYLE.label, color: UNSPECIFIED_STYLE.color }
-        ]
+            }))
     };
+}
+
+function isOngoingProject(properties = {}) {
+    const status = String(properties[INTERVENTION_STATUS_FIELD] ?? '').trim().toLowerCase();
+    return status === INTERVENTION_ONGOING_STATUS.toLowerCase();
 }
 
 function filterPointFeatures(geojson) {
     const features = (geojson?.features || []).filter(feature => {
+        if (!isOngoingProject(feature?.properties)) return false;
         const geom = feature?.geometry;
         if (!geom || geom.type !== 'Point') return false;
         const coords = geom.coordinates;
