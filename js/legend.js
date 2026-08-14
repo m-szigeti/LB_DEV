@@ -138,17 +138,17 @@ function renderSectarianDummyGlyphEntry(entry) {
 }
 
 function renderServiceSymbolEntry(entry) {
-    const symbol = entry.markerSymbol || '!';
     const itemsHtml = entry.items
-        .map(item => `
-            <div style="display:flex; align-items:center; margin-bottom:6px;">
-                <div style="
+        .map(item => {
+            const icon = item.iconUrl
+                ? `<img src="${item.iconUrl}" alt="" width="22" height="22" style="width:22px;height:22px;display:block;flex-shrink:0;">`
+                : `<div style="
                     width:18px;
                     height:18px;
                     border-radius:999px;
                     border:1px solid rgba(17,24,39,0.35);
                     background:#ffffff;
-                    color:${item.color};
+                    color:${item.color || '#111827'};
                     display:flex;
                     align-items:center;
                     justify-content:center;
@@ -157,10 +157,14 @@ function renderServiceSymbolEntry(entry) {
                     line-height:1;
                     box-shadow:0 1px 3px rgba(0,0,0,0.25);
                     flex-shrink:0;
-                ">${symbol}</div>
+                ">${entry.markerSymbol || '!'}</div>`;
+            return `
+            <div style="display:flex; align-items:center; margin-bottom:6px;">
+                ${icon}
                 <span style="font-size: 11px; color: #333; margin-left: 8px; line-height: 1.25;">${item.label}</span>
             </div>
-        `)
+        `;
+        })
         .join('');
 
     return `
@@ -169,7 +173,7 @@ function renderServiceSymbolEntry(entry) {
             <div class="color-scheme">
                 <div class="color-boxes">${itemsHtml}</div>
                 <p style="margin: 8px 0 0 0; font-size: 10px; color: #666; line-height: 1.3;">
-                    Circle color follows class intensity; symbols cluster at lower zoom.
+                    Outline → half-filled → solid “!” by class. Service, Climate, and Gender sit side by side when several are on; at cadastre they cluster by majority class.
                 </p>
             </div>
         </div>

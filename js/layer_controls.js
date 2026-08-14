@@ -268,6 +268,11 @@ const layerConfig = {
         renderMode: 'service-symbol',
         patternColor: '#8b5cf6',
         serviceSymbolColors: ['#22c55e', '#f59e0b', '#dc2626'],
+        classIcons: [
+            'assets/service-symbol-low.svg',
+            'assets/service-symbol-medium.svg',
+            'assets/service-symbol-high.svg'
+        ],
         style: {
             color: "#2b83ba",
             weight: 2,
@@ -837,6 +842,11 @@ const SV_BASE_LAYER_CONFIG = {
         renderMode: 'service-symbol',
         patternColor: '#8b5cf6',
         serviceSymbolColors: ['#22c55e', '#f59e0b', '#dc2626'],
+        classIcons: [
+            'assets/service-symbol-low.svg',
+            'assets/service-symbol-medium.svg',
+            'assets/service-symbol-high.svg'
+        ],
         svAttribute: 'composite_score'
     },
     svClimateLayer: {
@@ -2808,9 +2818,9 @@ const SV_OUTLINE_PEACE_CADASTRE_OPACITY = 0.9;
 
 const SV_SERVICE_DISABLE_CLUSTERING_AT_ZOOM = 13;
 const SV_SERVICE_CADASTRE_OUTLINE_MAX_ZOOM = 12;
-const SV_SERVICE_MARKER_SIZE_DEFAULT = 16;
-const SV_SERVICE_MARKER_SIZE_AGGREGATE = 28;
-const SV_SERVICE_MARKER_SIZE_UNCLUSTERED_CADASTRE = 22;
+const SV_SERVICE_MARKER_SIZE_DEFAULT = 22;
+const SV_SERVICE_MARKER_SIZE_AGGREGATE = 32;
+const SV_SERVICE_MARKER_SIZE_UNCLUSTERED_CADASTRE = 26;
 const SV_SANDBOX_SINGLE_COLOR_RAMP_ID = 'whiteToDarkRed';
 const SV_SANDBOX_SERVICE_SYMBOL_COLORS = ['#fecaca', '#f87171', '#991b1b'];
 const FOREST_FIRE_CLASS_COUNT = 3;
@@ -2818,6 +2828,11 @@ const FOREST_FIRE_ICON_URLS = [
     'assets/forest-fire-low.svg',
     'assets/forest-fire-medium.svg',
     'assets/forest-fire-high.svg'
+];
+const SERVICE_SYMBOL_ICON_URLS = [
+    'assets/service-symbol-low.svg',
+    'assets/service-symbol-medium.svg',
+    'assets/service-symbol-high.svg'
 ];
 function getClassIconUrls(config) {
     if (Array.isArray(config?.classIcons) && config.classIcons.length) {
@@ -2827,6 +2842,13 @@ function getClassIconUrls(config) {
         return config.forestFireIcons;
     }
     return FOREST_FIRE_ICON_URLS;
+}
+
+function getServiceSymbolIconUrls(config) {
+    if (Array.isArray(config?.classIcons) && config.classIcons.length) {
+        return config.classIcons;
+    }
+    return SERVICE_SYMBOL_ICON_URLS;
 }
 const FOREST_FIRE_MARKER_SIZE_DEFAULT = 28;
 const FOREST_FIRE_MARKER_SIZE_AGGREGATE = 42;
@@ -4285,6 +4307,7 @@ async function loadSVServiceSymbolLayer(config, map = null) {
         .filter(value => Number.isFinite(value));
     const breaks = resolveClassificationBreaks(numericValues, SERVICE_SYMBOL_CLASS_COUNT, getClassificationMode());
     const symbolColors = config.serviceSymbolColors || ['#22c55e', '#f59e0b', '#dc2626'];
+    const iconUrls = getServiceSymbolIconUrls(config);
     const resolution = getActiveAdminResolution();
     const markerSize = getSVServiceMarkerSize(null, resolution);
 
@@ -4292,10 +4315,9 @@ async function loadSVServiceSymbolLayer(config, map = null) {
         pointToLayer: (feature, latlng) => {
             const raw = Number(feature.properties?.[config.svAttribute]);
             const classIndex = getPatternClassIndex(raw, breaks);
-            const color = symbolColors[classIndex] || symbolColors[symbolColors.length - 1] || '#dc2626';
             feature.properties = { ...(feature.properties || {}), __svServiceClassIndex: classIndex };
             return L.marker(latlng, {
-                icon: buildSVServiceMarkerIcon(color, markerSize),
+                icon: buildSVServiceMarkerIcon(classIndex, markerSize, iconUrls),
                 opacity: 1,
                 interactive: false,
                 keyboard: false
@@ -4311,7 +4333,7 @@ async function loadSVServiceSymbolLayer(config, map = null) {
             zoomToBoundsOnClick: true,
             disableClusteringAtZoom: SV_SERVICE_DISABLE_CLUSTERING_AT_ZOOM,
             maxClusterRadius: 52,
-            iconCreateFunction: cluster => createSVServiceClusterIcon(cluster, symbolColors)
+            iconCreateFunction: cluster => createSVServiceClusterIcon(cluster, iconUrls)
         })
         : null;
 
@@ -4335,7 +4357,7 @@ async function loadSVServiceSymbolLayer(config, map = null) {
         colorRamp: null
     };
     finalLayer._isSVServiceSymbolLayer = true;
-    finalLayer._svServiceSymbolMeta = { breaks, symbolColors, svAttribute: config.svAttribute };
+    finalLayer._svServiceSymbolMeta = { breaks, symbolColors, iconUrls, svAttribute: config.svAttribute };
     finalLayer._svServiceMarkerLayer = markerLayer;
     finalLayer._svServiceClusterLayer = clusterLayer;
     finalLayer._svServiceAllMarkers = allMarkers;
@@ -4984,13 +5006,20 @@ async function loadSVSectarianGlyphLayer(config, map = null) {
     return finalLayer;
 }
 
-function buildSVServiceMarkerIcon(color, sizePx = SV_SERVICE_MARKER_SIZE_DEFAULT) {
-    const fontSize = Math.max(10, Math.round(sizePx * 0.75));
-    const anchor = Math.round(sizePx / 2);
+function getServiceSymbolIconUrl(classIndex, iconUrls = SERVICE_SYMBOL_ICON_URLS) {
+    const urls = iconUrls?.length ? iconUrls : SERVICE_SYMBOL_ICON_URLS;
+    const idx = Math.max(0, Math.min(urls.length - 1, Number(classIndex) || 0));
+    return urls[idx] || urls[0];
+}
+
+function buildSVServiceMarkerIcon(classIndex, sizePx = SV_SERVICE_MARKER_SIZE_DEFAULT, iconUrls = SERVICE_SYMBOL_ICON_URLS) {
+    const size = Math.max(12, Math.round(sizePx));
+    const anchor = Math.round(size / 2);
+    const url = getServiceSymbolIconUrl(classIndex, iconUrls);
     return L.divIcon({
         className: 'sv-service-symbol-wrapper',
-        html: `<span style="display:inline-flex;align-items:center;justify-content:center;width:${sizePx}px;height:${sizePx}px;border-radius:50%;background:#ffffff;color:${color};border:1px solid rgba(17,24,39,0.35);font-weight:800;font-size:${fontSize}px;line-height:1;box-shadow:0 1px 3px rgba(0,0,0,0.35);opacity:1;">!</span>`,
-        iconSize: [sizePx, sizePx],
+        html: `<img src="${url}" alt="" width="${size}" height="${size}" style="width:${size}px;height:${size}px;display:block;pointer-events:none;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.35));">`,
+        iconSize: [size, size],
         iconAnchor: [anchor, anchor]
     });
 }
@@ -5012,12 +5041,11 @@ function getSVServiceMarkerSize(map, resolution = getActiveAdminResolution(), la
 function updateSVServiceMarkerIconSizes(map, layer, layers = null) {
     if (!layer?._isSVServiceSymbolLayer) return;
     const size = getSVServiceMarkerSize(map, getActiveAdminResolution(), layers);
-    const symbolColors = layer._svServiceSymbolMeta?.symbolColors || ['#22c55e', '#f59e0b', '#dc2626'];
+    const iconUrls = layer._svServiceSymbolMeta?.iconUrls || SERVICE_SYMBOL_ICON_URLS;
     (layer._svServiceAllMarkers || []).forEach(marker => {
         const classIndex = Number(marker?.feature?.properties?.__svServiceClassIndex);
-        const color = symbolColors[classIndex] || symbolColors[symbolColors.length - 1] || '#dc2626';
         if (typeof marker.setIcon === 'function') {
-            marker.setIcon(buildSVServiceMarkerIcon(color, size));
+            marker.setIcon(buildSVServiceMarkerIcon(classIndex, size, iconUrls));
         }
     });
 }
@@ -5065,19 +5093,19 @@ function refreshSVServiceSymbolLayer(map, layers, addLegendEntry, options = {}) 
     const symbolColors = options.singleColorMode
         ? SV_SANDBOX_SERVICE_SYMBOL_COLORS
         : (config.serviceSymbolColors || ['#22c55e', '#f59e0b', '#dc2626']);
+    const iconUrls = getServiceSymbolIconUrls(config);
     const allMarkers = layer._svServiceAllMarkers || [];
 
     allMarkers.forEach(marker => {
         if (!marker.feature?.properties) return;
         const raw = Number(marker.feature.properties[attr]);
         const classIndex = getPatternClassIndex(raw, breaks);
-        const color = symbolColors[classIndex] || symbolColors[symbolColors.length - 1] || '#dc2626';
         marker.feature.properties.__svServiceClassIndex = classIndex;
     });
 
     updateSVServiceMarkerIconSizes(map, layer, layers);
 
-    layer._svServiceSymbolMeta = { breaks, symbolColors, svAttribute: attr };
+    layer._svServiceSymbolMeta = { breaks, symbolColors, iconUrls, svAttribute: attr };
     if (layer.layerData) {
         layer.layerData.selectedProperty = attr;
     }
@@ -5109,7 +5137,8 @@ function refreshSVServiceSymbolLayer(map, layers, addLegendEntry, options = {}) 
             markerSymbol: '!',
             items: terms.map((term, idx) => ({
                 label: `${term} (${rangeLabels[idx] || '—'})`,
-                color: symbolColors[idx] || '#dc2626'
+                color: symbolColors[idx] || '#dc2626',
+                iconUrl: getServiceSymbolIconUrl(idx, iconUrls)
             }))
         });
     }
@@ -5190,7 +5219,7 @@ function createSectarianClusterIcon(cluster, attr) {
     });
 }
 
-function createSVServiceClusterIcon(cluster, symbolColors) {
+function createSVServiceClusterIcon(cluster, iconUrls = SERVICE_SYMBOL_ICON_URLS) {
     const children = cluster.getAllChildMarkers();
     const classCounts = [0, 0, 0];
     children.forEach(marker => {
@@ -5202,13 +5231,19 @@ function createSVServiceClusterIcon(cluster, symbolColors) {
     for (let i = 1; i < classCounts.length; i++) {
         if (classCounts[i] > classCounts[dominantClass]) dominantClass = i;
     }
-    const dominantColor = symbolColors[dominantClass] || '#111827';
     const count = Math.max(1, cluster.getChildCount());
     const diameter = Math.max(28, Math.min(58, Math.round(24 + Math.sqrt(count) * 5.2)));
-    const fontSize = Math.max(11, Math.min(16, Math.round(diameter * 0.28)));
+    const iconSize = Math.round(diameter * 0.72);
+    const url = getServiceSymbolIconUrl(dominantClass, iconUrls);
+    const countSize = Math.max(10, Math.min(14, Math.round(diameter * 0.22)));
     return L.divIcon({
         className: 'sv-service-cluster-wrapper',
-        html: `<div style="width:${diameter}px;height:${diameter}px;border-radius:999px;background:${toRgbaColor(dominantColor, 0.4)};color:#ffffff;border:2px solid rgba(255,255,255,0.9);box-shadow:0 2px 8px rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:${fontSize}px;line-height:1;">!</div>`,
+        html: `
+            <div style="position:relative;width:${diameter}px;height:${diameter}px;display:flex;align-items:center;justify-content:center;">
+                <img src="${url}" alt="" width="${iconSize}" height="${iconSize}" style="width:${iconSize}px;height:${iconSize}px;display:block;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.35));">
+                <span style="position:absolute;right:0;bottom:0;min-width:${countSize + 6}px;height:${countSize + 4}px;padding:0 4px;border-radius:999px;background:rgba(17,24,39,0.85);color:#fff;border:1px solid rgba(255,255,255,0.9);font-weight:700;font-size:${countSize}px;line-height:${countSize + 4}px;text-align:center;">${count}</span>
+            </div>
+        `,
         iconSize: [diameter, diameter],
         iconAnchor: [Math.round(diameter / 2), Math.round(diameter / 2)]
     });
