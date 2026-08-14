@@ -2881,6 +2881,14 @@ const ICON_PAIR_MIN_CENTER_GAP_FRAC = 0.92;
 /** Pane above markers so AOI/info clicks hit polygons, not icons/clusters. */
 const SV_HIT_PANE_NAME = 'svHitPane';
 const SV_HIT_PANE_Z_INDEX = 625;
+/** Visible cadastre/admin outlines sit below fills and icons (tilePane = 200, overlayPane = 400). */
+const SV_OUTLINE_PANE_NAME = 'svOutlinePane';
+const SV_OUTLINE_PANE_Z_INDEX = 350;
+/** Displacement cluster icons sit below Climate / Service / Gender markers (markerPane = 600). */
+const SV_DISPLACEMENT_CLUSTER_PANE_NAME = 'svDisplacementClusterPane';
+const SV_DISPLACEMENT_CLUSTER_PANE_Z_INDEX = 550;
+/** Keep theme icons above other markers that share markerPane. */
+const SV_ICON_MARKER_Z_INDEX_OFFSET = 1200;
 let svCustomOverallOfficialWasChecked = false;
 
 function usesServiceMarkerClustering(resolution = getActiveAdminResolution()) {
@@ -2900,38 +2908,101 @@ function ensureSVHitPane(map) {
     return SV_HIT_PANE_NAME;
 }
 
-/** Visible boundary + near-invisible fill so the whole unit is clickable for AOI/info. */
-function buildSVHitPolygonStyle({ thinBoundaries = false } = {}) {
+function ensureSVOutlinePane(map) {
+    if (!map?.createPane || typeof map.getPane !== 'function') return null;
+    if (!map.getPane(SV_OUTLINE_PANE_NAME)) {
+        const pane = map.createPane(SV_OUTLINE_PANE_NAME);
+        pane.style.zIndex = String(SV_OUTLINE_PANE_Z_INDEX);
+        pane.style.pointerEvents = 'none';
+    }
+    return SV_OUTLINE_PANE_NAME;
+}
+
+function ensureSVDisplacementClusterPane(map) {
+    if (!map?.createPane || typeof map.getPane !== 'function') return null;
+    if (!map.getPane(SV_DISPLACEMENT_CLUSTER_PANE_NAME)) {
+        const pane = map.createPane(SV_DISPLACEMENT_CLUSTER_PANE_NAME);
+        pane.style.zIndex = String(SV_DISPLACEMENT_CLUSTER_PANE_Z_INDEX);
+    }
+    return SV_DISPLACEMENT_CLUSTER_PANE_NAME;
+}
+
+/** Click target only — no visible stroke, so borders cannot draw over icons. */
+function buildSVHitPolygonStyle() {
     return {
-        color: thinBoundaries ? SV_OUTLINE_CADASTRE_COLOR : SV_OUTLINE_COLOR,
-        weight: thinBoundaries ? SV_OUTLINE_CADASTRE_WEIGHT : SV_OUTLINE_WEIGHT,
-        opacity: thinBoundaries ? SV_OUTLINE_CADASTRE_OPACITY : SV_OUTLINE_OPACITY,
+        color: '#111827',
+        weight: 0,
+        opacity: 0,
         fill: true,
         fillColor: '#111827',
         fillOpacity: 0.01
     };
 }
 
+function buildSVVisualOutlineStyle({ thinBoundaries = false } = {}) {
+    return {
+        color: thinBoundaries ? SV_OUTLINE_CADASTRE_COLOR : SV_OUTLINE_COLOR,
+        weight: thinBoundaries ? SV_OUTLINE_CADASTRE_WEIGHT : SV_OUTLINE_WEIGHT,
+        opacity: thinBoundaries ? SV_OUTLINE_CADASTRE_OPACITY : SV_OUTLINE_OPACITY,
+        fill: false,
+        fillOpacity: 0
+    };
+}
+
 function createSVHitPolygonLayer(geoJsonData, { map = null, thinBoundaries = false } = {}) {
-    const pane = ensureSVHitPane(map);
-    return L.geoJSON(geoJsonData, {
-        ...(pane ? { pane } : {}),
+    const hitPane = ensureSVHitPane(map);
+    const outlinePane = ensureSVOutlinePane(map);
+    const hitLayer = L.geoJSON(geoJsonData, {
+        ...(hitPane ? { pane: hitPane } : {}),
         interactive: true,
-        style: () => buildSVHitPolygonStyle({ thinBoundaries })
+        style: () => buildSVHitPolygonStyle()
     });
+    const visualLayer = L.geoJSON(geoJsonData, {
+        ...(outlinePane ? { pane: outlinePane } : {}),
+        interactive: false,
+        style: () => buildSVVisualOutlineStyle({ thinBoundaries })
+    });
+    hitLayer._svVisualOutlineLayer = visualLayer;
+    hitLayer.on('add', () => {
+        const hostMap = hitLayer._map;
+        if (!hostMap) return;
+        ensureSVOutlinePane(hostMap);
+        if (visualLayer && !hostMap.hasLayer(visualLayer)) {
+            visualLayer.addTo(hostMap);
+        }
+    });
+    hitLayer.on('remove', () => {
+        const hostMap = visualLayer?._map;
+        if (hostMap && visualLayer && hostMap.hasLayer(visualLayer)) {
+            hostMap.removeLayer(visualLayer);
+        }
+    });
+    return hitLayer;
 }
 
 function applySVHitPolygonStyle(outlineLayer, { thinBoundaries = false } = {}) {
     if (!outlineLayer?.eachLayer) return;
-    const style = buildSVHitPolygonStyle({ thinBoundaries });
+    const hitStyle = buildSVHitPolygonStyle();
     outlineLayer.eachLayer(featureLayer => {
         if (typeof featureLayer.setStyle === 'function') {
-            featureLayer.setStyle(style);
+            featureLayer.setStyle(hitStyle);
         }
         if (featureLayer?.options) {
             featureLayer.options.interactive = true;
         }
     });
+    const visualLayer = outlineLayer._svVisualOutlineLayer;
+    if (visualLayer?.eachLayer) {
+        const visualStyle = buildSVVisualOutlineStyle({ thinBoundaries });
+        visualLayer.eachLayer(featureLayer => {
+            if (typeof featureLayer.setStyle === 'function') {
+                featureLayer.setStyle(visualStyle);
+            }
+            if (featureLayer?.options) {
+                featureLayer.options.interactive = false;
+            }
+        });
+    }
 }
 
 function getSVPolygonInteractionLayer(loadedLayer) {
@@ -4270,6 +4341,7 @@ async function loadSVCircleLayer(config, map = null) {
         thinBoundaries: Boolean(config?.thinBoundaries) || getActiveAdminResolution() === 'cadastre'
     });
 
+    const displacementClusterPane = ensureSVDisplacementClusterPane(map);
     const clusterLayer = typeof L.markerClusterGroup === 'function'
         ? L.markerClusterGroup({
             showCoverageOnHover: false,
@@ -4277,6 +4349,7 @@ async function loadSVCircleLayer(config, map = null) {
             zoomToBoundsOnClick: true,
             disableClusteringAtZoom: SV_SERVICE_DISABLE_CLUSTERING_AT_ZOOM,
             maxClusterRadius: 52,
+            ...(displacementClusterPane ? { clusterPane: displacementClusterPane } : {}),
             iconCreateFunction: cluster => createDisplacementClusterIcon(cluster, clusterStyleState)
         })
         : null;
@@ -4332,7 +4405,8 @@ async function loadSVServiceSymbolLayer(config, map = null) {
                 icon: buildSVServiceMarkerIcon(classIndex, markerSize, iconUrls),
                 opacity: 1,
                 interactive: false,
-                keyboard: false
+                keyboard: false,
+                zIndexOffset: SV_ICON_MARKER_Z_INDEX_OFFSET
             });
         }
     });
@@ -4404,7 +4478,8 @@ async function loadSVForestFireSymbolLayer(layerId, config, map = null) {
                 icon: buildForestFireMarkerIcon(classIndex, markerSize, iconUrls),
                 opacity: 1,
                 interactive: false,
-                keyboard: false
+                keyboard: false,
+                zIndexOffset: SV_ICON_MARKER_Z_INDEX_OFFSET
             });
         }
     });
@@ -4456,10 +4531,10 @@ const EDGE_FADE_CLASS_COUNT = 3;
 const EDGE_FADE_DEFAULT_COLORS = ['#ffffff', '#93c5fd', '#1e3a8a'];
 /** Soft glow passes — widest / faintest first, then tighter / stronger. */
 const EDGE_FADE_GLOW_PASSES = [
-    { widthPx: 24, alpha: 0.14 },
-    { widthPx: 15, alpha: 0.26 },
-    { widthPx: 8, alpha: 0.45 },
-    { widthPx: 3.5, alpha: 0.8 }
+    { widthPx: 12, alpha: 0.14 },
+    { widthPx: 7.5, alpha: 0.26 },
+    { widthPx: 4, alpha: 0.45 },
+    { widthPx: 1.75, alpha: 0.8 }
 ];
 
 function getEdgeFadeColors(config) {
@@ -5261,6 +5336,14 @@ function createSVServiceClusterIcon(cluster, iconUrls = SERVICE_SYMBOL_ICON_URLS
     });
 }
 
+function getClassIconDropShadowStyle(iconUrls, { cluster = false } = {}) {
+    const url = String(iconUrls?.[0] || '');
+    if (url.includes('gender-symbol')) return '';
+    return cluster
+        ? 'filter:drop-shadow(0 2px 4px rgba(0,0,0,0.35));'
+        : 'filter:drop-shadow(0 1px 2px rgba(0,0,0,0.35));';
+}
+
 function getForestFireIconUrl(classIndex, iconUrls = FOREST_FIRE_ICON_URLS) {
     const urls = iconUrls?.length ? iconUrls : FOREST_FIRE_ICON_URLS;
     const idx = Math.max(0, Math.min(urls.length - 1, Number(classIndex) || 0));
@@ -5271,9 +5354,10 @@ function buildForestFireMarkerIcon(classIndex, sizePx = FOREST_FIRE_MARKER_SIZE_
     const size = Math.max(16, Math.round(sizePx));
     const anchor = Math.round(size / 2);
     const url = getForestFireIconUrl(classIndex, iconUrls);
+    const shadow = getClassIconDropShadowStyle(iconUrls);
     return L.divIcon({
         className: 'sv-forest-fire-symbol-wrapper',
-        html: `<img src="${url}" alt="" width="${size}" height="${size}" style="width:${size}px;height:${size}px;display:block;pointer-events:none;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.35));">`,
+        html: `<img src="${url}" alt="" width="${size}" height="${size}" style="width:${size}px;height:${size}px;display:block;pointer-events:none;${shadow}">`,
         iconSize: [size, size],
         iconAnchor: [anchor, anchor]
     });
@@ -5314,7 +5398,7 @@ function createForestFireClusterIcon(cluster, iconUrls = FOREST_FIRE_ICON_URLS) 
         className: 'sv-forest-fire-cluster-wrapper',
         html: `
             <div style="position:relative;width:${diameter}px;height:${diameter}px;display:flex;align-items:center;justify-content:center;">
-                <img src="${url}" alt="" width="${iconSize}" height="${iconSize}" style="width:${iconSize}px;height:${iconSize}px;display:block;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.35));">
+                <img src="${url}" alt="" width="${iconSize}" height="${iconSize}" style="width:${iconSize}px;height:${iconSize}px;display:block;${getClassIconDropShadowStyle(iconUrls, { cluster: true })}">
                 <span style="position:absolute;right:0;bottom:0;min-width:${countSize + 6}px;height:${countSize + 4}px;padding:0 4px;border-radius:999px;background:rgba(17,24,39,0.85);color:#fff;border:1px solid rgba(255,255,255,0.9);font-weight:700;font-size:${countSize}px;line-height:${countSize + 4}px;text-align:center;">${count}</span>
             </div>
         `,
@@ -5509,6 +5593,8 @@ function removeSVAuxiliaryLayers(map, layer) {
     detachSVServiceMarkerZoomSync(map, layer);
     detachSVForestFireMarkerZoomSync(map, layer);
     if (layer._svAdminOutlineLayer && map.hasLayer(layer._svAdminOutlineLayer)) map.removeLayer(layer._svAdminOutlineLayer);
+    const visualOutline = layer._svAdminOutlineLayer?._svVisualOutlineLayer;
+    if (visualOutline && map.hasLayer(visualOutline)) map.removeLayer(visualOutline);
     if (layer._svCadastreOutlineLayer && map.hasLayer(layer._svCadastreOutlineLayer)) map.removeLayer(layer._svCadastreOutlineLayer);
     if (layer._svChoroplethFillLayer && map.hasLayer(layer._svChoroplethFillLayer)) map.removeLayer(layer._svChoroplethFillLayer);
     if (layer._svScoreLabelHost && map.hasLayer(layer._svScoreLabelHost)) map.removeLayer(layer._svScoreLabelHost);
@@ -6247,7 +6333,7 @@ function applySVStripePatternStyle(layerId, layer, config, opacity, map, addLege
     }
 
     if (layerId === 'svAdmin2Layer') {
-        keepSocioEconomicLayerOnTop({ vector: { svAdmin2Layer: layer } });
+        keepRoadLayerOnTop(window.mapLayers || { vector: { svAdmin2Layer: layer } });
     }
 }
 
@@ -6292,7 +6378,7 @@ function applySVLayerOpacity(layerId, layers, opacity, map = null, addLegendEntr
     }
 
     if (config.renderMode === 'sectarian-glyph') {
-        const outline = layer._svAdminOutlineLayer;
+        const outline = layer._svAdminOutlineLayer?._svVisualOutlineLayer || layer._svAdminOutlineLayer;
         const isCadastre = Boolean(config?.thinBoundaries);
         const outlineOpacityFactor = opacity;
         if (outline && typeof outline.eachLayer === 'function') {
@@ -7124,8 +7210,9 @@ function updateVectorLayerFromControls(layerId, layers, addLegendEntry, updateLe
 
 function applySVPolygonOutlineStyle(vectorLayer, config = null, options = {}) {
     if (!vectorLayer || typeof vectorLayer.eachLayer !== 'function') return;
+    const target = vectorLayer._svVisualOutlineLayer || vectorLayer;
     if (options.hide) {
-        vectorLayer.eachLayer(featureLayer => {
+        target.eachLayer(featureLayer => {
             if (typeof featureLayer?.setStyle !== 'function') return;
             featureLayer.setStyle({ weight: 0, opacity: 0 });
         });
@@ -7133,7 +7220,7 @@ function applySVPolygonOutlineStyle(vectorLayer, config = null, options = {}) {
     }
     const isCadastre = Boolean(config?.thinBoundaries);
     const isPeaceCadastre = isCadastre && config?.layerType === 'sv-admin3';
-    vectorLayer.eachLayer(featureLayer => {
+    target.eachLayer(featureLayer => {
         if (typeof featureLayer?.setStyle !== 'function') return;
         featureLayer.setStyle({
             weight: isPeaceCadastre
@@ -7587,6 +7674,14 @@ async function handlePolygonSelection(layerId, vectorLayer, selectedLayer, layer
     await updateSelectedPolygonInfoPanel(layerId, selectedLayer.feature?.properties || null, config, layers);
 }
 
+function bringLayerPartsToFront(parts) {
+    (parts || []).forEach(part => {
+        if (part && typeof part.bringToFront === 'function') {
+            part.bringToFront();
+        }
+    });
+}
+
 function keepSocioEconomicLayerOnTop(layers) {
     const layerId = 'svAdmin2Layer';
     if (!activeSVLayers.has(layerId)) return;
@@ -7594,17 +7689,44 @@ function keepSocioEconomicLayerOnTop(layers) {
     if (!layer) return;
 
     // Stripe fill and any socio sub-indicator overlays sit above other theme layers.
-    const parts = [layer, ...(layer._svSubindicatorOverlays || [])].filter(Boolean);
-    parts.forEach(part => {
-        if (typeof part.bringToFront === 'function') {
-            part.bringToFront();
-        }
+    bringLayerPartsToFront([layer, ...(layer._svSubindicatorOverlays || [])]);
+}
+
+function keepDisplacementLayerAboveSocio(layers) {
+    const layerId = 'svAdmin1Layer';
+    if (!activeSVLayers.has(layerId)) return;
+    const layer = layers?.vector?.[layerId];
+    if (!layer || layer._svDisplacementColorOnly) return;
+
+    bringLayerPartsToFront([
+        layer._svDisplacementMarkerLayer,
+        ...(layer._svDisplacementExtraGroups || []),
+        layer._svDisplacementClusterLayer,
+        layer
+    ]);
+}
+
+function keepIconSymbolLayersOnTop(layers) {
+    ICON_PAIR_LAYER_IDS.forEach(layerId => {
+        if (!activeSVLayers.has(layerId)) return;
+        const layer = layers?.vector?.[layerId];
+        if (!layer) return;
+        bringLayerPartsToFront([
+            layer._svServiceMarkerLayer,
+            layer._svServiceClusterLayer,
+            layer._svForestFireMarkerLayer,
+            layer._svForestFireClusterLayer,
+            layer
+        ]);
     });
 }
 
 function keepRoadLayerOnTop(layers) {
-    // Socioeconomic stripe fill sits above other theme layers when co-rendered.
+    // Overlay stack: color fills → Socioeconomic → Displacement → theme icons.
+    // Stressor lines stay above overlay fills; icons remain in markerPane above them.
     keepSocioEconomicLayerOnTop(layers);
+    keepDisplacementLayerAboveSocio(layers);
+    keepIconSymbolLayersOnTop(layers);
 
     const roadLayer = layers?.vector?.roadStatusLayer;
     if (roadLayer && typeof roadLayer.bringToFront === 'function') {

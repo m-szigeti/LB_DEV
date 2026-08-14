@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gender icons — equality symbol proposals</title>
+  <style>
+    body { font-family: system-ui, sans-serif; padding: 24px; background: #f1f5f9; color: #0f172a; margin: 0; }
+    h1 { font-size: 18px; margin: 0 0 8px; }
+    h2 { font-size: 15px; margin: 28px 0 8px; font-weight: 600; }
+    .hint { font-size: 13px; color: #64748b; margin: 0 0 14px; max-width: 52rem; line-height: 1.45; }
+    .row { display: flex; gap: 16px; flex-wrap: wrap; align-items: stretch; }
+    .card {
+      background: #fff; border: 1px solid #e2e8f0; border-radius: 10px;
+      padding: 14px; width: 160px; text-align: center;
+      box-shadow: 0 1px 3px rgba(0,0,0,.06);
+    }
+    .card svg { width: 96px; height: 96px; display: block; margin: 0 auto; }
+    .card.tiny { width: 110px; }
+    .card.tiny svg { width: 28px; height: 28px; }
+    .card strong { display: block; margin-top: 8px; font-size: 13px; }
+    .card .blurb { display: block; margin-top: 4px; font-size: 11px; color: #64748b; line-height: 1.35; }
+    .checker {
+      background-color: #fff;
+      background-image:
+        linear-gradient(45deg, #e2e8f0 25%, transparent 25%),
+        linear-gradient(-45deg, #e2e8f0 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, #e2e8f0 75%),
+        linear-gradient(-45deg, transparent 75%, #e2e8f0 75%);
+      background-size: 16px 16px;
+      background-position: 0 0, 0 8px, 8px -8px, -8px 0;
+    }
+    .on-dark { background: #1e293b; }
+    .on-dark strong { color: #e2e8f0; }
+    .on-dark .blurb { color: #94a3b8; }
+    .on-map { background: #dce7d4; }
+    .legend-strip {
+      display: flex; gap: 14px; align-items: center; flex-wrap: wrap;
+      background: #fff; border: 1px solid #e2e8f0; border-radius: 10px;
+      padding: 12px 16px; margin: 8px 0 0; max-width: 42rem;
+    }
+    .legend-strip .item { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #334155; }
+    .legend-strip svg { width: 22px; height: 22px; }
+  </style>
+</head>
+<body>
+  <h1>Gender Based Vulnerabilities — equality-symbol proposals</h1>
+  <p class="hint">
+    Recreated from the combined ♂ / ♀ / equals mark. Red square removed; symbols sit on a transparent background
+    (checkerboard cards). No pink. Two intensity stories: <strong>gray shade</strong> and <strong>line weight</strong>,
+    plus a combined option that is usually easiest to read on the map.
+  </p>
+
+  <!-- Shared geometry: circle (46,42) r=24; Mars arrow NE; Venus cross south; equals inside. -->
+
+  <h2>A — Gray shades (same line weight)</h2>
+  <p class="hint">Light → mid → near-black. Same stroke, so the silhouette stays identical at every class.</p>
+  <div class="row">
+    <div class="card checker">
+      <svg viewBox="0 0 100 100" aria-label="Gray low">
+        <g fill="none" stroke="#D4D4D4" stroke-width="6.5" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="46" cy="42" r="24"/>
+          <path d="M36 37 H56 M36 47 H56"/>
+          <path d="M63 25 L78 10"/>
+          <path d="M68 10 H78 V20"/>
+          <path d="M46 66 V92 M34 82 H58"/>
+        </g>
+      </svg>
+      <strong>Low</strong>
+      <span class="blurb">#D4D4D4</span>
+    </div>
+    <div class="card checker">
+      <svg viewBox="0 0 100 100" aria-label="Gray medium">
+        <g fill="none" stroke="#737373" stroke-width="6.5" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="46" cy="42" r="24"/>
+          <path d="M36 37 H56 M36 47 H56"/>
+          <path d="M63 25 L78 10"/>
+          <path d="M68 10 H78 V20"/>
+          <path d="M46 66 V92 M34 82 H58"/>
+        </g>
+      </svg>
+      <strong>Medium</strong>
+      <span class="blurb">#737373</span>
+    </div>
+    <div class="card checker">
+      <svg viewBox="0 0 100 100" aria-label="Gray high">
+        <g fill="none" stroke="#171717" stroke-width="6.5" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="46" cy="42" r="24"/>
+          <path d="M36 37 H56 M36 47 H56"/>
+          <path d="M63 25 L78 10"/>
+          <path d="M68 10 H78 V20"/>
+          <path d="M46 66 V92 M34 82 H58"/>
+        </g>
+      </svg>
+      <strong>High</strong>
+      <span class="blurb">#171717</span>
+    </div>
+  </div>
+
+  <h2>B — Thickening lines (same dark gray)</h2>
+  <p class="hint">Thin → medium → heavy. Colour stays charcoal so class is carried only by weight.</p>
+  <div class="row">
+    <div class="card checker">
+      <svg viewBox="0 0 100 100" aria-label="Weight low">
+        <g fill="none" stroke="#262626" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="46" cy="42" r="24"/>
+          <path d="M36 37 H56 M36 47 H56"/>
+          <path d="M63 25 L78 10"/>
+          <path d="M68 10 H78 V20"/>
+          <path d="M46 66 V92 M34 82 H58"/>
+        </g>
+      </svg>
+      <strong>Low</strong>
+      <span class="blurb">stroke 3.2</span>
+    </div>
+    <div class="card checker">
+      <svg viewBox="0 0 100 100" aria-label="Weight medium">
+        <g fill="none" stroke="#262626" stroke-width="6.5" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="46" cy="42" r="24"/>
+          <path d="M36 37 H56 M36 47 H56"/>
+          <path d="M63 25 L78 10"/>
+          <path d="M68 10 H78 V20"/>
+          <path d="M46 66 V92 M34 82 H58"/>
+        </g>
+      </svg>
+      <strong>Medium</strong>
+      <span class="blurb">stroke 6.5</span>
+    </div>
+    <div class="card checker">
+      <svg viewBox="0 0 100 100" aria-label="Weight high">
+        <g fill="none" stroke="#262626" stroke-width="10.5" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="46" cy="42" r="24"/>
+          <path d="M34 35 H58 M34 49 H58"/>
+          <path d="M63 25 L78 10"/>
+          <path d="M68 10 H78 V20"/>
+          <path d="M46 66 V92 M32 82 H60"/>
+        </g>
+      </svg>
+      <strong>High</strong>
+      <span class="blurb">stroke 10.5</span>
+    </div>
+  </div>
+
+  <h2>C — Combined (gray + weight) — extra map-ready option</h2>
+  <p class="hint">Light/thin → mid → black/heavy. Usually the clearest Low–Medium–High step at marker size.</p>
+  <div class="row">
+    <div class="card checker">
+      <svg viewBox="0 0 100 100" aria-label="Combined low">
+        <g fill="none" stroke="#A3A3A3" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="46" cy="42" r="24"/>
+          <path d="M36 37 H56 M36 47 H56"/>
+          <path d="M63 25 L78 10"/>
+          <path d="M68 10 H78 V20"/>
+          <path d="M46 66 V92 M34 82 H58"/>
+        </g>
+      </svg>
+      <strong>Low</strong>
+      <span class="blurb">light + thin</span>
+    </div>
+    <div class="card checker">
+      <svg viewBox="0 0 100 100" aria-label="Combined medium">
+        <g fill="none" stroke="#525252" stroke-width="6.5" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="46" cy="42" r="24"/>
+          <path d="M36 37 H56 M36 47 H56"/>
+          <path d="M63 25 L78 10"/>
+          <path d="M68 10 H78 V20"/>
+          <path d="M46 66 V92 M34 82 H58"/>
+        </g>
+      </svg>
+      <strong>Medium</strong>
+      <span class="blurb">mid gray + medium</span>
+    </div>
+    <div class="card checker">
+      <svg viewBox="0 0 100 100" aria-label="Combined high">
+        <g fill="none" stroke="#0A0A0A" stroke-width="10.5" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="46" cy="42" r="24"/>
+          <path d="M34 35 H58 M34 49 H58"/>
+          <path d="M63 25 L78 10"/>
+          <path d="M68 10 H78 V20"/>
+          <path d="M46 66 V92 M32 82 H60"/>
+        </g>
+      </svg>
+      <strong>High</strong>
+      <span class="blurb">black + heavy</span>
+    </div>
+  </div>
+
+  <h2>At map-marker size (~28px)</h2>
+  <div class="row">
+    <div class="card tiny">
+      <svg viewBox="0 0 100 100" aria-hidden="true">
+        <g fill="none" stroke="#D4D4D4" stroke-width="6.5" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="46" cy="42" r="24"/>
+          <path d="M36 37 H56 M36 47 H56"/>
+          <path d="M63 25 L78 10 M68 10 H78 V20"/>
+          <path d="M46 66 V92 M34 82 H58"/>
+        </g>
+      </svg>
+      <strong>A Low</strong>
+    </div>
+    <div class="card tiny">
+      <svg viewBox="0 0 100 100" aria-hidden="true">
+        <g fill="none" stroke="#737373" stroke-width="6.5" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="46" cy="42" r="24"/>
+          <path d="M36 37 H56 M36 47 H56"/>
+          <path d="M63 25 L78 10 M68 10 H78 V20"/>
+          <path d="M46 66 V92 M34 82 H58"/>
+        </g>
+      </svg>
+      <strong>A Med</strong>
+    </div>
+    <div class="card tiny">
+      <svg viewBox="0 0 100 100" aria-hidden="true">
+        <g fill="none" stroke="#171717" stroke-width="6.5" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="46" cy="42" r="24"/>
+          <path d="M36 37 H56 M36 47 H56"/>
+          <path d="M63 25 L78 10 M68 10 H78 V20"/>
+          <path d="M46 66 V92 M34 82 H58"/>
+        </g>
+      </svg>
+      <strong>A High</strong>
+    </div>
+    <div class="card tiny">
+      <svg viewBox="0 0 100 100" aria-hidden="true">
+        <g fill="none" stroke="#262626" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="46" cy="42" r="24"/>
+          <path d="M36 37 H56 M36 47 H56"/>
+          <path d="M63 25 L78 10 M68 10 H78 V20"/>
+          <path d="M46 66 V92 M34 82 H58"/>
+        </g>
+      </svg>
+      <strong>B Low</strong>
+    </div>
+    <div class="card tiny">
+      <svg viewBox="0 0 100 100" aria-hidden="true">
+        <g fill="none" stroke="#262626" stroke-width="6.5" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="46" cy="42" r="24"/>
+          <path d="M36 37 H56 M36 47 H56"/>
+          <path d="M63 25 L78 10 M68 10 H78 V20"/>
+          <path d="M46 66 V92 M34 82 H58"/>
+        </g>
+      </svg>
+      <strong>B Med</strong>
+    </div>
+    <div class="card tiny">
+      <svg viewBox="0 0 100 100" aria-hidden="true">
+        <g fill="none" stroke="#262626" stroke-width="10.5" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="46" cy="42" r="24"/>
+          <path d="M34 35 H58 M34 49 H58"/>
+          <path d="M63 25 L78 10 M68 10 H78 V20"/>
+          <path d="M46 66 V92 M32 82 H60"/>
+        </g>
+      </svg>
+      <strong>B High</strong>
+    </div>
+    <div class="card tiny">
+      <svg viewBox="0 0 100 100" aria-hidden="true">
+        <g fill="none" stroke="#A3A3A3" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="46" cy="42" r="24"/>
+          <path d="M36 37 H56 M36 47 H56"/>
+          <path d="M63 25 L78 10 M68 10 H78 V20"/>
+          <path d="M46 66 V92 M34 82 H58"/>
+        </g>
+      </svg>
+      <strong>C Low</strong>
+    </div>
+    <div class="card tiny">
+      <svg viewBox="0 0 100 100" aria-hidden="true">
+        <g fill="none" stroke="#525252" stroke-width="6.5" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="46" cy="42" r="24"/>
+          <path d="M36 37 H56 M36 47 H56"/>
+          <path d="M63 25 L78 10 M68 10 H78 V20"/>
+          <path d="M46 66 V92 M34 82 H58"/>
+        </g>
+      </svg>
+      <strong>C Med</strong>
+    </div>
+    <div class="card tiny">
+      <svg viewBox="0 0 100 100" aria-hidden="true">
+        <g fill="none" stroke="#0A0A0A" stroke-width="10.5" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="46" cy="42" r="24"/>
+          <path d="M34 35 H58 M34 49 H58"/>
+          <path d="M63 25 L78 10 M68 10 H78 V20"/>
+          <path d="M46 66 V92 M32 82 H60"/>
+        </g>
+      </svg>
+      <strong>C High</strong>
+    </div>
+  </div>
+
+  <h2>On map-like backgrounds (combined set)</h2>
+  <div class="row">
+    <div class="card on-map">
+      <svg viewBox="0 0 100 100" aria-hidden="true">
+        <g fill="none" stroke="#A3A3A3" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="46" cy="42" r="24"/>
+          <path d="M36 37 H56 M36 47 H56"/>
+          <path d="M63 25 L78 10 M68 10 H78 V20"/>
+          <path d="M46 66 V92 M34 82 H58"/>
+        </g>
+      </svg>
+      <strong>Low on green</strong>
+    </div>
+    <div class="card on-map">
+      <svg viewBox="0 0 100 100" aria-hidden="true">
+        <g fill="none" stroke="#525252" stroke-width="6.5" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="46" cy="42" r="24"/>
+          <path d="M36 37 H56 M36 47 H56"/>
+          <path d="M63 25 L78 10 M68 10 H78 V20"/>
+          <path d="M46 66 V92 M34 82 H58"/>
+        </g>
+      </svg>
+      <strong>Med on green</strong>
+    </div>
+    <div class="card on-map">
+      <svg viewBox="0 0 100 100" aria-hidden="true">
+        <g fill="none" stroke="#0A0A0A" stroke-width="10.5" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="46" cy="42" r="24"/>
+          <path d="M34 35 H58 M34 49 H58"/>
+          <path d="M63 25 L78 10 M68 10 H78 V20"/>
+          <path d="M46 66 V92 M32 82 H60"/>
+        </g>
+      </svg>
+      <strong>High on green</strong>
+    </div>
+    <div class="card on-dark">
+      <svg viewBox="0 0 100 100" aria-hidden="true">
+        <g fill="none" stroke="#A3A3A3" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="46" cy="42" r="24"/>
+          <path d="M36 37 H56 M36 47 H56"/>
+          <path d="M63 25 L78 10 M68 10 H78 V20"/>
+          <path d="M46 66 V92 M34 82 H58"/>
+        </g>
+      </svg>
+      <strong>Low on dark</strong>
+      <span class="blurb">Light gray still visible</span>
+    </div>
+    <div class="card on-dark">
+      <svg viewBox="0 0 100 100" aria-hidden="true">
+        <g fill="none" stroke="#E5E5E5" stroke-width="10.5" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="46" cy="42" r="24"/>
+          <path d="M34 35 H58 M34 49 H58"/>
+          <path d="M63 25 L78 10 M68 10 H78 V20"/>
+          <path d="M46 66 V92 M32 82 H60"/>
+        </g>
+      </svg>
+      <strong>High inverted</strong>
+      <span class="blurb">Only if a dark basemap is common</span>
+    </div>
+  </div>
+
+  <h2>Legend strip mock — combined</h2>
+  <div class="legend-strip">
+    <div class="item">
+      <svg viewBox="0 0 100 100" aria-hidden="true">
+        <g fill="none" stroke="#A3A3A3" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="46" cy="42" r="24"/>
+          <path d="M36 37 H56 M36 47 H56"/>
+          <path d="M63 25 L78 10 M68 10 H78 V20"/>
+          <path d="M46 66 V92 M34 82 H58"/>
+        </g>
+      </svg>
+      Low
+    </div>
+    <div class="item">
+      <svg viewBox="0 0 100 100" aria-hidden="true">
+        <g fill="none" stroke="#525252" stroke-width="6.5" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="46" cy="42" r="24"/>
+          <path d="M36 37 H56 M36 47 H56"/>
+          <path d="M63 25 L78 10 M68 10 H78 V20"/>
+          <path d="M46 66 V92 M34 82 H58"/>
+        </g>
+      </svg>
+      Medium
+    </div>
+    <div class="item">
+      <svg viewBox="0 0 100 100" aria-hidden="true">
+        <g fill="none" stroke="#0A0A0A" stroke-width="10.5" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="46" cy="42" r="24"/>
+          <path d="M34 35 H58 M34 49 H58"/>
+          <path d="M63 25 L78 10 M68 10 H78 V20"/>
+          <path d="M46 66 V92 M32 82 H60"/>
+        </g>
+      </svg>
+      High
+    </div>
+  </div>
+</body>
+</html>

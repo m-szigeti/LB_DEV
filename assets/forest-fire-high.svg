@@ -1,31 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
-  <title>Climate risk high — leafless pine</title>
+  <title>Climate risk high — dark brown pine</title>
   <path fill="#5C4A40" d="M261.56 511.986h-66.784c-9.217 0-16.696-7.473-16.696-16.696V383.983c0-9.223 7.479-16.696 16.696-16.696h66.784c9.217 0 16.696 7.473 16.696 16.696V495.29c0 9.222-7.479 16.696-16.696 16.696z"/>
   <path fill="#4A3B33" d="M261.56 367.287h-33.392v144.699h33.392c9.217 0 16.696-7.473 16.696-16.696V383.983c0-9.224-7.479-16.696-16.696-16.696z"/>
-  <path fill="#6B5344" d="M214 368h28v-300h-28z"/>
-  <path fill="#5A4538" d="M228 368h14v-300h-14z"/>
-  <g stroke="#6B5344" stroke-linecap="round" stroke-linejoin="round" fill="none">
-    <path d="M228 340 L16.7 340" stroke-width="14"/>
-    <path d="M228 340 L439.3 340" stroke-width="14"/>
-    <path d="M50 340 L16.7 312" stroke-width="8"/>
-    <path d="M90 340 L55 308" stroke-width="7"/>
-    <path d="M406 340 L439.3 312" stroke-width="8"/>
-    <path d="M366 340 L401 308" stroke-width="7"/>
-    <path d="M228 250 L57 250" stroke-width="12"/>
-    <path d="M228 250 L399 250" stroke-width="12"/>
-    <path d="M90 250 L57 222" stroke-width="7"/>
-    <path d="M125 250 L92 218" stroke-width="6"/>
-    <path d="M366 250 L399 222" stroke-width="7"/>
-    <path d="M331 250 L364 218" stroke-width="6"/>
-    <path d="M228 160 L97 160" stroke-width="10"/>
-    <path d="M228 160 L359 160" stroke-width="10"/>
-    <path d="M130 160 L97 138" stroke-width="6"/>
-    <path d="M326 160 L359 138" stroke-width="6"/>
-    <path d="M228 90 L170 90" stroke-width="7"/>
-    <path d="M228 90 L286 90" stroke-width="7"/>
-    <path d="M228 68 L228 40" stroke-width="9"/>
-    <path d="M228 55 L198 40" stroke-width="5"/>
-    <path d="M228 55 L258 40" stroke-width="5"/>
-  </g>
+  <path fill="#3B2414" d="M300.852 400.679H16.685c-14.805 0-22.261-18.032-11.8-28.495l88.379-88.378H56.978c-14.804 0-22.261-18.032-11.797-28.495l88.376-88.378H97.271c-14.805 0-22.261-18.032-11.8-28.495L219.04 4.872c2.671-2.671 5.788-4.118 9.128-4.564 5.12-1.002 10.574 0.557 14.47 4.564L376.206 138.44c10.462 10.463 3.117 28.495-11.8 28.495H328.12l88.376 88.378C427.073 265.775 419.616 283.807 404.701 283.807L439.651 400.679Z"/>
+  <path fill="#1C1008" d="M228.169 400.679V0.307c5.12-1.002 10.574 0.557 14.47 4.564l133.568 133.568c10.462 10.463 3.117 28.495-11.8 28.495H328.12l88.376 88.378C427.073 265.775 419.616 283.807 404.701 283.807L439.651 400.679Z"/>
 </svg>
