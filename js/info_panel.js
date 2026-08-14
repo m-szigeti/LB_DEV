@@ -490,7 +490,7 @@ setupEventListeners() {
         if (mapBtn) {
             mapBtn.setAttribute('aria-pressed', active ? 'true' : 'false');
             mapBtn.classList.toggle('is-active', active);
-            mapBtn.textContent = active ? 'Stop AOI' : 'Select AOI';
+            mapBtn.textContent = active ? 'Stop Selecting' : 'Select Area of Interest';
             mapBtn.title = active
                 ? 'Stop selecting polygons on the map'
                 : 'Select polygons for area of interest analysis';
