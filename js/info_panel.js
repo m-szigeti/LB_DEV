@@ -198,7 +198,7 @@ export class InfoPanel {
                         </div>
                         <div class="analysis-area-selection" id="analysis-area-selection">
                             <div class="analysis-area-selection-header">
-                                <h5>Select polygons (AOI)</h5>
+                                <h5>Select area on the map</h5>
                                 <p class="analysis-area-hint" id="analysis-area-resolution-hint">
                                     Select map units to build an AOI. Metrics, class shares, and exports update from the selection.
                                 </p>
@@ -209,7 +209,7 @@ export class InfoPanel {
                                 class="run-analysis-btn analysis-selection-toggle"
                                 aria-pressed="false"
                             >
-                                Select polygons on map
+                                Select area on map
                             </button>
                             <div id="analysis-selection-status" class="analysis-selection-status" hidden>
                                 <span id="analysis-selection-count">0 selected</span>
@@ -486,7 +486,7 @@ setupEventListeners() {
 
         if (toggleBtn) {
             toggleBtn.setAttribute('aria-pressed', active ? 'true' : 'false');
-            toggleBtn.textContent = active ? 'Stop selecting on map' : 'Select polygons on map';
+            toggleBtn.textContent = active ? 'Stop selecting on map' : 'Select area on map';
             toggleBtn.classList.toggle('is-active', active);
         }
 
@@ -497,7 +497,7 @@ setupEventListeners() {
             mapBtn.textContent = active ? 'Stop Selecting' : 'Select Area of Interest';
             mapBtn.title = active
                 ? 'Stop selecting polygons on the map'
-                : 'Select polygons for area of interest analysis';
+                : 'Select for area of interest analysis';
         }
 
         if (status) {
