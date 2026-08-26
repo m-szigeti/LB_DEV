@@ -67,7 +67,7 @@ export const WELCOME_TAB_HTML = `
                 <div style="margin-bottom:5px;"><span style="display:inline-block; width:10px; height:10px; border-radius:2px; background:#8b5cf6; margin-right:6px;"></span><strong>Service &amp; Infrastructure Vulnerability</strong> &mdash; Availability and quality of essential services (class icons).</div>
                 <div style="margin-bottom:5px;"><span style="display:inline-block; width:10px; height:10px; border-radius:2px; background:#b2182b; margin-right:6px;"></span><strong>Climate Risk</strong> &mdash; Heat, drought, and forest-fire related pressures (pine icons).</div>
                 <div style="margin-bottom:5px;"><span style="display:inline-block; width:10px; height:10px; border-radius:2px; background:#1e3a8a; margin-right:6px;"></span><strong>Political Vulnerability</strong> &mdash; Governance, institutional trust, and demographic shock pressures (inward edge glow).</div>
-                <div><span style="display:inline-block; width:10px; height:10px; border-radius:2px; background:#525252; margin-right:6px;"></span><strong>Gender Based Vulnerabilities</strong> &mdash; Gender disparities in safety, service access, and participation (equality-symbol icons).</div>
+                <div><span style="display:inline-block; width:10px; height:10px; border-radius:2px; background:#525252; margin-right:6px;"></span><strong>Gender Based Vulnerabilities</strong> &mdash; Gender disparities in safety, service access, and participation (diamond icons).</div>
             </div>
 
             <div style="background:#efefeb; border-left:4px solid #a5a394; color:#555; font-size:12px; line-height:1.45; padding:8px 10px; border-radius:4px; margin-bottom:14px;">

@@ -56,7 +56,7 @@
     cursor: pointer;
 }
 
-#customOverallOpenBtn {
+#customOverallOpenBtn.custom-overall-btn {
     width: 100%;
     box-sizing: border-box;
 }

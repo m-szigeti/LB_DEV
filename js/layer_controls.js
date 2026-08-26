@@ -2881,7 +2881,7 @@ function getServiceSymbolIconUrls(config) {
 const FOREST_FIRE_MARKER_SIZE_DEFAULT = 28;
 const FOREST_FIRE_MARKER_SIZE_AGGREGATE = 42;
 const FOREST_FIRE_MARKER_SIZE_UNCLUSTERED_CADASTRE = 36;
-/** Service (!), Climate (tree), Gender (♀): center when alone; side-by-side when several are on. */
+/** Service (!), Climate (tree), Gender (diamond): center when alone; side-by-side when several are on. */
 const ICON_PAIR_LAYER_IDS = ['svAdmin4Layer', 'svClimateLayer', 'svGenderLayer'];
 const ICON_PAIR_SIDE_LNG_FRAC = 0.12;
 /** Slightly wider geographic step when all three share a unit. */
@@ -5295,8 +5295,6 @@ function createSVServiceClusterIcon(cluster, iconUrls = SERVICE_SYMBOL_ICON_URLS
 }
 
 function getClassIconDropShadowStyle(iconUrls, { cluster = false } = {}) {
-    const url = String(iconUrls?.[0] || '');
-    if (url.includes('gender-symbol')) return '';
     return cluster
         ? 'filter:drop-shadow(0 2px 4px rgba(0,0,0,0.35));'
         : 'filter:drop-shadow(0 1px 2px rgba(0,0,0,0.35));';

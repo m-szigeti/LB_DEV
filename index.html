@@ -25,6 +25,13 @@
             margin: 0;
             padding: 0;
         }
+        /* Temporarily hide sidebar experimental-weights entry points; JS features remain. */
+        .composite-sandbox-panel {
+            display: none !important;
+        }
+        #customOverallBuilderWrap:not(:has(button:not([hidden]))) {
+            display: none !important;
+        }
     </style>
 </head>
 <body>
@@ -113,9 +120,6 @@
             </div>
 
             <div id="customOverallBuilderWrap" class="custom-overall-builder-wrap">
-                <button type="button" id="customOverallOpenBtn" class="custom-overall-btn">
-                    Build custom index...
-                </button>
                 <button type="button" id="customOverallDeleteBtn" class="custom-overall-btn custom-overall-btn-danger" hidden>
                     Delete custom index
                 </button>
@@ -704,15 +708,25 @@
         
         <!-- Map workspace -->
         <div class="map-panel">
-            <button
-                type="button"
-                id="map-aoi-select-btn"
-                class="map-aoi-select-btn"
-                aria-pressed="false"
-                title="Select polygons for area of interest analysis"
-            >
-                Select Area of Interest
-            </button>
+            <div class="map-aoi-toolbar">
+                <button
+                    type="button"
+                    id="map-aoi-select-btn"
+                    class="map-aoi-select-btn"
+                    aria-pressed="false"
+                    title="Select polygons for area of interest analysis"
+                >
+                    Select Area of Interest
+                </button>
+                <button
+                    type="button"
+                    id="customOverallOpenBtn"
+                    class="map-aoi-select-btn map-custom-index-btn"
+                    title="Build a custom overall index"
+                >
+                    Build custom Index
+                </button>
+            </div>
 
             <!-- Statistics container -->
             <div id="stats-container" style="display: none; position: absolute; top: 10px; right: 10px; z-index: 1000; padding: 10px; background: white; border: 1px solid #ccc; border-radius: 5px; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);"></div>

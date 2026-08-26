@@ -96,6 +96,7 @@ export function initCustomOverallBuilder(appContext) {
 
 function hideBuilderChrome() {
     document.getElementById('customOverallBuilderWrap')?.setAttribute('hidden', '');
+    document.getElementById('customOverallOpenBtn')?.setAttribute('hidden', '');
     document.getElementById('svCustomOverallRow')?.setAttribute('hidden', '');
     document.getElementById('customOverallModal')?.setAttribute('hidden', '');
 }
@@ -447,6 +448,8 @@ function syncBuilderChrome() {
     }
     const wrap = document.getElementById('customOverallBuilderWrap');
     if (wrap) wrap.hidden = false;
+    const openBtn = document.getElementById('customOverallOpenBtn');
+    if (openBtn) openBtn.hidden = false;
 
     const row = document.getElementById('svCustomOverallRow');
     const deleteBtn = document.getElementById('customOverallDeleteBtn');

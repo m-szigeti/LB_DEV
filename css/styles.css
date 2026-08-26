@@ -242,11 +242,18 @@
     background: #f8f9fa;
 }
 
-.map-aoi-select-btn {
+.map-aoi-toolbar {
     position: absolute;
     top: 12px;
     left: 12px;
     z-index: 1100;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+}
+
+.map-aoi-select-btn {
     border: 1px solid #c4b5fd;
     border-radius: 6px;
     background: #fff;
@@ -280,6 +287,10 @@
 .map-aoi-select-btn:focus-visible {
     outline: 2px solid #7c3aed;
     outline-offset: 2px;
+}
+
+.map-custom-index-btn {
+    white-space: nowrap;
 }
 
 .map-selection-banner {
