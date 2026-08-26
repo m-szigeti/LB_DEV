@@ -61,7 +61,10 @@ import {
     initMapDisplayControls,
     isColorOnlyMode,
     isShowLabelsMode,
-    getClassificationMode
+    getClassificationMode,
+    getIsolatedLayerId,
+    setIsolatedLayerId,
+    setColorOnlyMode
 } from './map_display_controls.js';
 import { configureAoiProviders, resolvePopulationDetailsForProperties } from './aoi_context.js';
 import { configureAoiSpotlight, forceAoiStyleRecovery } from './aoi_spotlight.js';
@@ -758,7 +761,7 @@ async function isolateSvLayer(layerId, map, layers, removeLegendEntry) {
     if (!target.checked) {
         target.checked = true;
         target.dispatchEvent(new Event('change'));
-        await waitUntil(() => activeSVLayers.has(layerId), 10000);
+        await waitUntil(() => activeSVLayers.has(layerId) && Boolean(layers.vector[layerId]), 15000);
     } else {
         applySVLayerExclusivity(layerId);
         enforceColorOnlySingleLayer(map, layers, removeLegendEntry);
@@ -1952,7 +1955,7 @@ function getChoroplethLegendScaleOptions(layerId) {
         return { scaleDirection: 'white-to-red' };
     }
     if (layerId === 'svPoliticalLayer') {
-        return { scaleDirection: 'white-to-dark-blue' };
+        return { scaleDirection: isColorOnlyMode() ? 'white-to-red' : 'white-to-dark-blue' };
     }
     if (layerId === 'svGenderLayer') {
         return { scaleDirection: 'white-to-pink' };
@@ -2205,75 +2208,192 @@ function refreshSVDisplacementLayerCircles(layerId, layers, config, map) {
     refreshSVDisplacementCircles(layerId, layers, config, map);
 }
 
-function refreshSVDisplacementSingleColorMode(map, layers, addLegendEntry) {
-    const layerId = 'svAdmin1Layer';
-    const config = layerConfig[layerId];
-    const layer = layers.vector[layerId];
-    if (!config || !layer || !layer._isSVProportionalLayer || !activeSVLayers.has(layerId)) return;
+function getSVPolygonSourceData(layer) {
+    return layer?._svPolygonGeoJson || layer?.layerData?.raw || null;
+}
 
-    const outline = layer._svAdminOutlineLayer;
-    if (!outline) return;
+function layerUsesAuxiliaryColorFill(layer, config) {
+    const mode = config?.renderMode;
+    return (
+        mode === 'proportional-circles' ||
+        mode === 'edge-fade-ring' ||
+        mode === 'service-symbol' ||
+        mode === 'forest-fire-symbol' ||
+        mode === 'sectarian-glyph' ||
+        Boolean(layer?._isSVProportionalLayer) ||
+        Boolean(layer?._isSVEdgeFadeRingLayer) ||
+        Boolean(layer?._isSVServiceSymbolLayer) ||
+        Boolean(layer?._isSVForestFireSymbolLayer)
+    );
+}
 
-    if (map?.hasLayer(layer)) {
-        map.removeLayer(layer);
+function getColorOnlyAttribute(layerId, config) {
+    if (layerId === 'svAdmin1Layer' || config?.renderMode === 'proportional-circles') {
+        return getEffectiveDisplacementCircleAttribute(config);
     }
-    if (map && !map.hasLayer(outline)) {
-        outline.addTo(map);
+    if (layerId === 'svAdmin4Layer' || config?.renderMode === 'service-symbol') {
+        return getEffectiveServiceAttribute(config);
     }
+    return getEffectiveChoroplethAttribute(layerId, config);
+}
 
-    const attr = getEffectiveDisplacementCircleAttribute(config);
-    const fixedRamp = getColorRamp(SV_SANDBOX_SINGLE_COLOR_RAMP_ID);
-    if (!fixedRamp) return;
-    const opacitySlider = document.getElementById(config.opacityControl);
-    const opacity = opacitySlider ? parseFloat(opacitySlider.value) : 0.6;
+function getColorOnlyRamp(_layerId, config) {
+    return getColorRamp(SV_SANDBOX_SINGLE_COLOR_RAMP_ID) || getColorRamp(config?.fixedColorRamp);
+}
 
-    if (!outline.layerData) {
-        outline.layerData = {
-            raw: layer.layerData?.raw,
-            propertyFields: Object.keys(layer.layerData?.raw?.features?.[0]?.properties || {}),
-            selectedProperty: attr,
+function ensureSVPolygonChoroplethLayer(layer, config) {
+    const data = getSVPolygonSourceData(layer);
+    if (!data?.features?.length) return null;
+    if (!layer._svChoroplethFillLayer) {
+        layer._svChoroplethFillLayer = L.geoJSON(data, {
+            interactive: false,
+            style: {
+                weight: 0,
+                opacity: 0,
+                fill: true,
+                fillOpacity: 0.6
+            }
+        });
+        layer._svChoroplethFillLayer.layerData = {
+            raw: data,
+            propertyFields: Object.keys(data.features[0]?.properties || {}),
+            selectedProperty: config?.svAttribute,
             colorRamp: null
         };
-    } else {
-        outline.layerData.raw = layer.layerData?.raw || outline.layerData.raw;
-        outline.layerData.selectedProperty = attr;
-        outline.layerData._styleSignature = null;
+    } else if (layer._svChoroplethFillLayer.layerData) {
+        layer._svChoroplethFillLayer.layerData.raw = data;
+        layer._svChoroplethFillLayer.layerData._styleSignature = null;
     }
-    layer._svDisplacementColorOnly = true;
+    return layer._svChoroplethFillLayer;
+}
 
-    outline.eachLayer(featureLayer => {
-        if (featureLayer?.options) {
-            featureLayer.options.interactive = true;
+function setSVChoroplethFillOnMap(map, layer, onMap) {
+    if (!map || !layer?._svChoroplethFillLayer) return;
+    if (onMap) {
+        if (!map.hasLayer(layer._svChoroplethFillLayer)) {
+            layer._svChoroplethFillLayer.addTo(map);
         }
-        if (typeof featureLayer?.setStyle === 'function') {
-            featureLayer.setStyle({ fill: true });
+    } else if (map.hasLayer(layer._svChoroplethFillLayer)) {
+        map.removeLayer(layer._svChoroplethFillLayer);
+    }
+}
+
+/**
+ * One color-only path for every theme: a plain choropleth fill, no default
+ * symbols/glow/circles, and hit polygons stay invisible click targets.
+ */
+function applySVColorOnlyChoropleth(layerId, map, layers, addLegendEntry) {
+    const config = layerConfig[layerId];
+    const layer = layers.vector[layerId];
+    if (!config || !layer || !activeSVLayers.has(layerId)) return;
+
+    if (layer._isSVServiceSymbolLayer || layer._isSVForestFireSymbolLayer) {
+        syncServicePolygonScoresFromMarkers(layer);
+    }
+
+    const usesAux = layerUsesAuxiliaryColorFill(layer, config);
+    const fillLayer = usesAux ? ensureSVPolygonChoroplethLayer(layer, config) : layer;
+    if (!fillLayer) return;
+
+    const attr = getColorOnlyAttribute(layerId, config);
+    const fixedRamp = getColorOnlyRamp(layerId, config);
+    if (!attr || !fixedRamp) return;
+
+    const opacitySlider = document.getElementById(config.opacityControl || 'svOpacity');
+    const opacity = opacitySlider ? parseFloat(opacitySlider.value) : 0.6;
+
+    if (usesAux) {
+        if (layer._isSVProportionalLayer || config.renderMode === 'proportional-circles') {
+            if (map?.hasLayer(layer)) map.removeLayer(layer);
+            layer._svDisplacementColorOnly = true;
+        } else if (layer._isSVEdgeFadeRingLayer || config.renderMode === 'edge-fade-ring') {
+            setSVEdgeFadeVisualsOnMap(map, layer, false);
+            layer._svEdgeFadeColorOnly = true;
+        } else if (layer._isSVServiceSymbolLayer) {
+            setSVServiceMarkersOnMap(map, layer, false);
+        } else if (layer._isSVForestFireSymbolLayer) {
+            setSVForestFireMarkersOnMap(map, layer, false);
         }
-    });
+    } else if (config.renderMode === 'stripe-pattern' || config.renderMode === 'service-pattern') {
+        clearStripePatternFill(layer);
+    }
+
+    const polygonData = getSVPolygonSourceData(layer);
+    if (fillLayer.layerData) {
+        fillLayer.layerData.raw = polygonData || fillLayer.layerData.raw;
+        fillLayer.layerData.selectedProperty = attr;
+        fillLayer.layerData._styleSignature = null;
+    }
+
+    if (usesAux) {
+        setSVChoroplethFillOnMap(map, layer, true);
+        const outline = layer._svAdminOutlineLayer;
+        if (outline && map && !map.hasLayer(outline)) {
+            outline.addTo(map);
+        }
+        applySVHitPolygonStyle(outline, { thinBoundaries: Boolean(config.thinBoundaries) });
+        applySVPolygonOutlineStyle(outline, config, { hide: true });
+    } else if (map && !map.hasLayer(layer)) {
+        layer.addTo(map);
+    }
 
     const updateLegendForLayer = (layerName, colorScheme, description, labels) => {
+        if (layerId === 'svOverallTensionLayer' && attr !== CUSTOM_COMPOSITE_FIELD) {
+            pushOverallVulnerabilityLegend(
+                layerId,
+                config,
+                fixedRamp.colors,
+                addLegendEntry,
+                layer.layerData?.raw,
+                opacity,
+                labels
+            );
+            return;
+        }
         pushSVChoroplethLegendEntry(
             layerId,
             attr,
             config,
             layerName,
             colorScheme,
-            description,
+            `${description || ''} Color-only mode.`.trim(),
             labels,
             addLegendEntry
         );
     };
 
-    updateVectorLayerStyle(outline, attr, fixedRamp, opacity, updateLegendForLayer, { skipTooltips: true });
-    applySVPolygonOutlineStyle(outline, config, { hide: true });
-    updateSVHoverTooltips(outline, layerId, config);
+    updateVectorLayerStyle(fillLayer, attr, fixedRamp, opacity, updateLegendForLayer, {
+        skipTooltips: true,
+        hideOutline: true
+    });
+    applySVPolygonOutlineStyle(fillLayer, config, { hide: true });
+
+    const hoverTarget = layer._svAdminOutlineLayer || fillLayer;
+    updateSVHoverTooltips(hoverTarget, layerId, config);
     reapplySelectedPolygonHighlight(layerId);
-    syncDisplacementSubindicatorExtras(map, layerId, layers, config);
+    if (layerId === 'svAdmin1Layer') {
+        syncDisplacementSubindicatorExtras(map, layerId, layers, config);
+    } else if (
+        layerId === 'svAdmin2Layer' ||
+        layerId === 'svAdmin3Layer' ||
+        THEME_SUBINDICATOR_LAYER_IDS.includes(layerId)
+    ) {
+        syncChoroplethSubindicatorOverlays(map, layerId, layers, config);
+    }
+    if (window.currentInfoPanel) {
+        window.currentInfoPanel.updateLayer(layerId, { selectedAttribute: attr, opacity });
+    }
+}
+
+function refreshSVDisplacementSingleColorMode(map, layers, addLegendEntry) {
+    applySVColorOnlyChoropleth('svAdmin1Layer', map, layers, addLegendEntry);
 }
 
 function restoreSVDisplacementCirclesFromColorOnly(map, layers, layerId) {
     const layer = layers.vector[layerId];
-    if (!layer?._isSVProportionalLayer || !layer._svDisplacementColorOnly) return;
+    if (!layer?._isSVProportionalLayer) return;
 
+    setSVChoroplethFillOnMap(map, layer, false);
     const outline = layer._svAdminOutlineLayer;
     const isCadastre = Boolean(layerConfig[layerId]?.thinBoundaries);
     if (outline?.eachLayer) {
@@ -2343,23 +2463,7 @@ function syncServicePolygonScoresFromMarkers(layer) {
 }
 
 function ensureSVServiceChoroplethLayer(layer, config) {
-    if (!layer?._svPolygonGeoJson) return null;
-    if (!layer._svChoroplethFillLayer) {
-        layer._svChoroplethFillLayer = L.geoJSON(layer._svPolygonGeoJson, {
-            style: {
-                weight: 0,
-                opacity: 0,
-                fillOpacity: 0.6
-            }
-        });
-        layer._svChoroplethFillLayer.layerData = {
-            raw: layer._svPolygonGeoJson,
-            propertyFields: Object.keys(layer._svPolygonGeoJson.features[0]?.properties || {}),
-            selectedProperty: config.svAttribute,
-            colorRamp: null
-        };
-    }
-    return layer._svChoroplethFillLayer;
+    return ensureSVPolygonChoroplethLayer(layer, config);
 }
 
 function setSVServiceMarkersOnMap(map, layer, onMap) {
@@ -2373,101 +2477,15 @@ function setSVServiceMarkersOnMap(map, layer, onMap) {
 }
 
 function setSVServiceChoroplethOnMap(map, layer, onMap) {
-    if (!map || !layer?._svChoroplethFillLayer) return;
-    if (onMap) {
-        if (!map.hasLayer(layer._svChoroplethFillLayer)) {
-            layer._svChoroplethFillLayer.addTo(map);
-        }
-    } else if (map.hasLayer(layer._svChoroplethFillLayer)) {
-        map.removeLayer(layer._svChoroplethFillLayer);
-    }
+    setSVChoroplethFillOnMap(map, layer, onMap);
 }
 
 function refreshSVServiceSingleColorMode(map, layers, addLegendEntry) {
-    const layerId = 'svAdmin4Layer';
-    const config = layerConfig[layerId];
-    const layer = layers.vector[layerId];
-    if (!config || !layer || !layer._isSVServiceSymbolLayer) return;
-
-    syncServicePolygonScoresFromMarkers(layer);
-    const choropleth = ensureSVServiceChoroplethLayer(layer, config);
-    if (!choropleth) return;
-
-    setSVServiceMarkersOnMap(map, layer, false);
-    setSVServiceChoroplethOnMap(map, layer, true);
-    // Keep hit polygons on the map so AOI/info clicks stay polygon-based in color-only mode.
-    if (layer._svAdminOutlineLayer && map && !map.hasLayer(layer._svAdminOutlineLayer)) {
-        layer._svAdminOutlineLayer.addTo(map);
-    }
-
-    const attr = getEffectiveServiceAttribute(config);
-    const fixedRamp = getColorRamp(SV_SANDBOX_SINGLE_COLOR_RAMP_ID);
-    if (!fixedRamp) return;
-    const opacitySlider = document.getElementById(config.opacityControl);
-    const opacity = opacitySlider ? parseFloat(opacitySlider.value) : 0.6;
-
-    const updateLegendForLayer = (layerName, colorScheme, description, labels) => {
-        pushSVChoroplethLegendEntry(
-            layerId,
-            attr,
-            config,
-            layerName,
-            colorScheme,
-            `${description} Color-only mode.`,
-            labels,
-            addLegendEntry
-        );
-    };
-
-    if (choropleth.layerData) {
-        choropleth.layerData._styleSignature = null;
-        choropleth.layerData.selectedProperty = attr;
-    }
-    updateVectorLayerStyle(choropleth, attr, fixedRamp, opacity, updateLegendForLayer, { skipTooltips: true });
-    applySVPolygonOutlineStyle(choropleth, config, { hide: true });
-    updateSVHoverTooltips(choropleth, layerId, config);
-    reapplySelectedPolygonHighlight(layerId);
-    if (window.currentInfoPanel) {
-        window.currentInfoPanel.updateLayer(layerId, { selectedAttribute: attr, opacity });
-    }
+    applySVColorOnlyChoropleth('svAdmin4Layer', map, layers, addLegendEntry);
 }
 
 function refreshSVEconomicSingleColorMode(map, layers, addLegendEntry) {
-    const layerId = 'svAdmin2Layer';
-    const config = layerConfig[layerId];
-    const layer = layers.vector[layerId];
-    if (!config || !layer || !activeSVLayers.has(layerId)) return;
-
-    const attr = getEffectiveEconomicAttribute(config);
-    const fixedRamp = getColorRamp(SV_SANDBOX_SINGLE_COLOR_RAMP_ID);
-    if (!fixedRamp) return;
-    const opacitySlider = document.getElementById(config.opacityControl);
-    const opacity = opacitySlider ? parseFloat(opacitySlider.value) : 0.6;
-
-    const updateLegendForLayer = (layerName, colorScheme, description, labels) => {
-        pushSVChoroplethLegendEntry(
-            layerId,
-            attr,
-            config,
-            layerName,
-            colorScheme,
-            `${description} Color-only mode.`,
-            labels,
-            addLegendEntry
-        );
-    };
-
-    if (layer.layerData) {
-        layer.layerData._styleSignature = null;
-        layer.layerData.selectedProperty = attr;
-    }
-    clearStripePatternFill(layer);
-    updateVectorLayerStyle(layer, attr, fixedRamp, opacity, updateLegendForLayer, { skipTooltips: true });
-    clearStripePatternFill(layer);
-    applySVPolygonOutlineStyle(layer, config, { hide: true });
-    updateSVHoverTooltips(layer, layerId, config);
-    reapplySelectedPolygonHighlight(layerId);
-    syncChoroplethSubindicatorOverlays(map, layerId, layers, config);
+    applySVColorOnlyChoropleth('svAdmin2Layer', map, layers, addLegendEntry);
 }
 
 async function refreshSandboxLayer(layerId, map, layers, addLegendEntry) {
@@ -2484,39 +2502,37 @@ async function refreshSVLayerForDisplay(layerId, map, layers, addLegendEntry) {
     if (!config || !layer || !activeSVLayers.has(layerId)) return;
 
     const singleColorMode = isColorOnlyMode();
+    if (singleColorMode) {
+        applySVColorOnlyChoropleth(layerId, map, layers, addLegendEntry);
+        updateSVHoverTooltips(layer, layerId, config);
+        syncSVPermanentScoreLabels(map, layers);
+        keepRoadLayerOnTop(layers);
+        if (window.currentInfoPanel) {
+            window.currentInfoPanel.updateLayer(layerId, {
+                selectedAttribute: getColorOnlyAttribute(layerId, config)
+            });
+        }
+        return;
+    }
 
     if (config.renderMode === 'service-symbol') {
-        if (singleColorMode) {
-            refreshSVServiceSingleColorMode(map, layers, addLegendEntry);
-        } else {
-            refreshSVServiceSymbolLayer(map, layers, addLegendEntry);
-        }
+        refreshSVServiceSymbolLayer(map, layers, addLegendEntry);
     } else if (config.renderMode === 'forest-fire-symbol') {
-        refreshSVForestFireSymbolLayer(layerId, map, layers, addLegendEntry, { singleColorMode });
+        refreshSVForestFireSymbolLayer(layerId, map, layers, addLegendEntry);
     } else if (config.renderMode === 'edge-fade-ring') {
-        refreshSVEdgeFadeRingLayer(map, layers, addLegendEntry, { singleColorMode });
+        refreshSVEdgeFadeRingLayer(map, layers, addLegendEntry);
     } else if (config.renderMode === 'stripe-pattern' || config.renderMode === 'service-pattern') {
-        if (singleColorMode) {
-            refreshSVEconomicSingleColorMode(map, layers, addLegendEntry);
-        } else {
-            refreshSVEconomicStripePattern(map, layers, addLegendEntry);
-        }
+        refreshSVEconomicStripePattern(map, layers, addLegendEntry);
     } else if (config.renderMode === 'proportional-circles') {
-        if (singleColorMode) {
-            refreshSVDisplacementSingleColorMode(map, layers, addLegendEntry);
-        } else {
-            restoreSVDisplacementCirclesFromColorOnly(map, layers, layerId);
-            refreshSVDisplacementLayerCircles(layerId, layers, config, map);
-        }
+        restoreSVDisplacementCirclesFromColorOnly(map, layers, layerId);
+        refreshSVDisplacementLayerCircles(layerId, layers, config, map);
     } else if (layerId === 'svAdmin3Layer') {
-        refreshSVPeaceCadastreChoropleth(map, layers, addLegendEntry, { singleColorMode });
+        refreshSVPeaceCadastreChoropleth(map, layers, addLegendEntry);
     } else if (THEME_SUBINDICATOR_LAYER_IDS.includes(layerId)) {
-        refreshSVThemeSubindicatorChoropleth(layerId, map, layers, addLegendEntry, { singleColorMode });
+        refreshSVThemeSubindicatorChoropleth(layerId, map, layers, addLegendEntry);
     } else {
         const chAttr = getEffectiveChoroplethAttribute(layerId, config);
-        const fixedRamp = singleColorMode
-            ? getColorRamp(SV_SANDBOX_SINGLE_COLOR_RAMP_ID)
-            : getColorRamp(config.fixedColorRamp);
+        const fixedRamp = getColorRamp(config.fixedColorRamp);
         const opacitySlider = document.getElementById('svOpacity');
         const opacity = opacitySlider ? parseFloat(opacitySlider.value) : 0.6;
         if (fixedRamp) {
@@ -2549,7 +2565,7 @@ async function refreshSVLayerForDisplay(layerId, map, layers, addLegendEntry) {
                 layer.layerData._styleSignature = null;
             }
             updateVectorLayerStyle(layer, chAttr, fixedRamp, opacity, updateLegendForLayer, { skipTooltips: true });
-            applySVPolygonOutlineStyle(layer, config, { hide: singleColorMode });
+            applySVPolygonOutlineStyle(layer, config);
             reapplySelectedPolygonHighlight(layerId);
         }
     }
@@ -3551,7 +3567,20 @@ async function applySVResolution(resolution, map, layers, colorScales, addLegend
     }
 
     const selectedLayersStillAvailable = previouslySelectedLayerIds.filter(layerId => resolutionConfig[layerId]?.available);
-    const layersToRestore = reconcileSVLayerSelection(selectedLayersStillAvailable);
+    let layersToRestore = reconcileSVLayerSelection(selectedLayersStillAvailable);
+
+    if (isColorOnlyMode()) {
+        const isolated = getIsolatedLayerId();
+        if (isolated && layersToRestore.includes(isolated)) {
+            layersToRestore = [isolated];
+        } else if (layersToRestore.length > 0) {
+            const fallback = layersToRestore[layersToRestore.length - 1];
+            layersToRestore = [fallback];
+            setIsolatedLayerId(fallback);
+        } else {
+            await setColorOnlyMode(false);
+        }
+    }
 
     for (const layerId of layersToRestore) {
         if (requestVersion !== svResolutionVersion) {
@@ -3561,6 +3590,17 @@ async function applySVResolution(resolution, map, layers, colorScales, addLegend
         if (!toggle || toggle.disabled) continue;
         toggle.checked = true;
         toggle.dispatchEvent(new Event('change'));
+        await waitUntil(
+            () => requestVersion !== svResolutionVersion || Boolean(layers.vector[layerId]) || !toggle.checked,
+            20000
+        );
+        if (requestVersion !== svResolutionVersion) {
+            return;
+        }
+    }
+
+    if (isColorOnlyMode() && requestVersion === svResolutionVersion) {
+        await refreshActiveSVLayersForDisplay(map, layers, addLegendEntry);
     }
 
     syncSVServicePriorityControl();
@@ -3811,13 +3851,14 @@ async function loadSVLayer(layerId, map, layers, colorScales, addLegendEntry, re
         activeSVLayers.add(layerId);
         currentSVLayer = layerId;
         if (isColorOnlyMode()) {
-            // In color-only mode, add the base layer to the map (refreshSVLayerForDisplay
-            // will swap it out for the appropriate color-only representation), then skip
-            // the normal circle/stripe/marker rendering entirely.
+            // Do not mount glow/circles/icons first — color mode uses a dedicated fill.
             if (map.hasLayer(layers.vector[layerId])) map.removeLayer(layers.vector[layerId]);
-            layers.vector[layerId].addTo(map);
-            if (config.renderMode === 'proportional-circles' && layers.vector[layerId]?._svAdminOutlineLayer) {
-                layers.vector[layerId]._svAdminOutlineLayer.addTo(map);
+            const loaded = layers.vector[layerId];
+            if (layerUsesAuxiliaryColorFill(loaded, config)) {
+                const outline = loaded._svAdminOutlineLayer;
+                if (outline && !map.hasLayer(outline)) outline.addTo(map);
+            } else {
+                loaded.addTo(map);
             }
             keepRoadLayerOnTop(layers);
             if (config.renderMode === 'proportional-circles') {
@@ -3826,7 +3867,7 @@ async function loadSVLayer(layerId, map, layers, colorScales, addLegendEntry, re
                 }
             } else if (config.renderMode === 'service-symbol') {
                 populateServiceSubindicatorSelect();
-            } else if (config.renderMode === 'forest-fire-symbol') {
+            } else if (config.renderMode === 'forest-fire-symbol' || config.renderMode === 'edge-fade-ring') {
                 renderSVSubindicatorPanel(layerId);
             } else if (config.renderMode === 'stripe-pattern' || config.renderMode === 'service-pattern') {
                 if (layerId === 'svAdmin2Layer') {
@@ -4371,6 +4412,7 @@ async function loadSVCircleLayer(config, map = null) {
     finalLayer._svDisplacementMarkerLayer = markerLayer;
     finalLayer._svDisplacementClusterLayer = clusterLayer;
     finalLayer._svAdminOutlineLayer = adminOutlineLayer;
+    finalLayer._svPolygonGeoJson = data;
     finalLayer._svCircleMeta = {
         minValue,
         maxValue,
@@ -4795,35 +4837,11 @@ function setSVEdgeFadeVisualsOnMap(map, layer, onMap) {
 }
 
 function ensureSVEdgeFadeChoroplethLayer(layer, config) {
-    const data = layer?._svPolygonGeoJson || layer?.layerData?.raw;
-    if (!data?.features?.length) return null;
-    if (!layer._svChoroplethFillLayer) {
-        layer._svChoroplethFillLayer = L.geoJSON(data, {
-            style: {
-                weight: 0,
-                opacity: 0,
-                fillOpacity: 0.6
-            }
-        });
-        layer._svChoroplethFillLayer.layerData = {
-            raw: data,
-            propertyFields: Object.keys(data.features[0]?.properties || {}),
-            selectedProperty: config?.svAttribute,
-            colorRamp: null
-        };
-    }
-    return layer._svChoroplethFillLayer;
+    return ensureSVPolygonChoroplethLayer(layer, config);
 }
 
 function setSVEdgeFadeChoroplethOnMap(map, layer, onMap) {
-    if (!map || !layer?._svChoroplethFillLayer) return;
-    if (onMap) {
-        if (!map.hasLayer(layer._svChoroplethFillLayer)) {
-            layer._svChoroplethFillLayer.addTo(map);
-        }
-    } else if (map.hasLayer(layer._svChoroplethFillLayer)) {
-        map.removeLayer(layer._svChoroplethFillLayer);
-    }
+    setSVChoroplethFillOnMap(map, layer, onMap);
 }
 
 function pushEdgeFadeRingLegend(layerId, config, attr, breaks, colors, addLegendEntry) {
@@ -4853,7 +4871,7 @@ function refreshSVEdgeFadeRingLayer(map, layers, addLegendEntry, options = {}) {
     if (!config || !layer || !layer._isSVEdgeFadeRingLayer || !activeSVLayers.has(layerId)) return;
 
     if (options.singleColorMode || isColorOnlyMode()) {
-        refreshSVEdgeFadeSingleColorMode(map, layers, addLegendEntry);
+        applySVColorOnlyChoropleth(layerId, map, layers, addLegendEntry);
         return;
     }
 
@@ -4909,77 +4927,14 @@ function refreshSVEdgeFadeRingLayer(map, layers, addLegendEntry, options = {}) {
 }
 
 function refreshSVEdgeFadeSingleColorMode(map, layers, addLegendEntry) {
-    const layerId = 'svPoliticalLayer';
-    const config = layerConfig[layerId];
-    const layer = layers.vector[layerId];
-    if (!config || !layer || !layer._isSVEdgeFadeRingLayer || !activeSVLayers.has(layerId)) return;
-
-    const outline = layer._svAdminOutlineLayer;
-    if (!outline) return;
-
-    setSVEdgeFadeVisualsOnMap(map, layer, false);
-    setSVEdgeFadeChoroplethOnMap(map, layer, false);
-    if (map && !map.hasLayer(outline)) {
-        outline.addTo(map);
-    }
-
-    // Keep Political Color mode on the theme orange ramp (not the global sandbox red).
-    const attr = getEffectiveChoroplethAttribute(layerId, config);
-    const fixedRamp = getColorRamp(config.fixedColorRamp || 'whiteToDarkBlue3');
-    if (!fixedRamp) return;
-    const opacitySlider = document.getElementById(config.opacityControl || 'svOpacity');
-    const opacity = opacitySlider ? parseFloat(opacitySlider.value) : 0.6;
-
-    if (!outline.layerData) {
-        outline.layerData = {
-            raw: layer._svPolygonGeoJson || layer.layerData?.raw,
-            propertyFields: Object.keys((layer._svPolygonGeoJson || layer.layerData?.raw)?.features?.[0]?.properties || {}),
-            selectedProperty: attr,
-            colorRamp: null
-        };
-    } else {
-        outline.layerData.raw = layer._svPolygonGeoJson || layer.layerData?.raw || outline.layerData.raw;
-        outline.layerData.selectedProperty = attr;
-        outline.layerData._styleSignature = null;
-    }
-
-    outline.eachLayer(featureLayer => {
-        if (featureLayer?.options) {
-            featureLayer.options.interactive = true;
-        }
-        if (typeof featureLayer?.setStyle === 'function') {
-            featureLayer.setStyle({ fill: true });
-        }
-    });
-
-    const updateLegendForLayer = (layerName, colorScheme, description, labels) => {
-        pushSVChoroplethLegendEntry(
-            layerId,
-            attr,
-            config,
-            layerName,
-            colorScheme,
-            `${description} Color-only mode (theme orange ramp).`,
-            labels,
-            addLegendEntry
-        );
-    };
-
-    layer._svEdgeFadeColorOnly = true;
-    updateVectorLayerStyle(outline, attr, fixedRamp, opacity, updateLegendForLayer, { skipTooltips: true });
-    applySVPolygonOutlineStyle(outline, config, { hide: true });
-    updateSVHoverTooltips(outline, layerId, config);
-    reapplySelectedPolygonHighlight(layerId);
-    if (window.currentInfoPanel) {
-        window.currentInfoPanel.updateLayer(layerId, { selectedAttribute: attr, opacity });
-    }
+    applySVColorOnlyChoropleth('svPoliticalLayer', map, layers, addLegendEntry);
 }
 
 function restoreSVEdgeFadeFromColorOnly(map, layers, layerId) {
     const layer = layers.vector[layerId];
-    if (!layer?._isSVEdgeFadeRingLayer || !layer._svEdgeFadeColorOnly) return;
+    if (!layer?._isSVEdgeFadeRingLayer) return;
 
-    setSVEdgeFadeChoroplethOnMap(map, layer, false);
+    setSVChoroplethFillOnMap(map, layer, false);
     setSVEdgeFadeVisualsOnMap(map, layer, true);
     const outline = layer._svAdminOutlineLayer;
     if (outline && map && !map.hasLayer(outline)) {
@@ -5170,6 +5125,9 @@ function refreshSVServiceSymbolLayer(map, layers, addLegendEntry, options = {}) 
     if (layer._svAdminOutlineLayer && map && !map.hasLayer(layer._svAdminOutlineLayer)) {
         layer._svAdminOutlineLayer.addTo(map);
     }
+    applySVHitPolygonStyle(layer._svAdminOutlineLayer, {
+        thinBoundaries: Boolean(config.thinBoundaries)
+    });
 
     const attr = getEffectiveServiceAttribute(config);
     const pointFeatures = layer.layerData?.raw?.features || [];
@@ -5447,51 +5405,7 @@ function setSVForestFireMarkersOnMap(map, layer, onMap) {
 }
 
 function refreshSVClassIconSingleColorMode(layerId, map, layers, addLegendEntry) {
-    const config = layerConfig[layerId];
-    const layer = layers.vector[layerId];
-    if (!config || !layer || !layer._isSVForestFireSymbolLayer) return;
-
-    syncServicePolygonScoresFromMarkers(layer);
-    const choropleth = ensureSVServiceChoroplethLayer(layer, config);
-    if (!choropleth) return;
-
-    setSVForestFireMarkersOnMap(map, layer, false);
-    setSVServiceChoroplethOnMap(map, layer, true);
-    // Keep hit polygons available for AOI/info selection in color-only mode.
-    if (layer._svAdminOutlineLayer && map && !map.hasLayer(layer._svAdminOutlineLayer)) {
-        layer._svAdminOutlineLayer.addTo(map);
-    }
-
-    const attr = getEffectiveChoroplethAttribute(layerId, config);
-    const fixedRamp = getColorRamp(SV_SANDBOX_SINGLE_COLOR_RAMP_ID);
-    if (!fixedRamp) return;
-    const opacitySlider = document.getElementById(config.opacityControl);
-    const opacity = opacitySlider ? parseFloat(opacitySlider.value) : 0.6;
-
-    const updateLegendForLayer = (layerName, colorScheme, description, labels) => {
-        pushSVChoroplethLegendEntry(
-            layerId,
-            attr,
-            config,
-            layerName,
-            colorScheme,
-            `${description} Color-only mode.`,
-            labels,
-            addLegendEntry
-        );
-    };
-
-    if (choropleth.layerData) {
-        choropleth.layerData._styleSignature = null;
-        choropleth.layerData.selectedProperty = attr;
-    }
-    updateVectorLayerStyle(choropleth, attr, fixedRamp, opacity, updateLegendForLayer, { skipTooltips: true });
-    applySVPolygonOutlineStyle(choropleth, config, { hide: true });
-    updateSVHoverTooltips(choropleth, layerId, config);
-    reapplySelectedPolygonHighlight(layerId);
-    if (window.currentInfoPanel) {
-        window.currentInfoPanel.updateLayer(layerId, { selectedAttribute: attr, opacity });
-    }
+    applySVColorOnlyChoropleth(layerId, map, layers, addLegendEntry);
 }
 
 function refreshSVForestFireSymbolLayer(layerId, map, layers, addLegendEntry, options = {}) {
@@ -5509,6 +5423,9 @@ function refreshSVForestFireSymbolLayer(layerId, map, layers, addLegendEntry, op
     if (layer._svAdminOutlineLayer && map && !map.hasLayer(layer._svAdminOutlineLayer)) {
         layer._svAdminOutlineLayer.addTo(map);
     }
+    applySVHitPolygonStyle(layer._svAdminOutlineLayer, {
+        thinBoundaries: Boolean(config.thinBoundaries)
+    });
 
     const attr = getEffectiveChoroplethAttribute(layerId, config) || config.svAttribute;
     const pointFeatures = layer.layerData?.raw?.features || [];
@@ -7959,18 +7876,24 @@ function buildSVPermanentScoreLabelText(props, layerId, config) {
 }
 
 function updateSVHoverTooltips(layer, layerId, config) {
-    if (!layer || typeof layer.eachLayer !== 'function') return;
+    if (!layer) return;
 
     const context = resolveSVLayerContext(layer, layerId, config);
     layerId = context.layerId;
     config = context.config;
 
-    const target =
+    let target =
         layer._svDisplacementMarkerLayer ||
         layer._svSectarianMarkerLayer ||
         (layer._isSVEdgeFadeRingLayer ? layer._svAdminOutlineLayer : null) ||
         (layer._isSVForestFireSymbolLayer ? layer._svAdminOutlineLayer : null) ||
         layer;
+
+    if (isColorOnlyMode() && layer._svAdminOutlineLayer && typeof layer._svAdminOutlineLayer.eachLayer === 'function') {
+        target = layer._svAdminOutlineLayer;
+    }
+
+    if (!target || typeof target.eachLayer !== 'function') return;
 
     target.eachLayer(featureLayer => {
         const props = featureLayer?.feature?.properties;
@@ -7994,22 +7917,16 @@ const SV_SCORE_LABEL_CADASTRE_MIN_ZOOM = 10;
 
 function getSVScoreLabelTarget(layer, layerId, config) {
     if (!layer || !config) return null;
+    if (isColorOnlyMode()) {
+        return layer._svAdminOutlineLayer || layer._svChoroplethFillLayer || layer;
+    }
     if (config.renderMode === 'service-symbol') {
-        if (isColorOnlyMode() && layer._svChoroplethFillLayer) {
-            return layer._svChoroplethFillLayer;
-        }
         return ensureSVScoreLabelHost(layer);
     }
     if (config.renderMode === 'forest-fire-symbol') {
-        if (isColorOnlyMode() && layer._svChoroplethFillLayer) {
-            return layer._svChoroplethFillLayer;
-        }
         return layer._svAdminOutlineLayer || ensureSVScoreLabelHost(layer);
     }
     if (config.renderMode === 'edge-fade-ring') {
-        if (isColorOnlyMode() && layer._svAdminOutlineLayer) {
-            return layer._svAdminOutlineLayer;
-        }
         return layer._svAdminOutlineLayer || ensureSVScoreLabelHost(layer);
     }
     if (config.renderMode === 'proportional-circles') {

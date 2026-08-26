@@ -58,6 +58,11 @@ export function getIsolatedLayerId() {
     return state.isolatedLayerId;
 }
 
+export function setIsolatedLayerId(layerId) {
+    state.isolatedLayerId = layerId || null;
+    syncIsolateButtons();
+}
+
 export function setColorOnlyMode(enabled) {
     state.colorOnly = Boolean(enabled);
     if (!state.colorOnly) {

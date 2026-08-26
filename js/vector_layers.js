@@ -171,6 +171,7 @@ export function updateVectorLayerStyle(layer, property, colorRamp, opacity = 1, 
     
     try {
         const classificationMode = options.classificationMode || getClassificationMode();
+        const hideOutline = options.hideOutline === true;
         const colorSpec = buildColorSpec(layer.layerData.raw, property, colorRamp, classificationMode);
         layer.layerData.colorSpec = colorSpec;
         const styleSignature = buildStyleSignature(
@@ -178,7 +179,8 @@ export function updateVectorLayerStyle(layer, property, colorRamp, opacity = 1, 
             colorRamp,
             opacity,
             colorSpec.mode,
-            classificationMode
+            classificationMode,
+            hideOutline
         );
         const needsStyleUpdate = layer.layerData._styleSignature !== styleSignature;
         const skipTooltips = options?.skipTooltips === true;
@@ -186,7 +188,7 @@ export function updateVectorLayerStyle(layer, property, colorRamp, opacity = 1, 
 
         if (needsStyleUpdate) {
             const colorResolver = createColorResolverFromSpec(colorSpec, colorRamp);
-            applyLayerStyle(layer, property, colorResolver, opacity);
+            applyLayerStyle(layer, property, colorResolver, opacity, { hideOutline });
             layer.layerData._styleSignature = styleSignature;
         }
 
@@ -214,10 +216,13 @@ export function updateVectorLayerStyle(layer, property, colorRamp, opacity = 1, 
 const AOI_OUTSIDE_FILL = '#94a3b8';
 const AOI_OUTSIDE_FILL_OPACITY = 0.18;
 
-function applyLayerStyle(layer, property, colorResolver, opacity) {
+function applyLayerStyle(layer, property, colorResolver, opacity, styleOptions = {}) {
+    const hideOutline = styleOptions.hideOutline === true;
+    const strokeWeight = hideOutline ? 0 : 2;
+    const strokeOpacity = hideOutline ? 0 : opacity;
     layer.setStyle(feature => {
         if (!feature?.properties) {
-            return { fillOpacity: opacity, opacity: opacity };
+            return { fillOpacity: opacity, opacity: strokeOpacity, weight: strokeWeight };
         }
         
         const props = feature.properties;
@@ -225,8 +230,8 @@ function applyLayerStyle(layer, property, colorResolver, opacity) {
             return {
                 fillColor: AOI_OUTSIDE_FILL,
                 fillOpacity: Math.min(opacity, AOI_OUTSIDE_FILL_OPACITY),
-                opacity: 0.35,
-                weight: 1,
+                opacity: hideOutline ? 0 : 0.35,
+                weight: hideOutline ? 0 : 1,
                 color: '#64748b'
             };
         }
@@ -235,8 +240,8 @@ function applyLayerStyle(layer, property, colorResolver, opacity) {
                 ? ACS_CODE_NO_DATA_COLOR
                 : colorResolver(props[property]),
             fillOpacity: opacity,
-            opacity: opacity,
-            weight: 2,
+            opacity: strokeOpacity,
+            weight: strokeWeight,
             color: '#333'
         };
     });
@@ -670,9 +675,9 @@ function createColorResolverFromSpec(spec, colorRamp) {
     };
 }
 
-function buildStyleSignature(property, colorRamp, opacity, mode, classificationMode = 'equal-count') {
+function buildStyleSignature(property, colorRamp, opacity, mode, classificationMode = 'equal-count', hideOutline = false) {
     const colors = Array.isArray(colorRamp?.colors) ? colorRamp.colors.join('|') : '';
-    return `${property}::${opacity}::${mode}::${classificationMode}::${colors}`;
+    return `${property}::${opacity}::${mode}::${classificationMode}::${colors}::o${hideOutline ? 0 : 1}`;
 }
 
 function deferToNextFrame(fn) {
