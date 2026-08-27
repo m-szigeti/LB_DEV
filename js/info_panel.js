@@ -627,6 +627,17 @@ setupEventListeners() {
             panel.hidden = !isActive;
         });
     }
+
+    getActiveTab() {
+        return this.container.querySelector('.info-panel-tab.active')?.dataset?.tab || null;
+    }
+
+    /** Leave Welcome the first time the user picks a layer or changes resolution. */
+    revealActiveLayersFromWelcome() {
+        if (this.getActiveTab() === 'welcome') {
+            this.setActiveTab('layers');
+        }
+    }
     /**
      * Make the panel draggable
      */
@@ -801,10 +812,7 @@ setupEventListeners() {
      */
     removeLayer(id) {
         this.activeLayers.delete(id);
-        
-        if (this.isVisible) {
-            this.updateLayersList();
-        }
+        this.updateLayersList();
     }
     
     /**
@@ -836,6 +844,7 @@ setupEventListeners() {
         
         if (this.activeLayers.size === 0) {
             layersList.innerHTML = '<p class="no-layers-message">No layers currently active</p>';
+            this.updateAnalysisSelectedCharts();
             return;
         }
         

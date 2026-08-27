@@ -32,7 +32,8 @@ import {
     reapplyAnalysisSelectionStyles,
     rematchAnalysisSelectionToLayer,
     clearAnalysisSelection,
-    setAnalysisSelectionActive
+    setAnalysisSelectionActive,
+    getFeatureSelectionKey
 } from './analysis_selection.js';
 import {
     INTERVENTION_MAPPING_LAYER_ID,
@@ -571,6 +572,7 @@ let svResolutionVersion = 0;
 const selectedPolygonByLayer = new Map();
 const escalationDataCache = new Map();
 const svPillarLookupCache = new Map();
+const svPillarLookupInflight = new Map();
 const svPatternCache = new Map();
 const SV_SERVICE_PRIORITY_TOGGLE_ID = 'svServicePriorityToggle';
 const SV_SERVICE_HIGH_PRIORITY_CLASS_INDEX = 2;
@@ -3168,10 +3170,13 @@ function setupSVRadioControls(map, layers, colorScales, addLegendEntry, removeLe
     syncSVServicePriorityControl();
 
     svToggles.forEach(toggle => {
-        toggle.addEventListener('change', async function() {
+        toggle.addEventListener('change', async function(event) {
             if (blockCompositeSandboxNavigation()) {
                 this.checked = !this.checked;
                 return;
+            }
+            if (event.isTrusted) {
+                revealActiveLayersFromWelcome();
             }
             const layerId = this.id;
             const config = layerConfig[layerId];
@@ -3435,6 +3440,10 @@ function setupSVServicePriorityToggle(layers) {
     });
 }
 
+function revealActiveLayersFromWelcome() {
+    window.currentInfoPanel?.revealActiveLayersFromWelcome?.();
+}
+
 function setupSVResolutionSelector(map, layers, colorScales, addLegendEntry, removeLegendEntry, updateLegend, hideLegend) {
     const buttons = Array.from(document.querySelectorAll(SV_ADMIN_RESOLUTION_BUTTON_SELECTOR));
     const activeButton = buttons.find(button => button.classList.contains('active'));
@@ -3454,6 +3463,7 @@ function setupSVResolutionSelector(map, layers, colorScales, addLegendEntry, rem
 
     buttons.forEach(button => {
         button.addEventListener('click', async () => {
+            revealActiveLayersFromWelcome();
             const selectedResolution = button.dataset?.resolution || DEFAULT_SV_ADMIN_RESOLUTION;
             await applySVResolution(
                 selectedResolution,
@@ -3521,6 +3531,7 @@ async function applySVResolution(resolution, map, layers, colorScales, addLegend
 
     currentSVLayer = null;
     svPillarLookupCache.clear();
+    svPillarLookupInflight.clear();
 
     SV_LAYER_IDS.forEach(layerId => {
         const config = layerConfig[layerId];
@@ -3715,7 +3726,10 @@ function setupPopulationLayerToggle(layerId, map, layers, colorScales, addLegend
     if (!checkbox || checkbox._populationToggleAttached) return;
     checkbox._populationToggleAttached = true;
 
-    checkbox.addEventListener('change', async function() {
+    checkbox.addEventListener('change', async function(event) {
+        if (event.isTrusted) {
+            revealActiveLayersFromWelcome();
+        }
         if (this.checked) {
             try {
                 await loadPopulationLayer(map, layers, colorScales, addLegendEntry);
@@ -7161,7 +7175,10 @@ function setupLayerToggle(layerId, map, layers, colorScales, addLegendEntry, rem
     const config = layerConfig[layerId];
     if (!config) return;
     
-    checkbox.addEventListener('change', async function() {
+    checkbox.addEventListener('change', async function(event) {
+        if (event.isTrusted) {
+            revealActiveLayersFromWelcome();
+        }
         if (this.checked) {
             if (layerId === 'vulnerabilityCadastreLayer') {
                 document.querySelectorAll('input[name="svLayer"]:checked').forEach(cb => {
@@ -7578,6 +7595,7 @@ async function handlePolygonSelection(layerId, vectorLayer, selectedLayer, layer
         restoreSelectedStyle(previousSelection);
         selectedPolygonByLayer.delete(layerId);
         updateSelectedPolygonInfoPanel(layerId, null, config);
+        await clearSiblingLayerSelections(layerId);
         hideInfoPopup();
         return;
     }
@@ -7586,7 +7604,30 @@ async function handlePolygonSelection(layerId, vectorLayer, selectedLayer, layer
     applySelectedStyle(selectedLayer);
     keepRoadLayerOnTop(layers);
     selectedPolygonByLayer.set(layerId, { featureLayer: selectedLayer, baseStyle });
-    await updateSelectedPolygonInfoPanel(layerId, selectedLayer.feature?.properties || null, config, layers);
+    const properties = selectedLayer.feature?.properties || null;
+    await updateSelectedPolygonInfoPanel(layerId, properties, config, layers);
+    await syncActiveLayerSelectionsFromProperties(layerId, properties, layers);
+}
+
+async function syncActiveLayerSelectionsFromProperties(clickedLayerId, properties, layers) {
+    if (!properties) return;
+    for (const layerId of Array.from(activeSVLayers)) {
+        if (layerId === clickedLayerId) continue;
+        const siblingConfig = layerConfig[layerId];
+        if (!siblingConfig) continue;
+        const lookup = await getSVLayerLookup(layerId, layers);
+        const matched = matchLookupProps(lookup, properties);
+        await updateSelectedPolygonInfoPanel(layerId, matched, siblingConfig, layers, {
+            includePillarBreakdown: false
+        });
+    }
+}
+
+async function clearSiblingLayerSelections(clickedLayerId) {
+    for (const layerId of Array.from(activeSVLayers)) {
+        if (layerId === clickedLayerId) continue;
+        await updateSelectedPolygonInfoPanel(layerId, null, layerConfig[layerId]);
+    }
 }
 
 function bringLayerPartsToFront(parts) {
@@ -8108,7 +8149,13 @@ function attachSVScoreLabelZoomSync(map, layers) {
     map.on('zoomend', handler);
 }
 
-async function updateSelectedPolygonInfoPanel(layerId, properties, config, layers = null) {
+async function updateSelectedPolygonInfoPanel(
+    layerId,
+    properties,
+    config,
+    layers = null,
+    { includePillarBreakdown = true } = {}
+) {
     if (!window.currentInfoPanel) return;
 
     if (!properties) {
@@ -8127,6 +8174,7 @@ async function updateSelectedPolygonInfoPanel(layerId, properties, config, layer
     }
 
     if (
+        includePillarBreakdown &&
         layers &&
         (layerId === SV_OVERALL_LAYER_ID ||
             layerId === CUSTOM_OVERALL_LAYER_ID ||
@@ -8223,6 +8271,13 @@ function getSelectionAttributeLabel(layerId, config, attributeName) {
     return attributeName;
 }
 
+function normalizeLookupToken(value) {
+    if (value === undefined || value === null) return '';
+    const normalized = String(value).trim().toLowerCase();
+    if (!normalized || normalized === 'null' || normalized === 'undefined') return '';
+    return normalized;
+}
+
 function getFeatureLookupKey(properties) {
     if (!properties) return null;
 
@@ -8233,30 +8288,115 @@ function getFeatureLookupKey(properties) {
         'NAME_3', 'NAME_2', 'NAME_1', 'name', 'Name'
     ];
     for (const field of candidateFields) {
-        if (properties[field] !== undefined && properties[field] !== null) {
-            const normalized = String(properties[field]).trim().toLowerCase();
-            if (normalized) return normalized;
-        }
+        const normalized = normalizeLookupToken(properties[field]);
+        if (normalized) return normalized;
     }
 
     return null;
 }
 
-async function getSVLayerLookup(layerId, layers) {
-    if (svPillarLookupCache.has(layerId)) {
-        return svPillarLookupCache.get(layerId);
+/** Stable + fallback keys so cadastre units match across theme layers (pcodes, not just names). */
+function collectFeatureLookupKeys(properties) {
+    if (!properties) return [];
+    const keys = [];
+    const seen = new Set();
+    const add = raw => {
+        const key = normalizeLookupToken(raw);
+        if (!key || seen.has(key)) return;
+        seen.add(key);
+        keys.push(key);
+    };
+
+    add(getFeatureSelectionKey(properties));
+
+    const acs = properties.ACS_CODE ?? properties['ACS Code'] ?? properties.acs_code;
+    if (acs !== undefined && acs !== null && String(acs).trim() !== '' && String(acs).trim() !== '0') {
+        add(`acs:${String(acs).trim()}`);
     }
 
+    const pcode = properties.adm3_pcode ?? properties.ADM3_INT ?? properties.ADM3_PCODE;
+    if (pcode !== undefined && pcode !== null && String(pcode).trim() !== '' && String(pcode).trim() !== '0') {
+        add(`pcode:${String(pcode).trim()}`);
+    }
+
+    const adm3 = normalizeLookupToken(
+        properties.adm3_name ?? properties.ADM3_NAME ?? properties.ADM3_Name
+    );
+    const adm2 = normalizeLookupToken(
+        properties.adm2_name ?? properties.ADM2_NAME ?? properties.ADM2_Name
+    );
+    const adm1 = normalizeLookupToken(
+        properties.adm1_name ?? properties.ADM1_NAME ?? properties.ADM1_Name
+    );
+    if (adm3 && adm2) add(`adm3:${adm2}|${adm3}`);
+    if (adm3) add(`name3:${adm3}`);
+    if (adm2) add(`name2:${adm2}`);
+    if (adm1) add(`name1:${adm1}`);
+    add(getFeatureLookupKey(properties));
+    return keys;
+}
+
+function matchLookupProps(lookup, properties) {
+    if (!lookup || !properties) return null;
+    for (const key of collectFeatureLookupKeys(properties)) {
+        if (lookup.has(key)) return lookup.get(key);
+    }
+    return null;
+}
+
+function assignLookupProps(lookup, key, props) {
+    if (!key || !props) return;
+    const existing = lookup.get(key);
+    if (!existing || Object.keys(props).length > Object.keys(existing).length) {
+        lookup.set(key, props);
+    }
+}
+
+function getSVLayerLookupCacheKey(layerId) {
+    const resolution = getActiveAdminResolution();
+    const url =
+        SV_RESOLUTION_CONFIG[resolution]?.[layerId]?.url ||
+        layerConfig[layerId]?.url ||
+        '';
+    return `${layerId}::${resolution}::${url}`;
+}
+
+async function getSVLayerLookup(layerId, layers) {
+    const cacheKey = getSVLayerLookupCacheKey(layerId);
+    if (svPillarLookupCache.has(cacheKey)) {
+        return svPillarLookupCache.get(cacheKey);
+    }
+    if (svPillarLookupInflight.has(cacheKey)) {
+        return svPillarLookupInflight.get(cacheKey);
+    }
+
+    const promise = buildSVLayerLookup(layerId, layers);
+    svPillarLookupInflight.set(cacheKey, promise);
+    try {
+        const lookup = await promise;
+        svPillarLookupCache.set(cacheKey, lookup);
+        return lookup;
+    } finally {
+        svPillarLookupInflight.delete(cacheKey);
+    }
+}
+
+async function buildSVLayerLookup(layerId, layers) {
+    const resolution = getActiveAdminResolution();
+    const resolutionLayer = SV_RESOLUTION_CONFIG[resolution]?.[layerId];
     const config = layerConfig[layerId];
-    if (!config?.url) return null;
+    const url = resolutionLayer?.url || config?.url || null;
 
     let sourceFeatures = [];
     const loadedLayer = layers?.vector?.[layerId];
-    if (loadedLayer?.layerData?.raw?.features) {
+    const polygonData = getSVPolygonSourceData(loadedLayer);
+    if (polygonData?.features?.length) {
+        sourceFeatures = polygonData.features;
+    } else if (loadedLayer?.layerData?.raw?.features?.length) {
         sourceFeatures = loadedLayer.layerData.raw.features;
-    } else {
+    } else if (url) {
         try {
-            const response = await fetch(config.url);
+            const response = await fetch(url);
             const data = await response.json();
             sourceFeatures = data?.features || [];
         } catch (error) {
@@ -8268,12 +8408,8 @@ async function getSVLayerLookup(layerId, layers) {
     const lookup = new Map();
     sourceFeatures.forEach(feature => {
         const props = feature?.properties || {};
-        const key = getFeatureLookupKey(props);
-        if (!key) return;
-        lookup.set(key, props);
+        collectFeatureLookupKeys(props).forEach(key => assignLookupProps(lookup, key, props));
     });
-
-    svPillarLookupCache.set(layerId, lookup);
     return lookup;
 }
 
@@ -8289,8 +8425,7 @@ function getArabicNameFromProperties(properties) {
 }
 
 async function getSVThemeScoresForFeature(properties, layers) {
-    const featureKey = getFeatureLookupKey(properties);
-    if (!featureKey) {
+    if (!properties || !collectFeatureLookupKeys(properties).length) {
         return {
             themes: [],
             arabicName: getArabicNameFromProperties(properties)
@@ -8308,7 +8443,7 @@ async function getSVThemeScoresForFeature(properties, layers) {
         }
 
         const lookup = await getSVLayerLookup(theme.layerId, layers);
-        const matchedProps = lookup?.get(featureKey);
+        const matchedProps = matchLookupProps(lookup, properties);
         if (!matchedProps) continue;
 
         if (!arabicName) {
@@ -8316,8 +8451,17 @@ async function getSVThemeScoresForFeature(properties, layers) {
         }
 
         const pillarConfig = layerConfig[theme.layerId];
-        const attributeKey = pillarConfig?.svAttribute || 'composite_score';
-        const rawValue = matchedProps[attributeKey];
+        const attributeKey =
+            resolutionLayer.svAttribute ||
+            pillarConfig?.svAttribute ||
+            'composite_score';
+        let rawValue = matchedProps[attributeKey];
+        if (
+            (rawValue === undefined || rawValue === null || rawValue === '') &&
+            pillarConfig?.renderMode === 'proportional-circles'
+        ) {
+            rawValue = resolveDisplacementPropertyValue(matchedProps, attributeKey);
+        }
         const value = typeof rawValue === 'number' ? rawValue : Number(rawValue);
         if (!Number.isFinite(value)) continue;
 
@@ -8379,8 +8523,9 @@ function getActiveLayerPopupScoreLabel(layerId, config, attributeKey) {
 }
 
 async function buildActiveLayerPopupScores(properties, layers) {
-    const featureKey = getFeatureLookupKey(properties);
-    if (!featureKey || !activeSVLayers.size) return [];
+    if (!properties || !activeSVLayers.size || !collectFeatureLookupKeys(properties).length) {
+        return [];
+    }
 
     const scores = [];
     for (const layerId of Array.from(activeSVLayers)) {
@@ -8388,7 +8533,7 @@ async function buildActiveLayerPopupScores(properties, layers) {
         if (!config) continue;
 
         const lookup = await getSVLayerLookup(layerId, layers);
-        const matchedProps = lookup?.get(featureKey);
+        const matchedProps = matchLookupProps(lookup, properties);
         if (!matchedProps || isAcsCodeNoData(matchedProps)) continue;
 
         const attributeKey = getActiveLayerPopupScoreAttribute(layerId, config);
@@ -8416,8 +8561,7 @@ async function buildActiveLayerPopupScores(properties, layers) {
 }
 
 async function getSVPillarBreakdown(properties, layers) {
-    const featureKey = getFeatureLookupKey(properties);
-    if (!featureKey) return null;
+    if (!properties || !collectFeatureLookupKeys(properties).length) return null;
 
     const resolution = getActiveAdminResolution();
     const pillars = [];
@@ -8429,14 +8573,20 @@ async function getSVPillarBreakdown(properties, layers) {
         }
 
         const lookup = await getSVLayerLookup(theme.layerId, layers);
-        const matchedProps = lookup?.get(featureKey);
+        const matchedProps = matchLookupProps(lookup, properties);
         const pillarConfig = layerConfig[theme.layerId];
         const attributeKey =
             resolutionLayer.svAttribute ||
             pillarConfig?.svAttribute ||
             theme.attribute ||
             'composite_score';
-        const rawValue = matchedProps?.[attributeKey];
+        let rawValue = matchedProps?.[attributeKey];
+        if (
+            (rawValue === undefined || rawValue === null || rawValue === '') &&
+            pillarConfig?.renderMode === 'proportional-circles'
+        ) {
+            rawValue = resolveDisplacementPropertyValue(matchedProps, attributeKey);
+        }
         const value = typeof rawValue === 'number' ? rawValue : Number(rawValue);
         pillars.push({
             label: theme.label,
