@@ -161,6 +161,55 @@ export function pickExtremes(entries, n = 3) {
 }
 
 /**
+ * Sum pillar scores across units (unweighted). Preserves layerId for spider charts.
+ * @param {{ label: string, color?: string, layerId?: string, value: number }[][]} perUnitPillars
+ */
+export function sumPillars(perUnitPillars) {
+    const totals = new Map();
+    let unitCount = 0;
+    (perUnitPillars || []).forEach(pillars => {
+        if (!Array.isArray(pillars) || !pillars.length) return;
+        unitCount += 1;
+        pillars.forEach(pillar => {
+            const value = Number(pillar?.value);
+            if (!Number.isFinite(value)) return;
+            const key = pillar?.layerId || pillar?.label || 'Pillar';
+            const prev = totals.get(key) || {
+                layerId: pillar.layerId || '',
+                label: pillar.label || 'Pillar',
+                color: pillar.color,
+                sum: 0,
+                n: 0
+            };
+            prev.sum += value;
+            prev.n += 1;
+            if (pillar.color) prev.color = pillar.color;
+            if (pillar.label) prev.label = pillar.label;
+            if (pillar.layerId) prev.layerId = pillar.layerId;
+            totals.set(key, prev);
+        });
+    });
+    const summed = Array.from(totals.values()).map(item => ({
+        layerId: item.layerId,
+        label: item.label,
+        color: item.color || '#64748b',
+        value: item.sum
+    }));
+    const total = summed.reduce((sum, item) => sum + Math.max(0, item.value), 0);
+    return {
+        unitCount,
+        pillars: summed.map(item => ({
+            ...item,
+            proportion: total > 0 ? Math.max(0, item.value) / total : 0
+        })),
+        worst:
+            summed.length > 0
+                ? summed.reduce((a, b) => (a.value >= b.value ? a : b))
+                : null
+    };
+}
+
+/**
  * Average pillar scores across units (unweighted).
  * @param {{ label: string, color?: string, value: number }[][]} perUnitPillars
  */

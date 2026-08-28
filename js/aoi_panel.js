@@ -26,6 +26,11 @@ import {
     CUSTOM_OVERALL_BUILDER_ENABLED,
     openCustomOverallBuilderForAoi
 } from './custom_overall_builder.js';
+import {
+    buildThemeSpiderModel,
+    generateThemeSpiderHtml,
+    paintThemeSpiderCharts
+} from './theme_spider.js';
 
 function escapeHtml(text) {
     return String(text)
@@ -111,6 +116,7 @@ async function exportAoiBriefingPdf(root, bundle) {
     document.body.appendChild(source);
 
     try {
+        paintThemeSpiderCharts(source);
         await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
         const canvas = await html2canvas(source, {
             scale: 2,
@@ -262,6 +268,29 @@ function renderThemeContributions(themeContributions) {
     return renderPillars({ pillars: themeContributions });
 }
 
+function renderAoiThemeSpider(bundle) {
+    const pillars = bundle?.themeSums?.pillars || [];
+    if (!pillars.length) return '';
+    const count = Number(bundle.selectionCount) || bundle.themeSums.unitCount || 0;
+    const unitWord = count === 1 ? 'unit' : 'units';
+    const model = buildThemeSpiderModel({
+        themes: pillars,
+        activeLayerIds: bundle.activeLayerIds || []
+    });
+    return `
+        <div class="aoi-theme-spider">
+            ${generateThemeSpiderHtml(model, {
+                titleProfile: 'Theme scores (AOI sum)',
+                titleStacked: 'Selected themes (AOI sum)',
+                hintProfile:
+                    `Each corner is a theme. Distance from the centre is the <strong>sum</strong> of that theme&rsquo;s scores across the ${count} selected ${unitWord}. Higher = higher vulnerability. Scores do <strong>not</strong> add up to 1.`,
+                hintStacked:
+                    `Each coloured web is one selected theme. Larger web = the <strong>sum</strong> of that theme&rsquo;s scores across the ${count} selected ${unitWord}. Scores are independent and do <strong>not</strong> add up to 1.`
+            })}
+        </div>
+    `;
+}
+
 function renderExtremes(summary) {
     const high = summary.extremes?.highest || [];
     const low = summary.extremes?.lowest || [];
@@ -355,9 +384,9 @@ export async function renderAoiPanelHtml() {
                     <p class="aoi-layer-attribute">${bundle.selectionCount} unit${bundle.selectionCount === 1 ? '' : 's'} selected</p>
                     ${districtNote}
                 </div>
-                ${renderThemeContributions(bundle.themeContributions)}
+                ${renderAoiThemeSpider(bundle)}
                 ${
-                    bundle.themeContributions?.pillars?.length
+                    bundle.themeSums?.pillars?.length
                         ? ''
                         : '<p class="no-results-message">Turn on a composite or theme layer with scores to compute AOI metrics.</p>'
                 }
@@ -391,7 +420,7 @@ export async function renderAoiPanelHtml() {
                     <button type="button" class="aoi-export-btn aoi-export-btn-muted" data-aoi-action="clear">Clear AOI</button>
                 </div>
             </div>
-            ${renderThemeContributions(bundle.themeContributions)}
+            ${renderAoiThemeSpider(bundle)}
             ${bundle.summaries.map(renderLayerSummary).join('')}
             ${renderDistrictSelectControls(resolution)}
         </div>
@@ -404,6 +433,7 @@ export async function renderAoiPanelHtml() {
  */
 export async function bindAoiPanelInteractions(root, { onChanged } = {}) {
     if (!root) return;
+    paintThemeSpiderCharts(root);
 
     const notify = () => {
         if (typeof onChanged === 'function') onChanged();
@@ -425,8 +455,9 @@ export async function bindAoiPanelInteractions(root, { onChanged } = {}) {
             }
             const bundle = await buildAoiSummaries();
             const hasTheme =
-                Array.isArray(bundle.themeContributions?.pillars) &&
-                bundle.themeContributions.pillars.length > 0;
+                (Array.isArray(bundle.themeSums?.pillars) && bundle.themeSums.pillars.length > 0) ||
+                (Array.isArray(bundle.themeContributions?.pillars) &&
+                    bundle.themeContributions.pillars.length > 0);
             const hasSummaries = Array.isArray(bundle.summaries) && bundle.summaries.length > 0;
             if (!hasSummaries && !hasTheme) {
                 window.alert('No AOI statistics to export yet. Select map units with an active scored layer.');

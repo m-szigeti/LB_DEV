@@ -85,7 +85,10 @@ METADATA_PATTERNS = tuple(
 INVERTED_INDICATORS = frozenset({
     # Existing
     "Nighttime light radiance",
-    "Nightlight Intensity"
+    "Nightlight Intensity",
+    "Consecutive Wet Days",
+    "Days withh at least 10 mm rainfall",
+    "Days withh at least 20 mm rainfall"
 })
 
 

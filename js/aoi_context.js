@@ -9,7 +9,8 @@ import {
     AOI_CLASS_LABELS,
     averagePillars,
     buildLayerAoiSummary,
-    getAoiClassIndex
+    getAoiClassIndex,
+    sumPillars
 } from './aoi_summary.js';
 import {
     getAnalysisSelectionItems,
@@ -394,6 +395,8 @@ export async function buildAoiSummaries() {
         }
     }
     const themeContributions = averagePillars(themeSets);
+    const themeSums = sumPillars(themeSets);
+    const activeLayerIds = infoLayers.map(layer => layer?.id).filter(Boolean);
 
     for (const infoLayer of infoLayers) {
         const attribute = providers.getScoreAttribute?.(infoLayer);
@@ -455,6 +458,8 @@ export async function buildAoiSummaries() {
         selectionCount: items.length,
         summaries,
         themeContributions,
+        themeSums,
+        activeLayerIds,
         districtsInSelection: [
             ...new Set(
                 items

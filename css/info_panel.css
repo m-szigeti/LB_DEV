@@ -805,6 +805,31 @@
     margin-bottom: 12px;
 }
 
+.aoi-theme-spider {
+    margin-bottom: 16px;
+    padding: 12px;
+    background: #fff;
+    border: 1px solid #e9ecef;
+    border-radius: 6px;
+}
+
+.aoi-theme-spider .info-section {
+    margin: 0;
+}
+
+.aoi-theme-spider .info-theme-section h4 {
+    margin: 0 0 6px;
+    font-size: 13px;
+    font-weight: 700;
+    color: #1e293b;
+}
+
+.aoi-theme-spider .info-theme-spider-canvas {
+    width: 100%;
+    max-width: 360px;
+    height: auto;
+}
+
 .aoi-title {
     margin: 0 0 4px;
     font-size: 14px;
