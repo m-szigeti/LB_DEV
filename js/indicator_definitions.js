@@ -367,14 +367,54 @@ export const INDICATOR_DEFINITIONS_BY_LAYER = {
   "svClimateLayer": [
     {
       "code": "E1",
-      "indicator": "Mean annual hot days",
-      "definition": "",
-      "typeQuestion": "% change in number of consecutive hot days per year;",
+      "indicator": "Consecutive Dry Days",
+      "definition": "Maximum run of consecutive dry days.",
+      "typeQuestion": "How long do dry spells last?",
       "themeName": "Climate Risk",
       "themeNumber": 6
     },
     {
       "code": "E2",
+      "indicator": "Consecutive Wet Days",
+      "definition": "Maximum run of consecutive wet days.",
+      "typeQuestion": "How long do wet spells last?",
+      "themeName": "Climate Risk",
+      "themeNumber": 6
+    },
+    {
+      "code": "E3",
+      "indicator": "Days with at least 10 mm rainfall",
+      "definition": "Number of days with at least 10 mm of rainfall.",
+      "typeQuestion": "How often does moderate rainfall occur?",
+      "themeName": "Climate Risk",
+      "themeNumber": 6
+    },
+    {
+      "code": "E4",
+      "indicator": "Days with at least 20 mm rainfall",
+      "definition": "Number of days with at least 20 mm of rainfall.",
+      "typeQuestion": "How often does heavy rainfall occur?",
+      "themeName": "Climate Risk",
+      "themeNumber": 6
+    },
+    {
+      "code": "E5",
+      "indicator": "Very Hot Days (Tmax > 35°C)",
+      "definition": "Number of days with maximum temperature above 35°C.",
+      "typeQuestion": "How often does extreme heat occur?",
+      "themeName": "Climate Risk",
+      "themeNumber": 6
+    },
+    {
+      "code": "E6",
+      "indicator": "Hot days (Tmax > 30°C)",
+      "definition": "Number of days with maximum temperature above 30°C.",
+      "typeQuestion": "How often do hot days occur?",
+      "themeName": "Climate Risk",
+      "themeNumber": 6
+    },
+    {
+      "code": "E7",
       "indicator": "Forest fire risk",
       "definition": "",
       "typeQuestion": "% change in number of forest fires per district;",
@@ -382,7 +422,7 @@ export const INDICATOR_DEFINITIONS_BY_LAYER = {
       "themeNumber": 6
     },
     {
-      "code": "E3",
+      "code": "E8",
       "indicator": "Annual Dry Spell Length",
       "definition": "",
       "typeQuestion": "Numbers of consecutive dry days per year",

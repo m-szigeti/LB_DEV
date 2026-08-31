@@ -1390,6 +1390,18 @@ const GENDER_SUBINDICATOR_OPTIONS_DISTRICT = [
 
 const GENDER_SUBINDICATOR_OPTIONS_GOVERNORATE = GENDER_SUBINDICATOR_OPTIONS_DISTRICT;
 
+/** Property keys from CAD/DIS/GOV Theme 6 Climate Risk (exact GeoJSON field names). */
+const CLIMATE_SUBINDICATOR_OPTIONS = [
+    { value: 'Consecutive Dry Days', label: 'Consecutive Dry Days' },
+    { value: 'Consecutive Wet Days', label: 'Consecutive Wet Days' },
+    { value: 'Days withh at least 10 mm rainfall', label: 'Days with at least 10 mm rainfall' },
+    { value: 'Days withh at least 20 mm rainfall', label: 'Days with at least 20 mm rainfall' },
+    { value: 'Very Hot Days (Tmax > 35°C)', label: 'Very Hot Days (Tmax > 35°C)' },
+    { value: 'Hot days (Tmax > 30°C)', label: 'Hot days (Tmax > 30°C)' },
+    { value: 'Forest fire risk', label: 'Forest fire risk' },
+    { value: 'Annual Dry Spell Length', label: 'Annual Dry Spell Length' }
+];
+
 function mergeSubindicatorOptionLists(primary, secondary) {
     const seen = new Set();
     const merged = [];
@@ -1402,6 +1414,9 @@ function mergeSubindicatorOptionLists(primary, secondary) {
 }
 
 function getThemeSubindicatorFallbackOptions(layerId, resolution = getActiveAdminResolution()) {
+    if (layerId === 'svClimateLayer') {
+        return CLIMATE_SUBINDICATOR_OPTIONS;
+    }
     if (layerId === 'svPoliticalLayer') {
         return resolution === 'governorate'
             ? POLITICAL_SUBINDICATOR_OPTIONS_GOVERNORATE
@@ -1431,7 +1446,9 @@ function getThemeSubindicatorOptions(layerId) {
         key => getThemeSubindicatorFieldLabel(layerId, key)
     );
     if (fromLayer.length) {
-        return mergeSubindicatorOptionLists(fromLayer, fallback);
+        return fallback.length
+            ? mergeSubindicatorOptionLists(fallback, fromLayer)
+            : fromLayer;
     }
     return fallback;
 }

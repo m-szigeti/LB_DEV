@@ -187,21 +187,51 @@
       "mode": "theme-subindicators",
       "indicators": [
         {
-          "field": "Annual Dry Spell Length",
-          "label": "Annual Dry Spell Length",
-          "defaultWeight": 0.338408,
+          "field": "Consecutive Dry Days",
+          "label": "Consecutive Dry Days",
+          "defaultWeight": 0.13719,
+          "inverted": false
+        },
+        {
+          "field": "Consecutive Wet Days",
+          "label": "Consecutive Wet Days",
+          "defaultWeight": 0.14165,
+          "inverted": false
+        },
+        {
+          "field": "Days withh at least 10 mm rainfall",
+          "label": "Days with at least 10 mm rainfall",
+          "defaultWeight": 0.123458,
+          "inverted": false
+        },
+        {
+          "field": "Days withh at least 20 mm rainfall",
+          "label": "Days with at least 20 mm rainfall",
+          "defaultWeight": 0.110455,
+          "inverted": false
+        },
+        {
+          "field": "Very Hot Days (Tmax > 35°C)",
+          "label": "Very Hot Days (Tmax > 35°C)",
+          "defaultWeight": 0.108573,
+          "inverted": false
+        },
+        {
+          "field": "Hot days (Tmax > 30°C)",
+          "label": "Hot days (Tmax > 30°C)",
+          "defaultWeight": 0.14205,
           "inverted": false
         },
         {
           "field": "Forest fire risk",
           "label": "Forest fire risk",
-          "defaultWeight": 0.340374,
+          "defaultWeight": 0.092344,
           "inverted": false
         },
         {
-          "field": "Mean annual hot days",
-          "label": "Mean annual hot days",
-          "defaultWeight": 0.321218,
+          "field": "Annual Dry Spell Length",
+          "label": "Annual Dry Spell Length",
+          "defaultWeight": 0.14428,
           "inverted": false
         }
       ]
@@ -553,21 +583,51 @@
       "mode": "theme-subindicators",
       "indicators": [
         {
-          "field": "Annual Dry Spell Length",
-          "label": "Annual Dry Spell Length",
-          "defaultWeight": 0.3,
+          "field": "Consecutive Dry Days",
+          "label": "Consecutive Dry Days",
+          "defaultWeight": 0.13719,
+          "inverted": false
+        },
+        {
+          "field": "Consecutive Wet Days",
+          "label": "Consecutive Wet Days",
+          "defaultWeight": 0.14165,
+          "inverted": false
+        },
+        {
+          "field": "Days withh at least 10 mm rainfall",
+          "label": "Days with at least 10 mm rainfall",
+          "defaultWeight": 0.123458,
+          "inverted": false
+        },
+        {
+          "field": "Days withh at least 20 mm rainfall",
+          "label": "Days with at least 20 mm rainfall",
+          "defaultWeight": 0.110455,
+          "inverted": false
+        },
+        {
+          "field": "Very Hot Days (Tmax > 35°C)",
+          "label": "Very Hot Days (Tmax > 35°C)",
+          "defaultWeight": 0.108573,
+          "inverted": false
+        },
+        {
+          "field": "Hot days (Tmax > 30°C)",
+          "label": "Hot days (Tmax > 30°C)",
+          "defaultWeight": 0.14205,
           "inverted": false
         },
         {
           "field": "Forest fire risk",
           "label": "Forest fire risk",
-          "defaultWeight": 0.3,
+          "defaultWeight": 0.092344,
           "inverted": false
         },
         {
-          "field": "Mean Annual Hot Days",
-          "label": "Mean Annual Hot Days",
-          "defaultWeight": 0.4,
+          "field": "Annual Dry Spell Length",
+          "label": "Annual Dry Spell Length",
+          "defaultWeight": 0.14428,
           "inverted": false
         }
       ]
@@ -839,21 +899,51 @@
       "mode": "theme-subindicators",
       "indicators": [
         {
-          "field": "Annual Dry Spell Length",
-          "label": "Annual Dry Spell Length",
-          "defaultWeight": 0.277561,
+          "field": "Consecutive Dry Days",
+          "label": "Consecutive Dry Days",
+          "defaultWeight": 0.144493,
+          "inverted": false
+        },
+        {
+          "field": "Consecutive Wet Days",
+          "label": "Consecutive Wet Days",
+          "defaultWeight": 0.147275,
+          "inverted": false
+        },
+        {
+          "field": "Days withh at least 10 mm rainfall",
+          "label": "Days with at least 10 mm rainfall",
+          "defaultWeight": 0.162035,
+          "inverted": false
+        },
+        {
+          "field": "Days withh at least 20 mm rainfall",
+          "label": "Days with at least 20 mm rainfall",
+          "defaultWeight": 0.121354,
+          "inverted": false
+        },
+        {
+          "field": "Very Hot Days (Tmax > 35°C)",
+          "label": "Very Hot Days (Tmax > 35°C)",
+          "defaultWeight": 0.138256,
+          "inverted": false
+        },
+        {
+          "field": "Hot days (Tmax > 30°C)",
+          "label": "Hot days (Tmax > 30°C)",
+          "defaultWeight": 0.086643,
           "inverted": false
         },
         {
           "field": "Forest fire risk",
           "label": "Forest fire risk",
-          "defaultWeight": 0.22534,
+          "defaultWeight": 0.092075,
           "inverted": false
         },
         {
-          "field": "Mean annual hot days",
-          "label": "Mean annual hot days",
-          "defaultWeight": 0.497099,
+          "field": "Annual Dry Spell Length",
+          "label": "Annual Dry Spell Length",
+          "defaultWeight": 0.107868,
           "inverted": false
         }
       ]

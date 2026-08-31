@@ -37,9 +37,14 @@
 5,DIS Theme 5 - Demographic Tension Stress__joined.geojson,Heterogeneity,mean
 5,DIS Theme 5 - Demographic Tension Stress__joined.geojson,Displacement Ratio,mean
 5,DIS Theme 5 - Demographic Tension Stress__joined.geojson,Demographic Factor,mean
-6,DIS Theme 6 - Climate Change and Environmental Risk__joined.geojson,Mean annual hot days,mean
 6,DIS Theme 6 - Climate Change and Environmental Risk__joined.geojson,Forest fire risk,mean
 6,DIS Theme 6 - Climate Change and Environmental Risk__joined.geojson,Annual Dry Spell Length,mean
+6,DIS Theme 6 - Climate Change and Environmental Risk__joined.geojson,Consecutive Dry Days,mean
+6,DIS Theme 6 - Climate Change and Environmental Risk__joined.geojson,Consecutive Wet Days,mean
+6,DIS Theme 6 - Climate Change and Environmental Risk__joined.geojson,Days withh at least 10 mm rainfall,mean
+6,DIS Theme 6 - Climate Change and Environmental Risk__joined.geojson,Days withh at least 20 mm rainfall,mean
+6,DIS Theme 6 - Climate Change and Environmental Risk__joined.geojson,Very Hot Days (Tmax > 35°C),mean
+6,DIS Theme 6 - Climate Change and Environmental Risk__joined.geojson,Hot days (Tmax > 30°C),mean
 6,DIS Theme 6 - Climate Change and Environmental Risk__joined.geojson,composite_score,recomputed
 7,DIS Theme 7 - Political Vulnerability__joined.geojson,Municipal elections turnout,mean
 7,DIS Theme 7 - Political Vulnerability__joined.geojson,Municipal council entrenchment,mean

@@ -112,7 +112,12 @@ export const CUSTOM_OVERALL_THEMES = [
         scoreField: 'composite_score',
         resolutions: ['governorate', 'district', 'cadastre'],
         indicators: [
-            { field: 'Mean annual hot days', label: 'Mean annual hot days' },
+            { field: 'Consecutive Dry Days', label: 'Consecutive Dry Days' },
+            { field: 'Consecutive Wet Days', label: 'Consecutive Wet Days' },
+            { field: 'Days withh at least 10 mm rainfall', label: 'Days with at least 10 mm rainfall' },
+            { field: 'Days withh at least 20 mm rainfall', label: 'Days with at least 20 mm rainfall' },
+            { field: 'Very Hot Days (Tmax > 35°C)', label: 'Very Hot Days (Tmax > 35°C)' },
+            { field: 'Hot days (Tmax > 30°C)', label: 'Hot days (Tmax > 30°C)' },
             { field: 'Forest fire risk', label: 'Forest fire risk' },
             { field: 'Annual Dry Spell Length', label: 'Annual Dry Spell Length' }
         ]
