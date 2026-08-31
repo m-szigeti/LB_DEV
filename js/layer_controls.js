@@ -1967,6 +1967,9 @@ function getPeaceCadastreChoroplethLegendTitle(layerId, attributeKey, config) {
 }
 
 function getChoroplethLegendScaleOptions(layerId) {
+    if (isColorOnlyMode()) {
+        return { scaleDirection: 'white-to-red' };
+    }
     if (layerId === 'svAdmin3Layer') {
         return { scaleDirection: 'yellow-orange-red' };
     }
@@ -1974,7 +1977,7 @@ function getChoroplethLegendScaleOptions(layerId) {
         return { scaleDirection: 'white-to-red' };
     }
     if (layerId === 'svPoliticalLayer') {
-        return { scaleDirection: isColorOnlyMode() ? 'white-to-red' : 'white-to-dark-blue' };
+        return { scaleDirection: 'white-to-dark-blue' };
     }
     if (layerId === 'svGenderLayer') {
         return { scaleDirection: 'white-to-pink' };
@@ -2047,6 +2050,17 @@ function combineQualitativeAndRangeLabels(qualitativeLabels, rangeLabels) {
     return combined;
 }
 
+function getScoreLayerQualitativeLabels(rangeLabels) {
+    const classCount = countScoreClassLabels(rangeLabels);
+    if (isColorOnlyMode()) {
+        return getQualitativeClassLabels(classCount || 5);
+    }
+    if (classCount > 0 && classCount !== OVERALL_VULNERABILITY_LEGEND_LABELS.length) {
+        return getQualitativeClassLabels(classCount);
+    }
+    return OVERALL_VULNERABILITY_LEGEND_LABELS;
+}
+
 function getChoroplethLegendLabels(layerId, labels) {
     if (
         layerId === 'svAdmin1Layer' ||
@@ -2054,7 +2068,7 @@ function getChoroplethLegendLabels(layerId, labels) {
         layerId === 'svOverallTensionLayer' ||
         layerId === CUSTOM_OVERALL_LAYER_ID
     ) {
-        return combineQualitativeAndRangeLabels(OVERALL_VULNERABILITY_LEGEND_LABELS, labels);
+        return combineQualitativeAndRangeLabels(getScoreLayerQualitativeLabels(labels), labels);
     }
     if (layerId === 'svGenderLayer' || THEME_SUBINDICATOR_LAYER_IDS.includes(layerId)) {
         return combineQualitativeAndRangeLabels(
@@ -2066,9 +2080,14 @@ function getChoroplethLegendLabels(layerId, labels) {
 }
 
 function buildOverallVulnerabilityLegendEntry(config, colorScheme, rawGeoJson, opacity = 1, rangeLabels = null) {
-    // Always start from the fixed overall ramp (not a possibly already-blended
-    // colorScheme from updateVectorLegend) so opacity is applied exactly once.
-    const ramp = getColorRamp(config?.fixedColorRamp || 'whiteToDarkBlue3');
+    // Color-only mode paints the shared red ramp; keep the legend on that same
+    // ramp. Default mode uses the fixed 3-class blue overall ramp.
+    const colorOnly = isColorOnlyMode();
+    const ramp = getColorRamp(
+        colorOnly
+            ? SV_SANDBOX_SINGLE_COLOR_RAMP_ID
+            : config?.fixedColorRamp || 'whiteToDarkBlue3'
+    );
     const baseColors =
         Array.isArray(ramp?.colors) && ramp.colors.length
             ? ramp.colors
@@ -2076,9 +2095,10 @@ function buildOverallVulnerabilityLegendEntry(config, colorScheme, rawGeoJson, o
               ? colorScheme
               : [];
     const scheme = legendColorsForMapOpacity(baseColors, opacity);
+    const qualitative = getScoreLayerQualitativeLabels(rangeLabels);
     const labels = Array.isArray(rangeLabels) && rangeLabels.length
-        ? combineQualitativeAndRangeLabels(OVERALL_VULNERABILITY_LEGEND_LABELS, rangeLabels)
-        : [...OVERALL_VULNERABILITY_LEGEND_LABELS];
+        ? combineQualitativeAndRangeLabels(qualitative, rangeLabels)
+        : [...qualitative];
     if (
         layerHasAcsCodeNoData(rawGeoJson) &&
         !labels.some(label => String(label || '').trim().toLowerCase() === ACS_CODE_NO_DATA_LEGEND_LABEL.toLowerCase())
@@ -2096,7 +2116,7 @@ function buildOverallVulnerabilityLegendEntry(config, colorScheme, rawGeoJson, o
         colorScheme: scheme,
         description: '',
         labels,
-        scaleDirection: 'white-to-dark-blue'
+        scaleDirection: colorOnly ? 'white-to-red' : 'white-to-dark-blue'
     };
 }
 

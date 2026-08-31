@@ -374,16 +374,21 @@ function renderLineEntry(entry) {
 }
 
 function renderColorScaleEntry(entry) {
-    const { layerName, colorScheme, description, labels, values, unit } = entry;
-    
-    if (!labels || !colorScheme || labels.length !== colorScheme.length) {
+    const { layerName, colorScheme, description, values, unit } = entry;
+    if (!Array.isArray(colorScheme) || !colorScheme.length) {
         return '';
     }
+
+    // Mismatched label/color counts used to produce a blank legend (common when
+    // color-only 5-class ramps were paired with 3-class Low/Medium/High labels).
+    const sourceLabels = Array.isArray(entry.labels) ? entry.labels : [];
+    const labels = colorScheme.map((_, index) => sourceLabels[index] || `Class ${index + 1}`);
     
     const isVulnerabilityData = (layerName || '').toLowerCase().includes('vulnerability') || 
         (layerName || '').toLowerCase().includes('sv') ||
         (layerName || '').toLowerCase().includes('social');
-    const isPeaceSocialTensionsLayer = (layerName || '').toLowerCase().includes('tension and conflict risk');
+    const isPeaceSocialTensionsLayer = (layerName || '').toLowerCase().includes('tension') &&
+        (layerName || '').toLowerCase().includes('conflict risk');
     
     const enhancedLabels = labels.map((label, index) => {
         let enhancedLabel = label;

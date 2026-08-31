@@ -21,6 +21,8 @@ import { hideInfoPopup } from './info_popup.js';
 import { bindAoiPanelInteractions, renderAoiPanelHtml } from './aoi_panel.js';
 import { forceAoiStyleRecovery } from './aoi_spotlight.js';
 
+const RANKING_LIST_SIZE = 10;
+
 function renderThemeIndicatorDefinitionsHtml(layerId, escapeHtml) {
     const definitions = getIndicatorDefinitionsForLayer(layerId);
     if (!definitions.length) {
@@ -964,14 +966,14 @@ setupEventListeners() {
                 <h5 class="analysis-layer-title">${safeName}</h5>
                 <p class="analysis-layer-attribute">${this.escapeHtml(rankings.attributeLabel)}</p>
                 <div class="ranking-chart-block">
-                    <div class="quick-stats-header">${labels.lowTitle}</div>
-                    ${this.renderRankingBarChartHtml(rankings.lowest, 'vulnerable')}
-                    <p class="ranking-chart-footnote">${labels.lowFootnote}</p>
+                    <div class="quick-stats-header">${labels.highTitle}</div>
+                    ${this.renderRankingBarChartHtml(rankings.highest, 'vulnerable')}
+                    <p class="ranking-chart-footnote">${labels.highFootnote}</p>
                 </div>
                 <div class="ranking-chart-block">
-                    <div class="quick-stats-header">${labels.highTitle}</div>
-                    ${this.renderRankingBarChartHtml(rankings.highest, 'resilient')}
-                    <p class="ranking-chart-footnote">${labels.highFootnote}</p>
+                    <div class="quick-stats-header">${labels.lowTitle}</div>
+                    ${this.renderRankingBarChartHtml(rankings.lowest, 'resilient')}
+                    <p class="ranking-chart-footnote">${labels.lowFootnote}</p>
                 </div>
             </div>
         `;
@@ -980,25 +982,25 @@ setupEventListeners() {
     getRankingChartLabels(layer, unitLabel) {
         if (layer.id === 'svOverallTensionLayer') {
             return {
-                lowTitle: `Highest vulnerability — top 20 ${unitLabel}`,
-                highTitle: `Lowest vulnerability — bottom 20 ${unitLabel}`,
-                lowFootnote: 'Higher scores indicate higher vulnerability.',
-                highFootnote: 'Lower scores indicate lower vulnerability.'
+                highTitle: `Highest vulnerability — top ${RANKING_LIST_SIZE} ${unitLabel}`,
+                lowTitle: `Lowest vulnerability — bottom ${RANKING_LIST_SIZE} ${unitLabel}`,
+                highFootnote: 'Higher scores indicate higher vulnerability.',
+                lowFootnote: 'Lower scores indicate lower vulnerability.'
             };
         }
         if (layer.id === 'ttfHotspotsLayer') {
             return {
-                lowTitle: `No/Low tension — bottom 20 ${unitLabel}`,
-                highTitle: `Moderate/High tension — top 20 ${unitLabel}`,
-                lowFootnote: 'Light gray/yellow map classes = lower tension.',
-                highFootnote: 'Orange/red map classes = higher tension.'
+                highTitle: `Moderate/High tension — top ${RANKING_LIST_SIZE} ${unitLabel}`,
+                lowTitle: `No/Low tension — bottom ${RANKING_LIST_SIZE} ${unitLabel}`,
+                highFootnote: 'Orange/red map classes = higher tension.',
+                lowFootnote: 'Light gray/yellow map classes = lower tension.'
             };
         }
         return {
-            lowTitle: `Lowest values — bottom 20 ${unitLabel}`,
-            highTitle: `Highest values — top 20 ${unitLabel}`,
-            lowFootnote: 'Yellow end of the map scale = lower values.',
-            highFootnote: 'Red end of the map scale = higher values.'
+            highTitle: `Highest values — top ${RANKING_LIST_SIZE} ${unitLabel}`,
+            lowTitle: `Lowest values — bottom ${RANKING_LIST_SIZE} ${unitLabel}`,
+            highFootnote: 'Red bars = higher values.',
+            lowFootnote: 'Green bars = lower values.'
         };
     }
 
@@ -1361,19 +1363,7 @@ setupEventListeners() {
 
         const sorted = [...entries].sort((a, b) => a.score - b.score);
         const unitLabel = this.inferAdminUnitLabel(rankableLayer);
-        const count = Math.min(20, sorted.length);
-
-        if (layer.id === 'svOverallTensionLayer') {
-            return {
-                attribute,
-                attributeLabel: this.formatRankingAttributeLabel(attribute),
-                unitLabel,
-                // High scores = high vulnerability; list descending (most vulnerable at top).
-                lowest: sorted.slice(-count).reverse(),
-                // Low scores = low vulnerability; lowest scores at the bottom of the list.
-                highest: [...sorted.slice(0, count)].reverse()
-            };
-        }
+        const count = Math.min(RANKING_LIST_SIZE, sorted.length);
 
         return {
             attribute,
