@@ -1,0 +1,44 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            45,
+            10
+          ],
+          [
+            45,
+            10
+          ],
+          [
+            45,
+            10
+          ],
+          [
+            45,
+            10
+          ]
+        ]
+      },
+      "properties": {
+        "location_destination": "",
+        "location_origin": "",
+        "currstatus_physical": "",
+        "currstatusremarken": "",
+        "currvehtype": "",
+        "currsourcename": "",
+        "currleadtime_days": "",
+        "currinforely": "",
+        "currasofdate": "",
+        "distance_km": "",
+        "iso3": "",
+        "latitude": "",
+        "longitude": ""
+      }
+    }
+  ]
+}

@@ -457,8 +457,10 @@ body.analysis-selection-mode #map {
     padding-top: 0;
 }
 
-.sv-stressor-controls-wrap {
-    margin: 4px 2px 0;
+.sv-stressor-layers > .sv-stressor-controls-wrap {
+    margin: 0;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .sv-stressor-layer-controls {
@@ -967,8 +969,48 @@ body.analysis-selection-mode #map {
 }
 
 .escalation-time-control {
-    margin-top: 10px;
+    margin-top: 0;
     width: 100%;
+}
+
+.escalation-time-control .sv-subindicators-header {
+    margin-bottom: 8px;
+}
+
+.escalation-time-slider {
+    width: 100%;
+    margin: 0;
+    accent-color: #28a745;
+    cursor: pointer;
+}
+
+.escalation-time-slider-ticks {
+    display: flex;
+    justify-content: space-between;
+    gap: 4px;
+    margin-top: 4px;
+    font-size: 9px;
+    line-height: 1.2;
+    color: #64748b;
+    font-variant-numeric: tabular-nums;
+}
+
+.escalation-time-slider-ticks span {
+    flex: 1;
+    text-align: center;
+}
+
+.escalation-time-slider-ticks span:first-child {
+    text-align: left;
+}
+
+.escalation-time-slider-ticks span:last-child {
+    text-align: right;
+}
+
+.escalation-time-slider-ticks span.is-active {
+    color: #1e293b;
+    font-weight: 700;
 }
 
 .attribute-selector label,
@@ -1901,24 +1943,35 @@ body.analysis-selection-mode #map {
     text-align: right;
 }
 
-/* School (escalation) layer click popup */
-.escalation-popup .leaflet-popup-content-wrapper {
+/* Collective shelter hover popup */
+.leaflet-tooltip.escalation-popup {
+    pointer-events: none;
+    background: #ffffff;
+    border: 1px solid #dbe3ee;
     border-radius: 8px;
-    max-width: 340px;
+    box-shadow: 0 2px 10px rgba(15, 23, 42, 0.16);
+    color: #1f2937;
+    padding: 10px 12px;
+    max-width: 280px;
+    white-space: normal;
 }
-.escalation-popup-content .popup-section {
-    margin-bottom: 12px;
+.leaflet-tooltip.escalation-popup::before {
+    border-top-color: #ffffff;
 }
-.escalation-popup-content .popup-section:last-child {
-    margin-bottom: 0;
+.escalation-popup-content .escalation-popup-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: #1e293b;
+    margin: 0 0 8px;
+    line-height: 1.35;
 }
-.escalation-popup-content .popup-section ul {
-    margin: 4px 0 0 0;
-    padding-left: 18px;
+.escalation-popup-content ul {
+    margin: 0;
+    padding-left: 16px;
     font-size: 12px;
-    line-height: 1.4;
+    line-height: 1.45;
 }
-.escalation-popup-content .popup-section strong {
+.escalation-popup-content ul strong {
     font-size: 12px;
     color: #333;
 }

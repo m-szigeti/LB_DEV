@@ -390,6 +390,15 @@
                                     <span class="sv-layer-toggle-check" aria-hidden="true"></span>
                                 </label>
                             </div>
+                            <div id="svEscalationControlsWrap" class="sv-subindicators-panel sv-peace-subindicators-wrap sv-stressor-controls-wrap" hidden>
+                                <div class="escalation-time-control">
+                                    <div class="sv-subindicators-header">
+                                        <span class="sv-subindicators-title" id="escalationTimeLabel">03/09/26</span>
+                                    </div>
+                                    <input type="range" id="escalationTimeSlider" class="escalation-time-slider" min="0" max="2" step="1" value="2" aria-labelledby="escalationTimeLabel" aria-label="Collective shelter date">
+                                    <div class="escalation-time-slider-ticks" id="escalationTimeTicks"></div>
+                                </div>
+                            </div>
                             <div class="sv-layer-toggle-row">
                                 <input type="checkbox" id="ttfHotspotsLayer" class="sv-layer-toggle-input">
                                 <label class="sv-layer-toggle-btn" for="ttfHotspotsLayer">
@@ -426,28 +435,6 @@
                             </div>
                             <p class="sv-subindicators-hint">Select one population group, or none to show all populations.</p>
                             <div class="sv-subindicator-chips" role="group" aria-label="Population sub-indicators"></div>
-                        </div>
-                        <div id="svEscalationControlsWrap" class="sv-peace-subindicators-wrap sv-stressor-controls-wrap" hidden>
-                            <div class="layer-controls sv-stressor-layer-controls">
-                                <div class="opacity-control">
-                                    <label for="escalationOpacity">Opacity</label>
-                                    <input type="range" id="escalationOpacity" min="0" max="1" step="0.1" value="1">
-                                    <span id="escalationOpacityValue">100%</span>
-                                </div>
-                                <div class="escalation-time-control">
-                                    <label class="sv-peace-subindicators-title" for="escalationTimeMode">View</label>
-                                    <select id="escalationTimeMode" class="sv-peace-subindicator-select">
-                                        <option value="snapshot_09_03_26">Snapshot: 09/03/26</option>
-                                        <option value="snapshot_10_03_26">Snapshot: 10/03/26</option>
-                                        <option value="diff_09_10">Change: 09/03/26 to 10/03/26</option>
-                                        <option value="combined_cs_status" selected>Combined: Current + Potential</option>
-                                    </select>
-                                </div>
-                                <div class="attribute-selector sv-stressor-attribute-selector">
-                                    <label class="sv-peace-subindicators-title" for="escalationColumnSelector">Column</label>
-                                    <select id="escalationColumnSelector" class="sv-peace-subindicator-select"></select>
-                                </div>
-                            </div>
                         </div>
                     </div>
                 </div>

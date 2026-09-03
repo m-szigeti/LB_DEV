@@ -461,11 +461,7 @@ const layerConfig = {
     },
     escalationLayer: {
         type: 'point',
-        url: 'data/CS_DATA_09_03_26_full.geojson',
-        opacityControl: 'escalationOpacity',
-        opacityDisplay: 'escalationOpacityValue',
-        selectorId: 'escalationColumnSelector',
-        attributeSelector: 'escalationColumnSelector',
+        url: 'data/IDPs_Inside_CS_03_09_26.geojson',
         pointToLayer: createEscalationMarker,
         tooltipFunction: escalationTooltip,
         clusterOptions: {
@@ -2858,19 +2854,29 @@ function hideCustomOverallLayer(map, layers, removeLegendEntry) {
 }
 
 
-const ESCALATION_TIME_MODE_CONTROL = 'escalationTimeMode';
-const ESCALATION_TIME_MODE = {
-    SNAPSHOT_09: 'snapshot_09_03_26',
-    SNAPSHOT_10: 'snapshot_10_03_26',
-    DIFF_09_10: 'diff_09_10',
-    COMBINED: 'combined_cs_status'
+const ESCALATION_TIME_SLIDER_CONTROL = 'escalationTimeSlider';
+const ESCALATION_STATUS_COLORS = {
+    open: '#2ecc71',
+    full: '#bdc3c7',
+    other: '#95a5a6'
 };
-
-const ESCALATION_SNAPSHOT_URLS = {
-    [ESCALATION_TIME_MODE.SNAPSHOT_09]: 'data/CS_DATA_09_03_26_full.geojson',
-    [ESCALATION_TIME_MODE.SNAPSHOT_10]: 'data/CS_DATA_10_03_26_full.geojson',
-    [ESCALATION_TIME_MODE.COMBINED]: 'data/combined_cs_status.geojson'
-};
+const ESCALATION_POPUP_FIELDS = [
+    { key: 'structure_type', label: 'Structure type' },
+    { key: 'capacity', label: 'Capacity' },
+    { key: 'male', label: 'Male' },
+    { key: 'female', label: 'Female' },
+    { key: 'focal', label: 'Focal' }
+];
+const ESCALATION_SNAPSHOTS = [
+    { id: 'snapshot_09_03_26', label: '09/03/26', url: 'data/CS_DATA_09_03_26_full.geojson' },
+    { id: 'snapshot_10_03_26', label: '10/03/26', url: 'data/CS_DATA_10_03_26_full.geojson' },
+    { id: 'snapshot_03_09_26', label: '03/09/26', url: 'data/IDPs_Inside_CS_03_09_26.geojson' }
+];
+const ESCALATION_DEFAULT_SNAPSHOT_INDEX = ESCALATION_SNAPSHOTS.length - 1;
+const ESCALATION_SNAPSHOT_URLS = Object.fromEntries(
+    ESCALATION_SNAPSHOTS.map(snapshot => [snapshot.id, snapshot.url])
+);
+let escalationLoadToken = 0;
 
 // Unified polygon outline style for Social Vulnerability polygon layers.
 const SV_OUTLINE_COLOR = '#374151';
@@ -6539,7 +6545,7 @@ function createEscalationClusterIcon(cluster) {
         colorCounts.set(color, (colorCounts.get(color) || 0) + 1);
     });
 
-    let dominantColor = '#3498db';
+    let dominantColor = ESCALATION_STATUS_COLORS.other;
     let dominantCount = -1;
     colorCounts.forEach((value, color) => {
         if (value > dominantCount) {
@@ -6552,7 +6558,7 @@ function createEscalationClusterIcon(cluster) {
         html: `
             <div class="escalation-cluster-marker">
                 
-                <div class="escalation-cluster-count" style="background:${dominantColor};color:#ffffff;">${count}</div>
+                <div class="escalation-cluster-count" style="background:${dominantColor};color:${getEscalationContrastColor(dominantColor)};">${count}</div>
             </div>
         `,
         className: 'escalation-cluster-wrapper',
@@ -6562,13 +6568,14 @@ function createEscalationClusterIcon(cluster) {
 }
 
 function escalationTooltip(feature, layer) {
-    const tooltipText = getEscalationTooltipText(feature.properties || {});
-    layer.bindTooltip(tooltipText, {
-        permanent: false,
-        direction: 'top'
-    });
     const popupHtml = buildEscalationPopupContent(feature.properties || {});
-    layer.bindPopup(popupHtml, { maxWidth: 340, className: 'escalation-popup' });
+    layer.bindTooltip(popupHtml, {
+        sticky: true,
+        direction: 'top',
+        opacity: 1,
+        className: 'escalation-popup',
+        permanent: false
+    });
 }
 
 function getEscalationTooltipText(properties) {
@@ -6591,17 +6598,61 @@ function getEscalationMarkerColor(properties = {}) {
     if (changeType === 'added') return '#2ecc71';
     if (changeType === 'removed') return '#e74c3c';
 
-    const status = String(properties.status || '').toLowerCase();
-    if (status === 'open') return '#2ecc71';
-    if (status === 'full') return '#f39c12';
-    if (status === 'potential') return '#8e44ad';
-    return '#3498db';
+    const status = String(properties.status || '').trim().toLowerCase();
+    if (status === 'open') return ESCALATION_STATUS_COLORS.open;
+    if (status === 'full') return ESCALATION_STATUS_COLORS.full;
+    return ESCALATION_STATUS_COLORS.other;
+}
+
+function getEscalationSnapshotByIndex(index) {
+    const parsed = Number(index);
+    const safe = Number.isFinite(parsed) ? parsed : ESCALATION_DEFAULT_SNAPSHOT_INDEX;
+    const clamped = Math.min(Math.max(safe, 0), ESCALATION_SNAPSHOTS.length - 1);
+    return ESCALATION_SNAPSHOTS[clamped];
+}
+
+function getEscalationSnapshotIndex() {
+    const slider = document.getElementById(ESCALATION_TIME_SLIDER_CONTROL);
+    if (!slider) return ESCALATION_DEFAULT_SNAPSHOT_INDEX;
+    const parsed = Number.parseInt(slider.value, 10);
+    if (!Number.isFinite(parsed)) return ESCALATION_DEFAULT_SNAPSHOT_INDEX;
+    return Math.min(Math.max(parsed, 0), ESCALATION_SNAPSHOTS.length - 1);
 }
 
 function getEscalationTimeMode() {
-    const modeSelector = document.getElementById(ESCALATION_TIME_MODE_CONTROL);
-    if (!modeSelector || !modeSelector.value) return ESCALATION_TIME_MODE.SNAPSHOT_09;
-    return modeSelector.value;
+    return getEscalationSnapshotByIndex(getEscalationSnapshotIndex()).id;
+}
+
+function syncEscalationTimeSliderUI() {
+    const slider = document.getElementById(ESCALATION_TIME_SLIDER_CONTROL);
+    const label = document.getElementById('escalationTimeLabel');
+    const ticks = document.getElementById('escalationTimeTicks');
+    const snapshot = getEscalationSnapshotByIndex(getEscalationSnapshotIndex());
+
+    if (slider) {
+        slider.min = '0';
+        slider.max = String(ESCALATION_SNAPSHOTS.length - 1);
+        slider.step = '1';
+        slider.value = String(getEscalationSnapshotIndex());
+    }
+    if (label) {
+        label.textContent = snapshot.label;
+    }
+    if (ticks) {
+        if (ticks.childElementCount !== ESCALATION_SNAPSHOTS.length) {
+            ticks.replaceChildren(
+                ...ESCALATION_SNAPSHOTS.map(item => {
+                    const tick = document.createElement('span');
+                    tick.textContent = item.label;
+                    return tick;
+                })
+            );
+        }
+        const selectedIndex = getEscalationSnapshotIndex();
+        Array.from(ticks.children).forEach((tick, index) => {
+            tick.classList.toggle('is-active', index === selectedIndex);
+        });
+    }
 }
 
 async function getEscalationSnapshotData(mode) {
@@ -6611,6 +6662,9 @@ async function getEscalationSnapshotData(mode) {
         return escalationDataCache.get(sourceUrl);
     }
     const response = await fetch(sourceUrl);
+    if (!response.ok) {
+        throw new Error(`Failed to load collective shelter snapshot: ${sourceUrl}`);
+    }
     let data;
     if (sourceUrl.toLowerCase().endsWith('.csv')) {
         const csvText = await response.text();
@@ -6747,87 +6801,49 @@ function buildEscalationStatusDiff(oldSnapshot, newSnapshot) {
 }
 
 async function getEscalationDataForCurrentMode() {
-    const mode = getEscalationTimeMode();
-    if (mode === ESCALATION_TIME_MODE.DIFF_09_10) {
-        const [oldSnapshot, newSnapshot] = await Promise.all([
-            getEscalationSnapshotData(ESCALATION_TIME_MODE.SNAPSHOT_09),
-            getEscalationSnapshotData(ESCALATION_TIME_MODE.SNAPSHOT_10)
-        ]);
-        return buildEscalationStatusDiff(oldSnapshot, newSnapshot);
-    }
-    return getEscalationSnapshotData(mode);
+    return getEscalationSnapshotData(getEscalationTimeMode());
 }
 
 function getEscalationLegendConfig(mode) {
-    if (mode === ESCALATION_TIME_MODE.DIFF_09_10) {
-        return {
-            layerName: 'Collective Shelters: Status Change (09/03/26 -> 10/03/26) - cluster color = dominant type',
-            type: 'categorical',
-            items: [
-                { label: 'Status changed', color: '#f39c12' },
-                { label: 'Added in 10/03/26', color: '#2ecc71' },
-                { label: 'Removed since 09/03/26', color: '#e74c3c' }
-            ]
-        };
-    }
-
-    if (mode === ESCALATION_TIME_MODE.COMBINED) {
-        return {
-            layerName: 'Collective Shelters Status (Combined) - cluster color = dominant type',
-            type: 'categorical',
-            items: [
-                { label: 'Open', color: '#2ecc71' },
-                { label: 'Full', color: '#f39c12' },
-                { label: 'Potential', color: '#8e44ad' }
-            ]
-        };
-    }
-
+    const snapshot = ESCALATION_SNAPSHOTS.find(item => item.id === mode)
+        || getEscalationSnapshotByIndex(ESCALATION_DEFAULT_SNAPSHOT_INDEX);
     return {
-        layerName: mode === ESCALATION_TIME_MODE.SNAPSHOT_10
-            ? 'Collective Shelters Status (10/03/26) - cluster color = dominant type'
-            : 'Collective Shelters Status (09/03/26) - cluster color = dominant type',
+        layerName: `Collective Shelters Status (${snapshot.label})`,
         type: 'categorical',
         items: [
-            { label: 'Open', color: '#2ecc71' },
-            { label: 'Full', color: '#f39c12' },
-            { label: 'Potential', color: '#8e44ad' },
-            { label: 'Other', color: '#3498db' }
+            { label: 'Open', color: ESCALATION_STATUS_COLORS.open },
+            { label: 'Full', color: ESCALATION_STATUS_COLORS.full },
+            { label: 'Other', color: ESCALATION_STATUS_COLORS.other }
         ]
     };
 }
 
 async function loadEscalationLayer(map, layers, config, addLegendEntry) {
+    const loadToken = ++escalationLoadToken;
+    syncEscalationTimeSliderUI();
+    const snapshot = getEscalationSnapshotByIndex(getEscalationSnapshotIndex());
     const escalationData = await getEscalationDataForCurrentMode();
+    if (loadToken !== escalationLoadToken) return;
+
     const pointOptions = {
-        selectorId: config.selectorId,
-        attributeSelector: config.attributeSelector,
-        colorRampSelector: config.colorRampSelector,
         pointToLayer: config.pointToLayer,
         tooltipFunction: config.tooltipFunction,
         clusterOptions: config.clusterOptions,
         data: escalationData
     };
 
+    const pointLayer = await loadPointLayer(snapshot.url, pointOptions);
+    if (loadToken !== escalationLoadToken) return;
+
     if (layers.point.escalationLayer) {
         map.removeLayer(layers.point.escalationLayer);
     }
 
-    layers.point.escalationLayer = await loadPointLayer(config.url, pointOptions);
+    layers.point.escalationLayer = pointLayer;
     layers.point.escalationLayer.addTo(map);
 
-    const selector = document.getElementById(config.selectorId);
-    if (selector) {
-        const hasStatusOption = Array.from(selector.options).some(option => option.value === 'status');
-        if (hasStatusOption) {
-            selector.value = 'status';
-        }
-    }
+    addLegendEntry('escalationLayer', getEscalationLegendConfig(snapshot.id));
 
-    const mode = getEscalationTimeMode();
-    addLegendEntry('escalationLayer', getEscalationLegendConfig(mode));
-
-    // Keep info panel in sync with the latest escalation layer instance.
     if (window.currentInfoPanel) {
         const rawFeatures = layers.point.escalationLayer?.layerData?.raw?.features;
         const featureCount = Array.isArray(rawFeatures) ? rawFeatures.length : 0;
@@ -6839,50 +6855,50 @@ async function loadEscalationLayer(map, layers, config, addLegendEntry) {
     }
 }
 
+function formatEscalationPopupValue(value) {
+    if (typeof value === 'number' && Number.isFinite(value)) {
+        return Number.isInteger(value) ? value.toLocaleString() : String(value);
+    }
+    const asNumber = Number(value);
+    if (typeof value === 'string' && value.trim() !== '' && Number.isFinite(asNumber)) {
+        return Number.isInteger(asNumber) ? asNumber.toLocaleString() : value.trim();
+    }
+    return String(value).replace(/_/g, ' ').trim();
+}
+
 /**
- * Build popup HTML for a school (escalation) feature. Splits numeric vs qualitative, skips NA/null/empty.
+ * Build hover popup HTML for a collective shelter point.
  * @param {Object} properties - Feature properties
  * @returns {string} HTML string for popup
  */
 function buildEscalationPopupContent(properties) {
-    const naValues = new Set([null, undefined, '', 'NA', 'N/A', 'na', 'n/a', 'null', 'NULL', 'NaN']);
-    const isNA = (v) => naValues.has(v) || (typeof v === 'number' && isNaN(v));
-    const toLabel = (key) => key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+    const naValues = new Set([null, undefined, '', 'NA', 'N/A', 'na', 'n/a', 'null', 'NULL', 'NaN', 'None', 'none']);
+    const isNA = (v) => naValues.has(v) || (typeof v === 'number' && Number.isNaN(v));
+    const props = properties || {};
+    const rows = [];
 
-    const numeric = [];
-    const qualitative = [];
-
-    for (const [key, value] of Object.entries(properties)) {
-        if (isNA(value)) continue;
-        const label = toLabel(key);
-        const numVal = typeof value === 'number' ? value : Number(value);
-        const isNumeric = typeof value === 'number' && !isNaN(value) || (typeof value === 'string' && value.trim() !== '' && !isNaN(numVal) && isFinite(numVal));
-        if (isNumeric && (typeof value === 'number' || !isNaN(numVal))) {
-            const display = typeof value === 'number'
-                ? (Number.isInteger(value) ? value.toLocaleString() : value.toFixed(2))
-                : (Number.isInteger(numVal) ? numVal.toLocaleString() : numVal.toFixed(2));
-            numeric.push({ label, value: display });
-        } else {
-            qualitative.push({ label, value: String(value).trim() });
-        }
+    const status = props.status;
+    if (!isNA(status)) {
+        rows.push({ label: 'Status', value: formatEscalationPopupValue(status) });
     }
+    ESCALATION_POPUP_FIELDS.forEach(({ key, label }) => {
+        const value = props[key];
+        if (isNA(value)) return;
+        rows.push({ label, value: formatEscalationPopupValue(value) });
+    });
 
+    const name = isNA(props.shelter_name) ? '' : String(props.shelter_name).trim();
     let html = '<div class="escalation-popup-content">';
-    if (qualitative.length > 0) {
-        html += '<div class="popup-section"><strong>Details</strong><ul>';
-        qualitative.forEach(({ label, value }) => {
+    if (name) {
+        html += `<div class="escalation-popup-title">${escapeHtml(name)}</div>`;
+    }
+    if (rows.length > 0) {
+        html += '<ul>';
+        rows.forEach(({ label, value }) => {
             html += `<li><strong>${escapeHtml(label)}:</strong> ${escapeHtml(value)}</li>`;
         });
-        html += '</ul></div>';
-    }
-    if (numeric.length > 0) {
-        html += '<div class="popup-section"><strong>Statistics</strong><ul>';
-        numeric.forEach(({ label, value }) => {
-            html += `<li><strong>${escapeHtml(label)}:</strong> ${escapeHtml(value)}</li>`;
-        });
-        html += '</ul></div>';
-    }
-    if (qualitative.length === 0 && numeric.length === 0) {
+        html += '</ul>';
+    } else {
         html += '<p>No data available.</p>';
     }
     html += '</div>';
@@ -6895,57 +6911,39 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
+function getEscalationContrastColor(background) {
+    return background === ESCALATION_STATUS_COLORS.full ? '#1f2937' : '#ffffff';
+}
+
 /**
- * Setup Escalation dropdown behaviour
+ * Setup Collective Shelter Status time slider.
  */
 function setupEscalationControls(map, layers, config) {
-    const selector = document.getElementById(config.selectorId);
-    const opacitySlider = document.getElementById(config.opacityControl);
-    const opacityDisplay = document.getElementById(config.opacityDisplay);
-    const timeModeSelector = document.getElementById(ESCALATION_TIME_MODE_CONTROL);
-    
-    if (selector) {
-        // Prefer "status" as default if present
-        selector.addEventListener('change', () => {
-            if (selector.value !== 'status' || !layers.point.escalationLayer) return;
-            layers.point.escalationLayer.eachLayer(layer => {
-                if (typeof layer.setStyle !== 'function') return;
-                layer.setStyle({ fillColor: getEscalationMarkerColor(layer.feature?.properties || {}) });
+    const timeSlider = document.getElementById(ESCALATION_TIME_SLIDER_CONTROL);
+    syncEscalationTimeSliderUI();
+    if (!timeSlider) return;
+
+    let lastIndex = getEscalationSnapshotIndex();
+    const onSliderChange = async () => {
+        const nextIndex = getEscalationSnapshotIndex();
+        syncEscalationTimeSliderUI();
+        if (nextIndex === lastIndex) return;
+        lastIndex = nextIndex;
+
+        const escCheckbox = document.getElementById('escalationLayer');
+        if (!escCheckbox?.checked) return;
+        if (!window.addLegendEntry) return;
+
+        await loadEscalationLayer(map, layers, config, window.addLegendEntry);
+        if (window.currentInfoPanel && layers.point.escalationLayer?.layerData?.raw?.features) {
+            window.currentInfoPanel.updateLayer('escalationLayer', {
+                featureCount: layers.point.escalationLayer.layerData.raw.features.length
             });
-        });
-    }
+        }
+    };
 
-    if (timeModeSelector) {
-        timeModeSelector.addEventListener('change', async () => {
-            const escCheckbox = document.getElementById('escalationLayer');
-            if (!escCheckbox?.checked) return;
-            if (!window.addLegendEntry) return;
-
-            await loadEscalationLayer(map, layers, config, window.addLegendEntry);
-            if (window.currentInfoPanel && layers.point.escalationLayer?.layerData?.raw?.features) {
-                window.currentInfoPanel.updateLayer('escalationLayer', {
-                    featureCount: layers.point.escalationLayer.layerData.raw.features.length
-                });
-            }
-        });
-    }
-    
-    if (opacitySlider && opacityDisplay) {
-        opacitySlider.addEventListener('input', function() {
-            const value = Math.round(this.value * 100);
-            opacityDisplay.textContent = `${value}%`;
-            
-            if (layers.point.escalationLayer) {
-                layers.point.escalationLayer.eachLayer(layer => {
-                    if (typeof layer.setStyle !== 'function') return;
-                    layer.setStyle({
-                        fillOpacity: parseFloat(this.value),
-                        opacity: parseFloat(this.value)
-                    });
-                });
-            }
-        });
-    }
+    timeSlider.addEventListener('input', onSliderChange);
+    timeSlider.addEventListener('change', onSliderChange);
 }
 
 function getRoadStatusColor(statusValue) {
