@@ -1063,35 +1063,47 @@ setupEventListeners() {
 
         // Dedicated chart for school escalation status.
         if (layer.id === 'escalationLayer') {
-            const counts = { open: 0, full: 0, other: 0 };
+            const counts = { open: 0, full: 0, potential: 0, other: 0 };
             layer.layer.eachLayer(featureLayer => {
                 const status = String(featureLayer.feature?.properties?.status || '').toLowerCase();
                 if (status === 'open') {
                     counts.open += 1;
                 } else if (status === 'full') {
                     counts.full += 1;
+                } else if (status === 'potential') {
+                    counts.potential += 1;
                 } else if (status) {
                     counts.other += 1;
                 }
             });
 
-            const total = counts.open + counts.full + counts.other;
+            const total = counts.open + counts.full + counts.potential + counts.other;
             if (total === 0) {
                 return null;
             }
 
+            const summary = [
+                ...(counts.open ? [{ label: 'Open', value: counts.open }] : []),
+                ...(counts.full ? [{ label: 'Full', value: counts.full }] : []),
+                ...(counts.potential ? [{ label: 'Potential', value: counts.potential }] : []),
+                ...(counts.other ? [{ label: 'Other', value: counts.other }] : [])
+            ];
+            const labels = summary.map(item => item.label);
+            const values = summary.map(item => item.value);
+            const colors = summary.map(item => {
+                if (item.label === 'Open') return '#2ecc71';
+                if (item.label === 'Full') return '#bdc3c7';
+                return '#95a5a6';
+            });
+
             return {
                 chartType: 'pie',
                 title: 'Status Breakdown',
-                summary: [
-                    { label: 'Open', value: counts.open },
-                    { label: 'Full', value: counts.full },
-                    ...(counts.other ? [{ label: 'Other', value: counts.other }] : [])
-                ],
+                summary,
                 chartData: {
-                    labels: ['Open', 'Full', ...(counts.other ? ['Other'] : [])],
-                    values: [counts.open, counts.full, ...(counts.other ? [counts.other] : [])],
-                    colors: ['#2ecc71', '#bdc3c7', '#95a5a6']
+                    labels,
+                    values,
+                    colors
                 }
             };
         }
@@ -1109,6 +1121,7 @@ setupEventListeners() {
                 const rawStatus =
                     featureLayer.feature?.properties?.['Current status'] ??
                     featureLayer.feature?.properties?.['Current Status'] ??
+                    featureLayer.feature?.properties?.currstatus_physical ??
                     '';
                 const status = String(rawStatus).trim().toLowerCase();
 

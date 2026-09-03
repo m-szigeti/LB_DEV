@@ -375,9 +375,9 @@ const layerConfig = {
     },
     roadStatusLayer: {
         type: 'vector',
-        url: 'data/lbn_Roads%20Status_2026-03-18.geojson',
+        url: 'data/Road Physical Accessibility_2026-09-03 (1).geojson',
         style: feature => ({
-            color: getRoadStatusColor(feature?.properties?.['Current status']),
+            color: getRoadStatusColor(getRoadStatusValue(feature?.properties)),
             weight: 3,
             opacity: 1
         }),
@@ -2858,7 +2858,8 @@ const ESCALATION_TIME_SLIDER_CONTROL = 'escalationTimeSlider';
 const ESCALATION_STATUS_COLORS = {
     open: '#2ecc71',
     full: '#bdc3c7',
-    other: '#95a5a6'
+    other: '#95a5a6',
+    potential: '#95a5a6'
 };
 const ESCALATION_POPUP_FIELDS = [
     { key: 'structure_type', label: 'Structure type' },
@@ -2870,6 +2871,17 @@ const ESCALATION_POPUP_FIELDS = [
 const ESCALATION_SNAPSHOTS = [
     { id: 'snapshot_09_03_26', label: '09/03/26', url: 'data/CS_DATA_09_03_26_full.geojson' },
     { id: 'snapshot_10_03_26', label: '10/03/26', url: 'data/CS_DATA_10_03_26_full.geojson' },
+    {
+        id: 'snapshot_24_08_26',
+        label: '24/08/26',
+        url: 'data/Lebanon_IDP_All_Cadasters - 24 August 2026.geojson',
+        forceStatus: 'potential',
+        titleKeys: ['Cadaster Name', 'Cadaster Zone'],
+        popupFields: [
+            { key: 'IDPs Outside Shelters', label: 'IDPs Outside Shelters' },
+            { key: 'Families Outside Shelters', label: 'Families Outside Shelters' }
+        ]
+    },
     { id: 'snapshot_03_09_26', label: '03/09/26', url: 'data/IDPs_Inside_CS_03_09_26.geojson' }
 ];
 const ESCALATION_DEFAULT_SNAPSHOT_INDEX = ESCALATION_SNAPSHOTS.length - 1;
@@ -3128,6 +3140,7 @@ export function setupLayerControls(map, layers, colorScales, addLegendEntry, rem
         }
 
         if (layerId === 'roadStatusLayer') {
+            setupRoadStatusControls(map, layers, config);
             const roadCheckbox = document.getElementById('roadStatusLayer');
             if (roadCheckbox && roadCheckbox.checked) {
                 roadCheckbox.dispatchEvent(new Event('change'));
@@ -6568,7 +6581,10 @@ function createEscalationClusterIcon(cluster) {
 }
 
 function escalationTooltip(feature, layer) {
-    const popupHtml = buildEscalationPopupContent(feature.properties || {});
+    const popupHtml = buildEscalationPopupContent(
+        feature.properties || {},
+        getEscalationSnapshotByIndex(getEscalationSnapshotIndex())
+    );
     layer.bindTooltip(popupHtml, {
         sticky: true,
         direction: 'top',
@@ -6601,6 +6617,7 @@ function getEscalationMarkerColor(properties = {}) {
     const status = String(properties.status || '').trim().toLowerCase();
     if (status === 'open') return ESCALATION_STATUS_COLORS.open;
     if (status === 'full') return ESCALATION_STATUS_COLORS.full;
+    if (status === 'potential') return ESCALATION_STATUS_COLORS.potential;
     return ESCALATION_STATUS_COLORS.other;
 }
 
@@ -6656,12 +6673,13 @@ function syncEscalationTimeSliderUI() {
 }
 
 async function getEscalationSnapshotData(mode) {
-    const sourceUrl = ESCALATION_SNAPSHOT_URLS[mode];
+    const snapshot = ESCALATION_SNAPSHOTS.find(item => item.id === mode);
+    const sourceUrl = snapshot?.url || ESCALATION_SNAPSHOT_URLS[mode];
     if (!sourceUrl) return null;
     if (escalationDataCache.has(sourceUrl)) {
-        return escalationDataCache.get(sourceUrl);
+        return applyEscalationSnapshotDefaults(escalationDataCache.get(sourceUrl), snapshot);
     }
-    const response = await fetch(sourceUrl);
+    const response = await fetch(encodeURI(sourceUrl));
     if (!response.ok) {
         throw new Error(`Failed to load collective shelter snapshot: ${sourceUrl}`);
     }
@@ -6673,7 +6691,21 @@ async function getEscalationSnapshotData(mode) {
         data = await response.json();
     }
     escalationDataCache.set(sourceUrl, data);
-    return data;
+    return applyEscalationSnapshotDefaults(data, snapshot);
+}
+
+function applyEscalationSnapshotDefaults(data, snapshot) {
+    if (!data || !snapshot?.forceStatus) return data;
+    return {
+        ...data,
+        features: (data.features || []).map(feature => ({
+            ...feature,
+            properties: {
+                ...(feature.properties || {}),
+                status: snapshot.forceStatus
+            }
+        }))
+    };
 }
 
 function parseEscalationStatusCsv(csvText) {
@@ -6807,6 +6839,15 @@ async function getEscalationDataForCurrentMode() {
 function getEscalationLegendConfig(mode) {
     const snapshot = ESCALATION_SNAPSHOTS.find(item => item.id === mode)
         || getEscalationSnapshotByIndex(ESCALATION_DEFAULT_SNAPSHOT_INDEX);
+    if (snapshot.forceStatus === 'potential') {
+        return {
+            layerName: `Collective Shelters Status (${snapshot.label})`,
+            type: 'categorical',
+            items: [
+                { label: 'Potential', color: ESCALATION_STATUS_COLORS.potential }
+            ]
+        };
+    }
     return {
         layerName: `Collective Shelters Status (${snapshot.label})`,
         type: 'categorical',
@@ -6871,23 +6912,30 @@ function formatEscalationPopupValue(value) {
  * @param {Object} properties - Feature properties
  * @returns {string} HTML string for popup
  */
-function buildEscalationPopupContent(properties) {
+function buildEscalationPopupContent(properties, snapshot) {
     const naValues = new Set([null, undefined, '', 'NA', 'N/A', 'na', 'n/a', 'null', 'NULL', 'NaN', 'None', 'none']);
     const isNA = (v) => naValues.has(v) || (typeof v === 'number' && Number.isNaN(v));
     const props = properties || {};
+    const activeSnapshot = snapshot || getEscalationSnapshotByIndex(getEscalationSnapshotIndex());
     const rows = [];
+    const popupFields = activeSnapshot.popupFields || [
+        { key: 'status', label: 'Status' },
+        ...ESCALATION_POPUP_FIELDS
+    ];
 
-    const status = props.status;
-    if (!isNA(status)) {
-        rows.push({ label: 'Status', value: formatEscalationPopupValue(status) });
-    }
-    ESCALATION_POPUP_FIELDS.forEach(({ key, label }) => {
+    popupFields.forEach(({ key, label }) => {
         const value = props[key];
         if (isNA(value)) return;
         rows.push({ label, value: formatEscalationPopupValue(value) });
     });
 
-    const name = isNA(props.shelter_name) ? '' : String(props.shelter_name).trim();
+    const titleKeys = activeSnapshot.titleKeys || ['shelter_name'];
+    let name = '';
+    for (const key of titleKeys) {
+        if (isNA(props[key])) continue;
+        name = String(props[key]).trim();
+        if (name) break;
+    }
     let html = '<div class="escalation-popup-content">';
     if (name) {
         html += `<div class="escalation-popup-title">${escapeHtml(name)}</div>`;
@@ -6946,6 +6994,22 @@ function setupEscalationControls(map, layers, config) {
     timeSlider.addEventListener('change', onSliderChange);
 }
 
+const ROAD_STATUS_TIME_SLIDER_CONTROL = 'roadStatusTimeSlider';
+const ROAD_STATUS_SNAPSHOTS = [
+    { id: 'snapshot_01_03_26', label: '01/03/26', url: 'data/lbn_Roads Status_2026-03-18.geojson' },
+    { id: 'snapshot_03_09_26', label: '03/09/26', url: 'data/Road Physical Accessibility_2026-09-03 (1).geojson' }
+];
+const ROAD_STATUS_DEFAULT_SNAPSHOT_INDEX = ROAD_STATUS_SNAPSHOTS.length - 1;
+const roadStatusDataCache = new Map();
+let roadStatusLoadToken = 0;
+
+function getRoadStatusValue(properties = {}) {
+    return properties['Current status']
+        ?? properties['Current Status']
+        ?? properties.currstatus_physical
+        ?? '';
+}
+
 function getRoadStatusColor(statusValue) {
     const status = String(statusValue || '').trim().toLowerCase();
     if (status === 'not passable') return '#b30000';
@@ -6954,9 +7018,72 @@ function getRoadStatusColor(statusValue) {
     return '#7f8c8d';
 }
 
-function getRoadStatusLegendConfig() {
+function getRoadStatusSnapshotByIndex(index) {
+    const parsed = Number(index);
+    const safe = Number.isFinite(parsed) ? parsed : ROAD_STATUS_DEFAULT_SNAPSHOT_INDEX;
+    const clamped = Math.min(Math.max(safe, 0), ROAD_STATUS_SNAPSHOTS.length - 1);
+    return ROAD_STATUS_SNAPSHOTS[clamped];
+}
+
+function getRoadStatusSnapshotIndex() {
+    const slider = document.getElementById(ROAD_STATUS_TIME_SLIDER_CONTROL);
+    if (!slider) return ROAD_STATUS_DEFAULT_SNAPSHOT_INDEX;
+    const parsed = Number.parseInt(slider.value, 10);
+    if (!Number.isFinite(parsed)) return ROAD_STATUS_DEFAULT_SNAPSHOT_INDEX;
+    return Math.min(Math.max(parsed, 0), ROAD_STATUS_SNAPSHOTS.length - 1);
+}
+
+function syncRoadStatusTimeSliderUI() {
+    const slider = document.getElementById(ROAD_STATUS_TIME_SLIDER_CONTROL);
+    const label = document.getElementById('roadStatusTimeLabel');
+    const ticks = document.getElementById('roadStatusTimeTicks');
+    const snapshot = getRoadStatusSnapshotByIndex(getRoadStatusSnapshotIndex());
+
+    if (slider) {
+        slider.min = '0';
+        slider.max = String(ROAD_STATUS_SNAPSHOTS.length - 1);
+        slider.step = '1';
+        slider.value = String(getRoadStatusSnapshotIndex());
+    }
+    if (label) {
+        label.textContent = snapshot.label;
+    }
+    if (ticks) {
+        if (ticks.childElementCount !== ROAD_STATUS_SNAPSHOTS.length) {
+            ticks.replaceChildren(
+                ...ROAD_STATUS_SNAPSHOTS.map(item => {
+                    const tick = document.createElement('span');
+                    tick.textContent = item.label;
+                    return tick;
+                })
+            );
+        }
+        const selectedIndex = getRoadStatusSnapshotIndex();
+        Array.from(ticks.children).forEach((tick, index) => {
+            tick.classList.toggle('is-active', index === selectedIndex);
+        });
+    }
+}
+
+async function getRoadStatusSnapshotData(snapshot) {
+    const sourceUrl = snapshot?.url;
+    if (!sourceUrl) return null;
+    if (roadStatusDataCache.has(sourceUrl)) {
+        return roadStatusDataCache.get(sourceUrl);
+    }
+    const response = await fetch(encodeURI(sourceUrl));
+    if (!response.ok) {
+        throw new Error(`Failed to load road status snapshot: ${sourceUrl}`);
+    }
+    const data = await response.json();
+    roadStatusDataCache.set(sourceUrl, data);
+    return data;
+}
+
+function getRoadStatusLegendConfig(snapshot) {
+    const active = snapshot || getRoadStatusSnapshotByIndex(getRoadStatusSnapshotIndex());
     return {
-        layerName: 'Road Access Status',
+        layerName: `Road Access Status (${active.label})`,
         type: 'categorical',
         items: [
             { label: 'Not Passable', color: '#b30000' },
@@ -6964,6 +7091,82 @@ function getRoadStatusLegendConfig() {
             { label: 'Passable/Undamaged', color: '#35a140' }
         ]
     };
+}
+
+async function loadRoadStatusLayer(map, layers, config, addLegendEntry) {
+    const loadToken = ++roadStatusLoadToken;
+    syncRoadStatusTimeSliderUI();
+    const snapshot = getRoadStatusSnapshotByIndex(getRoadStatusSnapshotIndex());
+    const data = await getRoadStatusSnapshotData(snapshot);
+    if (loadToken !== roadStatusLoadToken) return;
+
+    const roadLayer = L.geoJSON(data, {
+        style: config.style,
+        onEachFeature: (feature, layer) => {
+            const status = String(getRoadStatusValue(feature?.properties)).trim();
+            if (!status) return;
+            layer.bindTooltip(`Status: ${status}`, {
+                permanent: false,
+                direction: 'top'
+            });
+        }
+    });
+    roadLayer.layerData = {
+        raw: data,
+        propertyFields: data?.features?.[0]?.properties ? Object.keys(data.features[0].properties) : []
+    };
+    addInfoPopupHandler(roadLayer, config.layerType || 'road-status');
+    attachPolygonSelectionHandlers('roadStatusLayer', roadLayer, layers, config);
+
+    if (loadToken !== roadStatusLoadToken) return;
+
+    if (layers.vector.roadStatusLayer) {
+        clearPolygonSelection('roadStatusLayer', layers);
+        map.removeLayer(layers.vector.roadStatusLayer);
+    }
+
+    layers.vector.roadStatusLayer = roadLayer;
+    layers.vector.roadStatusLayer.addTo(map);
+    addLegendEntry('roadStatusLayer', getRoadStatusLegendConfig(snapshot));
+    keepRoadLayerOnTop(layers);
+
+    if (window.currentInfoPanel) {
+        const rawFeatures = roadLayer.layerData?.raw?.features;
+        const featureCount = Array.isArray(rawFeatures) ? rawFeatures.length : 0;
+        window.currentInfoPanel.updateLayer('roadStatusLayer', {
+            layer: roadLayer,
+            featureCount,
+            selectedAttribute: null
+        });
+    }
+}
+
+function setupRoadStatusControls(map, layers, config) {
+    const timeSlider = document.getElementById(ROAD_STATUS_TIME_SLIDER_CONTROL);
+    syncRoadStatusTimeSliderUI();
+    if (!timeSlider) return;
+
+    let lastIndex = getRoadStatusSnapshotIndex();
+    const onSliderChange = async () => {
+        const nextIndex = getRoadStatusSnapshotIndex();
+        syncRoadStatusTimeSliderUI();
+        if (nextIndex === lastIndex) return;
+        lastIndex = nextIndex;
+
+        const roadCheckbox = document.getElementById('roadStatusLayer');
+        if (!roadCheckbox?.checked) return;
+        if (!window.addLegendEntry) return;
+
+        await loadRoadStatusLayer(map, layers, config, window.addLegendEntry);
+        if (window.currentInfoPanel && layers.vector.roadStatusLayer?.layerData?.raw?.features) {
+            window.currentInfoPanel.updateLayer('roadStatusLayer', {
+                featureCount: layers.vector.roadStatusLayer.layerData.raw.features.length
+            });
+        }
+    };
+
+    timeSlider.addEventListener('input', onSliderChange);
+    timeSlider.addEventListener('change', onSliderChange);
 }
 
 function getTTFTensionColor(value) {
@@ -7293,6 +7496,11 @@ async function loadLayer(layerId, map, layers, colorScales, addLegendEntry) {
     
     switch (config.type) {
         case 'vector':
+            if (layerId === 'roadStatusLayer') {
+                await loadRoadStatusLayer(map, layers, config, addLegendEntry);
+                keepRoadLayerOnTop(layers);
+                break;
+            }
             if (layerId === 'pilotZonesLayer') {
                 if (!layers.vector[layerId]) {
                     layers.vector[layerId] = await loadPilotZonesLayer(config.url);

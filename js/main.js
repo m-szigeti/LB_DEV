@@ -72,6 +72,10 @@ document.addEventListener('DOMContentLoaded', async function() {
     if (escalationCb) {
         escalationCb.addEventListener('change', syncEscalationControlsWrapVisibility);
     }
+    const roadStatusCb = document.getElementById('roadStatusLayer');
+    if (roadStatusCb) {
+        roadStatusCb.addEventListener('change', syncEscalationControlsWrapVisibility);
+    }
     const stressorsDropdownBtn = document.querySelector('.stressors-section-btn');
     if (stressorsDropdownBtn) {
         stressorsDropdownBtn.addEventListener('click', () => {
@@ -460,20 +464,32 @@ function setupDropdownToggles() {
 }
 
 /**
- * Collective Shelter options panel; visible when Stressors is open and that layer is on.
+ * Stressor options panels; visible when Stressors is open and that layer is on.
  */
-function syncEscalationControlsWrapVisibility() {
+function isStressorsSectionOpen() {
     const btn = document.querySelector('.stressors-section-btn');
-    const wrap = document.getElementById('svEscalationControlsWrap');
-    if (!btn || !wrap) return;
+    if (!btn) return false;
     const panel = btn.nextElementSibling;
-    const isOpen =
+    return Boolean(
         btn.classList.contains('active') &&
         panel &&
         panel.classList.contains('dropdown-container') &&
-        panel.style.display === 'block';
-    const escalationOn = document.getElementById('escalationLayer')?.checked;
-    wrap.hidden = !isOpen || !escalationOn;
+        panel.style.display === 'block'
+    );
+}
+
+function syncStressorControlsWrap(wrapId, checkboxId) {
+    const wrap = document.getElementById(wrapId);
+    if (!wrap) return;
+    const layerOn = document.getElementById(checkboxId)?.checked;
+    wrap.hidden = !isStressorsSectionOpen() || !layerOn;
+}
+
+function syncEscalationControlsWrapVisibility() {
+    const sectionOpen = isStressorsSectionOpen();
+    syncStressorControlsWrap('svEscalationControlsWrap', 'escalationLayer');
+    syncStressorControlsWrap('svRoadStatusControlsWrap', 'roadStatusLayer');
+    return sectionOpen;
 }
 
 window.syncEscalationControlsWrapVisibility = syncEscalationControlsWrapVisibility;

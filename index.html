@@ -383,6 +383,15 @@
                                     <span class="sv-layer-toggle-check" aria-hidden="true"></span>
                                 </label>
                             </div>
+                            <div id="svRoadStatusControlsWrap" class="sv-subindicators-panel sv-peace-subindicators-wrap sv-stressor-controls-wrap" hidden>
+                                <div class="escalation-time-control">
+                                    <div class="sv-subindicators-header">
+                                        <span class="sv-subindicators-title" id="roadStatusTimeLabel">03/09/26</span>
+                                    </div>
+                                    <input type="range" id="roadStatusTimeSlider" class="escalation-time-slider" min="0" max="1" step="1" value="1" aria-labelledby="roadStatusTimeLabel" aria-label="Road access date">
+                                    <div class="escalation-time-slider-ticks" id="roadStatusTimeTicks"></div>
+                                </div>
+                            </div>
                             <div class="sv-layer-toggle-row">
                                 <input type="checkbox" id="escalationLayer" class="sv-layer-toggle-input">
                                 <label class="sv-layer-toggle-btn" for="escalationLayer">
@@ -395,7 +404,7 @@
                                     <div class="sv-subindicators-header">
                                         <span class="sv-subindicators-title" id="escalationTimeLabel">03/09/26</span>
                                     </div>
-                                    <input type="range" id="escalationTimeSlider" class="escalation-time-slider" min="0" max="2" step="1" value="2" aria-labelledby="escalationTimeLabel" aria-label="Collective shelter date">
+                                    <input type="range" id="escalationTimeSlider" class="escalation-time-slider" min="0" max="3" step="1" value="3" aria-labelledby="escalationTimeLabel" aria-label="Collective shelter date">
                                     <div class="escalation-time-slider-ticks" id="escalationTimeTicks"></div>
                                 </div>
                             </div>
