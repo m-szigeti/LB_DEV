@@ -67,7 +67,7 @@ import {
     setIsolatedLayerId,
     setColorOnlyMode
 } from './map_display_controls.js';
-import { configureAoiProviders, resolvePopulationDetailsForProperties } from './aoi_context.js';
+import { configureAoiProviders } from './aoi_context.js';
 import { configureAoiSpotlight, forceAoiStyleRecovery } from './aoi_spotlight.js';
 
 const JUNE17_DATA = 'data/June17';
@@ -3420,15 +3420,13 @@ function setupSVRadioControls(map, layers, colorScales, addLegendEntry, removeLe
         getActiveResolution: () => getActiveAdminResolution()
     });
     configureInfoPopupEnrichment(async properties => {
-        const [themes, population, activeScores] = await Promise.all([
+        const [themes, activeScores] = await Promise.all([
             getSVThemeScoresForFeature(properties, layers),
-            resolvePopulationDetailsForProperties(properties, getActiveAdminResolution()),
             buildActiveLayerPopupScores(properties, layers)
         ]);
         return {
             themes: themes?.themes || [],
             arabicName: themes?.arabicName || getArabicNameFromProperties(properties),
-            population,
             activeScores,
             activeLayerIds: Array.from(activeSVLayers)
         };

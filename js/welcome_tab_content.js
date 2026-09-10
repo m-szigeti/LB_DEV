@@ -6,7 +6,7 @@ export const WELCOME_TAB_HTML = `
     <div class="info-panel-section">
         <div class="welcome-content">
             <div style="background:#f0f0ec; border:1px solid #d2d2ce; border-radius:8px; padding:10px 12px; margin-bottom:14px;">
-                <div style="font-size:18px; font-weight:700; color:#2f2f2f;">TMS 2.0 Vulnerability Tool Guide</div>
+                <div style="font-size:18px; font-weight:700; color:#2f2f2f;">Composite Tensions and Vulnerabilities Map Quick Guide</div>
             </div>
 
             <div style="font-size:12px; font-weight:700; color:#6d6d6d; letter-spacing:0.06em; margin:6px 0 8px; border-bottom:1px solid #d9d9d9; padding-bottom:5px;">WHAT THE TOOL SHOWS</div>
@@ -34,7 +34,7 @@ export const WELCOME_TAB_HTML = `
                 <div style="position:relative; border:1px solid #d8d8d8; border-radius:8px; background:#f7f7f7; padding:10px 12px 10px 46px; margin-bottom:8px;">
                     <span style="position:absolute; left:9px; top:12px; width:18px; height:18px; border-radius:50%; background:#dce9fa; color:#3f79c5; font-size:11px; line-height:18px; text-align:center; font-weight:700;">3</span>
                     <div style="font-size:14px; font-weight:700; color:#343434;">Click a polygon</div>
-                    <div style="font-size:12px; color:#555; margin-top:4px;">A popup shows the area&rsquo;s <strong>score and class</strong>, Arabic name, population, and bar charts comparing theme scores for that unit. Open <strong>Active Layers</strong> for indicator definitions and top/bottom rankings, or <strong>Analysis</strong> to build an area of interest.</div>
+                    <div style="font-size:12px; color:#555; margin-top:4px;">A popup shows the area&rsquo;s <strong>score and class</strong>, Arabic name, and spider web charts comparing theme scores for that unit. Open <strong>Active Layers</strong> for indicator definitions and top/bottom rankings, or <strong>Analysis</strong> to build an area of interest.</div>
                 </div>
 
                 <div style="position:relative; border:1px solid #d8d8d8; border-radius:8px; background:#f7f7f7; padding:10px 12px 10px 46px; margin-bottom:8px;">
@@ -54,20 +54,68 @@ export const WELCOME_TAB_HTML = `
             <div style="font-size:12px; color:#3e3e3e; line-height:1.55; margin-bottom:14px;">
                 <div style="margin-bottom:6px;"><strong>Show Labels</strong> &mdash; Displays score labels on the map for the active layer.</div>
                 <div style="margin-bottom:6px;"><strong>Color</strong> (on each composite layer) &mdash; Shows that layer alone as a plain color choropleth. Click again to return to the default symbol, stripe, or glow style.</div>
-                <div style="margin-bottom:6px;"><strong>Show Color Only</strong> (Advanced Options) &mdash; Global toggle for plain choropleth rendering.</div>
-                <div style="margin-bottom:6px;"><strong>Class Limits</strong> (Advanced Options) &mdash; Cycle <em>Equal count</em>, <em>Equal interval</em>, and <em>Natural breaks</em> to change how Low / Medium / High ranges are grouped. This does not recalculate scores.</div>
                 <div><strong>Custom Overall Index</strong> &mdash; Build an exploratory composite from selected themes and sub-indicators, keeping the official Overall as the reference.</div>
             </div>
 
             <div style="font-size:12px; font-weight:700; color:#6d6d6d; letter-spacing:0.06em; margin:6px 0 8px; border-bottom:1px solid #d9d9d9; padding-bottom:5px;">COMPOSITE INDEXES</div>
             <div style="font-size:12px; color:#444; line-height:1.5; margin-bottom:10px;">
-                <p style="margin:0 0 8px; color:#3e3e3e;">The <strong>Overall Vulnerability Index</strong> combines the pillar scores below. A weak score on any pillar can pull down the composite. Default map styles (stripes, icons, edge glow) are designed so themes can be read together; use <strong>Color</strong> when you want a single choropleth.</p>
-                <div style="margin-bottom:5px;"><span style="display:inline-block; width:10px; height:10px; border-radius:2px; background:#7b3294; margin-right:6px;"></span><strong>Tensions and Conflict Risk</strong> &mdash; Social unrest, violence, and conflict-related tensions (color fill).</div>
-                <div style="margin-bottom:5px;"><span style="display:inline-block; width:10px; height:10px; border-radius:2px; background:#2b83ba; margin-right:6px;"></span><strong>Socioeconomic Vulnerability</strong> &mdash; Poverty, household deprivation, and livelihood hardship (stripe pattern, drawn above other fills).</div>
-                <div style="margin-bottom:5px;"><span style="display:inline-block; width:10px; height:10px; border-radius:2px; background:#8b5cf6; margin-right:6px;"></span><strong>Service &amp; Infrastructure Vulnerability</strong> &mdash; Availability and quality of essential services (class icons).</div>
-                <div style="margin-bottom:5px;"><span style="display:inline-block; width:10px; height:10px; border-radius:2px; background:#b2182b; margin-right:6px;"></span><strong>Climate Risk</strong> &mdash; Heat, drought, and forest-fire related pressures (pine icons).</div>
-                <div style="margin-bottom:5px;"><span style="display:inline-block; width:10px; height:10px; border-radius:2px; background:#1e3a8a; margin-right:6px;"></span><strong>Political Vulnerability</strong> &mdash; Governance, institutional trust, and demographic shock pressures (inward edge glow).</div>
-                <div><span style="display:inline-block; width:10px; height:10px; border-radius:2px; background:#525252; margin-right:6px;"></span><strong>Gender Based Vulnerabilities</strong> &mdash; Gender disparities in safety, service access, and participation (diamond icons).</div>
+                <p style="margin:0 0 8px; color:#3e3e3e;">The <strong>Overall Vulnerability Index</strong> combines the pillar scores below. A weak score on any pillar can pull down the composite. Default map styles (stripes, icons, edge glow) are designed so themes can be read together.</p>
+                <div class="welcome-composite-key">
+                    <div class="welcome-composite-item">
+                        <div class="welcome-composite-swatch welcome-composite-swatch-fill" aria-hidden="true">
+                            <span style="background:#e6d9f2;"></span>
+                            <span style="background:#8e5cbf;"></span>
+                            <span style="background:#4a1f73;"></span>
+                        </div>
+                        <div class="welcome-composite-copy"><strong>Tensions and Conflict Risk</strong> &mdash; Social unrest, violence, and conflict-related tensions (color fill).</div>
+                    </div>
+                    <div class="welcome-composite-item">
+                        <div class="welcome-composite-swatch welcome-composite-swatch-stripes" aria-hidden="true"></div>
+                        <div class="welcome-composite-copy"><strong>Socioeconomic Vulnerability</strong> &mdash; Poverty, household deprivation, and livelihood hardship (stripe pattern, drawn above other fills).</div>
+                    </div>
+                    <div class="welcome-composite-item">
+                        <div class="welcome-composite-swatch welcome-composite-swatch-icons" aria-hidden="true">
+                            <img src="assets/service-symbol-low.svg" alt="">
+                            <img src="assets/service-symbol-medium.svg" alt="">
+                            <img src="assets/service-symbol-high.svg" alt="">
+                        </div>
+                        <div class="welcome-composite-copy"><strong>Service &amp; Infrastructure Vulnerability</strong> &mdash; Availability and quality of essential services (class icons).</div>
+                    </div>
+                    <div class="welcome-composite-item">
+                        <div class="welcome-composite-swatch welcome-composite-swatch-icons" aria-hidden="true">
+                            <img src="assets/forest-fire-low.svg" alt="">
+                            <img src="assets/forest-fire-medium.svg" alt="">
+                            <img src="assets/forest-fire-high.svg" alt="">
+                        </div>
+                        <div class="welcome-composite-copy"><strong>Climate Risk</strong> &mdash; Heat, drought, and forest-fire related pressures (pine icons).</div>
+                    </div>
+                    <div class="welcome-composite-item">
+                        <div class="welcome-composite-swatch welcome-composite-swatch-glow" aria-hidden="true">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="56" height="40" viewBox="0 0 56 40">
+                                <defs>
+                                    <clipPath id="welcomePoliticalGlowClip">
+                                        <rect x="6" y="5" width="44" height="30" rx="4"/>
+                                    </clipPath>
+                                </defs>
+                                <rect x="1" y="1" width="54" height="38" rx="6" fill="#f8fafc"/>
+                                <g clip-path="url(#welcomePoliticalGlowClip)">
+                                    <rect x="6" y="5" width="44" height="30" rx="4" fill="none" stroke="#93c5fd" stroke-width="12" opacity="0.28"/>
+                                    <rect x="6" y="5" width="44" height="30" rx="4" fill="none" stroke="#3b82f6" stroke-width="7" opacity="0.45"/>
+                                    <rect x="6" y="5" width="44" height="30" rx="4" fill="none" stroke="#1e3a8a" stroke-width="3"/>
+                                </g>
+                            </svg>
+                        </div>
+                        <div class="welcome-composite-copy"><strong>Political Vulnerability</strong> &mdash; Governance, institutional trust, and demographic shock pressures (inward edge glow).</div>
+                    </div>
+                    <div class="welcome-composite-item">
+                        <div class="welcome-composite-swatch welcome-composite-swatch-icons" aria-hidden="true">
+                            <img src="assets/gender-symbol-low.svg" alt="">
+                            <img src="assets/gender-symbol-medium.svg" alt="">
+                            <img src="assets/gender-symbol-high.svg" alt="">
+                        </div>
+                        <div class="welcome-composite-copy"><strong>Gender Based Vulnerabilities</strong> &mdash; Gender disparities in safety, service access, and participation (diamond icons).</div>
+                    </div>
+                </div>
             </div>
 
             <div style="background:#efefeb; border-left:4px solid #a5a394; color:#555; font-size:12px; line-height:1.45; padding:8px 10px; border-radius:4px; margin-bottom:14px;">

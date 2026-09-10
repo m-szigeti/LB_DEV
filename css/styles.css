@@ -1695,6 +1695,32 @@ body.analysis-selection-mode #map {
     margin: 0;
     font-size: 16px;
     font-weight: bold;
+    min-width: 0;
+    flex: 1;
+    padding-right: 10px;
+}
+
+.info-popup-header-end {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 0 1 auto;
+    min-width: 0;
+}
+
+.info-popup-arabic-title {
+    font-size: 16px;
+    font-weight: 700;
+    line-height: 1.25;
+    color: #ffffff;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 180px;
+}
+
+.info-popup-arabic-title[hidden] {
+    display: none !important;
 }
 
 .info-popup-close {

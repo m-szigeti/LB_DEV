@@ -17,7 +17,7 @@ let enrichmentProvider = null;
 let popupRequestId = 0;
 
 /**
- * Register async enrichment for polygon popups (theme scores, Arabic name, population).
+ * Register async enrichment for polygon popups (theme scores, Arabic name).
  * Wired from layer_controls to avoid circular imports.
  */
 export function configureInfoPopupEnrichment(provider) {
@@ -182,6 +182,7 @@ export async function showInfoPopup(feature, layerType = 'default', clickEvent =
     const properties = feature.properties;
     const areaName = getAreaName(properties, layerType);
     title.textContent = areaName || 'Area Information';
+    setInfoPopupArabicTitle(getArabicNameFromProperties(properties));
 
     const useRichLayout = COMPOSITE_LAYER_TYPES.has(layerType);
     body.innerHTML = useRichLayout
@@ -207,6 +208,7 @@ export async function showInfoPopup(feature, layerType = 'default', clickEvent =
     }
 
     body.innerHTML = generatePopupContent(properties, layerType, sourceLayer, enrichment);
+    setInfoPopupArabicTitle(enrichment?.arabicName || getArabicNameFromProperties(properties));
     paintInfoPopupVisuals(body);
     positionInfoPopup(popup, clickEvent);
 }
@@ -222,6 +224,7 @@ export function hideInfoPopup() {
         popup.style.top = '';
         popup.style.transform = '';
     }
+    setInfoPopupArabicTitle('');
 }
 
 /**
@@ -316,12 +319,33 @@ function getAreaName(properties, layerType) {
     return 'Unknown Area';
 }
 
+const ARABIC_NAME_FIELDS = ['adm3_name1', 'adm2_name1', 'adm1_name1'];
+
+function getArabicNameFromProperties(properties) {
+    if (!properties) return '';
+    for (const field of ARABIC_NAME_FIELDS) {
+        const value = properties[field];
+        if (value !== undefined && value !== null && String(value).trim() !== '') {
+            return String(value).trim();
+        }
+    }
+    return '';
+}
+
+function setInfoPopupArabicTitle(name) {
+    const arabicTitle = document.getElementById('info-popup-arabic-title');
+    if (!arabicTitle) return;
+    const text = String(name || '').trim();
+    arabicTitle.textContent = text;
+    arabicTitle.hidden = !text;
+}
+
 /**
  * Generate popup content based on layer type and properties
  * @param {Object} properties - Feature properties
  * @param {string} layerType - Type of layer
  * @param {Object|null} sourceLayer - Leaflet source layer
- * @param {Object|null} enrichment - Async enrichment (themes, Arabic name, population)
+ * @param {Object|null} enrichment - Async enrichment (themes, Arabic name)
  * @returns {string} - HTML content for popup
  */
 function generatePopupContent(properties, layerType, sourceLayer = null, enrichment = null) {
@@ -357,35 +381,12 @@ function escapeHtml(value) {
         .replace(/'/g, '&#39;');
 }
 
-function formatPopulationNumber(value) {
-    const num = typeof value === 'number' ? value : Number(value);
-    if (!Number.isFinite(num)) return '—';
-    return Math.round(num).toLocaleString();
-}
+function generateEnrichedCompositePopup(properties, layerType, sourceLayer, enrichment) {
+    let content = '';
+    content += generateActiveLayersScoreSection(properties, layerType, sourceLayer, enrichment);
+    content += generateThemeSpiderSection(getThemeSpiderModel(enrichment, layerType));
 
-function generatePopupIdentitySection(enrichment) {
-    const arabicName = enrichment?.arabicName;
-    const population = enrichment?.population;
-    if (!arabicName && (population?.total == null)) {
-        return '';
-    }
-
-    let content = '<div class="info-popup-identity">';
-    if (arabicName) {
-        content += `<div class="info-popup-arabic" dir="rtl" lang="ar">${escapeHtml(arabicName)}</div>`;
-    }
-    if (population?.total != null) {
-        content += `<div class="info-popup-population"><span class="info-popup-population-label">Population</span><span class="info-popup-population-value">${escapeHtml(formatPopulationNumber(population.total))}</span></div>`;
-        if (Array.isArray(population.breakdown) && population.breakdown.length) {
-            content += '<div class="info-popup-population-breakdown">';
-            population.breakdown.forEach(part => {
-                content += `<span class="info-popup-pop-chip"><span class="info-popup-pop-chip-label">${escapeHtml(part.label)}</span><span class="info-popup-pop-chip-value">${escapeHtml(formatPopulationNumber(part.value))}</span></span>`;
-            });
-            content += '</div>';
-        }
-    }
-    content += '</div>';
-    return content;
+    return content || '<p class="info-no-data">No detailed information available for this area.</p>';
 }
 
 function getActiveLayerIdSet(enrichment, layerType) {
@@ -409,15 +410,6 @@ function generateThemeSpiderSection(model) {
 
 function paintInfoPopupVisuals(root) {
     paintThemeSpiderCharts(root);
-}
-
-function generateEnrichedCompositePopup(properties, layerType, sourceLayer, enrichment) {
-    let content = '';
-    content += generatePopupIdentitySection(enrichment);
-    content += generateActiveLayersScoreSection(properties, layerType, sourceLayer, enrichment);
-    content += generateThemeSpiderSection(getThemeSpiderModel(enrichment, layerType));
-
-    return content || '<p class="info-no-data">No detailed information available for this area.</p>';
 }
 
 function formatScoreHeroCategory(numericValue, attributeKey, layerType, sourceLayer) {
