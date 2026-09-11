@@ -2367,7 +2367,7 @@ function applySVColorOnlyChoropleth(layerId, map, layers, addLegendEntry) {
             outline.addTo(map);
         }
         applySVHitPolygonStyle(outline, { thinBoundaries: Boolean(config.thinBoundaries) });
-        applySVPolygonOutlineStyle(outline, config, { hide: true });
+        applySVPolygonOutlineStyle(outline, config);
     } else if (map && !map.hasLayer(layer)) {
         layer.addTo(map);
     }
@@ -2401,7 +2401,12 @@ function applySVColorOnlyChoropleth(layerId, map, layers, addLegendEntry) {
         skipTooltips: true,
         hideOutline: true
     });
-    applySVPolygonOutlineStyle(fillLayer, config, { hide: true });
+    if (usesAux) {
+        applySVPolygonOutlineStyle(fillLayer, config, { hide: true });
+        applySVPolygonOutlineStyle(layer._svAdminOutlineLayer, config);
+    } else {
+        applySVPolygonOutlineStyle(fillLayer, config);
+    }
 
     const hoverTarget = layer._svAdminOutlineLayer || fillLayer;
     updateSVHoverTooltips(hoverTarget, layerId, config);
