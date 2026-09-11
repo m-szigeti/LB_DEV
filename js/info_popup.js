@@ -1,7 +1,7 @@
 // info_popup.js - Information popup functionality
 
 import { isAnalysisSelectionActive } from './analysis_selection.js';
-import { getPrimarySubindicator, getSelectedSubindicators } from './sv_subindicators.js';
+import { getPrimarySubindicator } from './sv_subindicators.js';
 import { getClassLabelForLayerValue, getQuantilePresentation } from './vector_layers.js';
 import { getColorRamp } from './color_ramp_selector.js';
 import {
@@ -9,6 +9,8 @@ import {
     generateThemeSpiderHtml,
     paintThemeSpiderCharts
 } from './theme_spider.js';
+import { getIndicatorDefinitionsForLayer } from './indicator_definitions.js';
+import { matchDefinitionsToFields, isMetadataFieldKey } from './indicator_match.js';
 
 const VULNERABILITY_CLASS_LABELS = ['Low', 'Medium', 'High'];
 
@@ -382,9 +384,16 @@ function escapeHtml(value) {
 }
 
 function generateEnrichedCompositePopup(properties, layerType, sourceLayer, enrichment) {
+    const model = getThemeSpiderModel(enrichment, layerType);
+    const sideHtml = model.stacked
+        ? ''
+        : generateThemeSubindicatorTableHtml(properties, layerType);
     let content = '';
-    content += generateActiveLayersScoreSection(properties, layerType, sourceLayer, enrichment);
-    content += generateThemeSpiderSection(getThemeSpiderModel(enrichment, layerType));
+    content += generateClickedLayerScoreHero(properties, layerType, sourceLayer);
+    content += generateThemeSpiderHtml(model, {
+        showLegend: false,
+        sideHtml
+    });
 
     return content || '<p class="info-no-data">No detailed information available for this area.</p>';
 }
@@ -404,8 +413,107 @@ function getThemeSpiderModel(enrichment, layerType) {
     });
 }
 
-function generateThemeSpiderSection(model) {
-    return generateThemeSpiderHtml(model);
+const THEME_SUBINDICATOR_TABLE_LAYERS = new Set([
+    'svAdmin1Layer',
+    'svAdmin2Layer',
+    'svAdmin3Layer',
+    'svAdmin4Layer',
+    'svClimateLayer',
+    'svPoliticalLayer',
+    'svGenderLayer'
+]);
+
+const PEACE_LEGACY_FIELD_LABELS = {
+    peace_si_intersectarian_per_1k: 'Inter-sectarian and inter-communal conflict incidents',
+    peace_si_battle_events_count: 'Number of violent incidents',
+    peace_si_ss_typology_non_state: 'Number of crime incidents',
+    peace_si_fatalities_per_1k_12m: 'Number of fatalities in tension incidents',
+    peace_si_worry_travel_hh_share: 'Fear of traveling within Lebanon safely',
+    peace_si_unsafe_night_pct: 'Feeling lack of safety during the night'
+};
+
+function generateThemeSubindicatorTableHtml(properties, layerType) {
+    const layerId = SV_LAYER_TYPE_TO_ID[layerType];
+    if (!THEME_SUBINDICATOR_TABLE_LAYERS.has(layerId) || !properties) {
+        return '';
+    }
+
+    const rows = [];
+    const seenLabels = new Set();
+    const addRow = (label, rawValue) => {
+        if (!label || rawValue === undefined || rawValue === null || rawValue === '') return;
+        if (seenLabels.has(label)) return;
+        seenLabels.add(label);
+        rows.push({ label, value: formatValue(rawValue) });
+    };
+
+    const definitions = getIndicatorDefinitionsForLayer(layerId);
+    const fieldKeys = Object.keys(properties).filter(key => !isMetadataFieldKey(key));
+    const matched = matchDefinitionsToFields(definitions, fieldKeys);
+    matched.forEach(entry => addRow(entry.indicator, properties[entry.field]));
+
+    if (layerId === 'svAdmin3Layer') {
+        Object.entries(PEACE_LEGACY_FIELD_LABELS).forEach(([field, label]) => {
+            addRow(label, properties[field]);
+        });
+        PEACE_SUBINDICATOR_DEFS.forEach(({ key, label }) => {
+            if (key.startsWith('peace_si_')) return;
+            addRow(label, properties[key]);
+        });
+    }
+
+    if (!rows.length) return '';
+
+    return `
+        <table class="info-subindicator-table">
+            <thead>
+                <tr>
+                    <th>Indicator</th>
+                    <th>Value</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${rows
+                    .map(
+                        row => `
+                    <tr>
+                        <td>${escapeHtml(row.label)}</td>
+                        <td>${escapeHtml(row.value)}</td>
+                    </tr>`
+                    )
+                    .join('')}
+            </tbody>
+        </table>
+    `;
+}
+
+function generateClickedLayerScoreHero(properties, layerType, sourceLayer) {
+    if (isAcsCodeNoData(properties)) {
+        return `
+            <div class="info-section info-score-section">
+                <div class="info-score-hero">
+                    <div class="info-score-hero-label">${escapeHtml(getLayerScoreSectionTitle(layerType))}</div>
+                    <div class="info-score-hero-value">no-data</div>
+                </div>
+            </div>
+        `;
+    }
+
+    const primaryField = getPrimaryVulnerabilityField(properties, layerType);
+    if (!primaryField) return '';
+
+    const rawValue = properties[primaryField];
+    const numericValue = Number(rawValue);
+    const category = formatScoreHeroCategory(numericValue, primaryField, layerType, sourceLayer);
+    const label = getPrimaryFieldDisplayLabel(primaryField, layerType);
+    return `
+        <div class="info-section info-score-section">
+            <div class="info-score-hero">
+                <div class="info-score-hero-label">${escapeHtml(label)}</div>
+                <div class="info-score-hero-value">${escapeHtml(formatValue(rawValue))}${escapeHtml(category)}</div>
+            </div>
+        </div>
+    `;
 }
 
 function paintInfoPopupVisuals(root) {
@@ -421,64 +529,6 @@ function formatScoreHeroCategory(numericValue, attributeKey, layerType, sourceLa
         getSubindicatorCategoryLabel(numericValue, attributeKey, layerType, sourceLayer) ||
         categorizeSVScore(numericValue);
     return categoryLabel ? ` (${categoryLabel})` : '';
-}
-
-/**
- * Score hero for the clicked layer, or a side-by-side grid when multiple SV layers are active.
- */
-function generateActiveLayersScoreSection(properties, layerType, sourceLayer, enrichment) {
-    const activeScores = Array.isArray(enrichment?.activeScores) ? enrichment.activeScores : [];
-    if (activeScores.length <= 1) {
-        return generateSocialVulnerabilitySection(properties, layerType, sourceLayer);
-    }
-
-    let content = '<div class="info-section info-score-section">';
-    content += '<div class="info-score-hero-grid">';
-    activeScores.forEach(score => {
-        const scoreLayerType =
-            Object.entries(SV_LAYER_TYPE_TO_ID).find(([, id]) => id === score.layerId)?.[0] ||
-            layerType;
-        const scoreSource =
-            window.mapLayers?.vector?.[score.layerId] || sourceLayer;
-        const category = formatScoreHeroCategory(
-            Number(score.value),
-            score.attribute,
-            scoreLayerType,
-            scoreSource
-        );
-        const accent = score.color || '#94a3b8';
-        content += `
-            <div class="info-score-hero info-score-hero-multi" style="border-top-color:${escapeHtml(accent)}">
-                <div class="info-score-hero-label">${escapeHtml(score.label)}</div>
-                <div class="info-score-hero-value">${escapeHtml(formatValue(score.value))}${escapeHtml(category)}</div>
-            </div>
-        `;
-    });
-    content += '</div>';
-
-    // Extra selected sub-indicators for the layer that was clicked.
-    const subLayerId = SV_LAYER_TYPE_TO_ID[layerType];
-    const primaryField = getPrimaryVulnerabilityField(properties, layerType);
-    if (subLayerId) {
-        getSelectedSubindicators(subLayerId)
-            .slice(1)
-            .forEach(fieldKey => {
-                if (fieldKey === primaryField) return;
-                const rawValue = properties[fieldKey];
-                if (rawValue === undefined || rawValue === null || rawValue === '') return;
-                const label = getPrimaryFieldDisplayLabel(fieldKey, layerType);
-                const category = formatScoreHeroCategory(
-                    Number(rawValue),
-                    fieldKey,
-                    layerType,
-                    sourceLayer
-                );
-                content += createInfoItem(label, `${formatValue(rawValue)}${category}`, false);
-            });
-    }
-
-    content += '</div>';
-    return content;
 }
 
 /**
@@ -559,24 +609,6 @@ const PEACE_SUBINDICATOR_DEFS = [
     }
 ];
 
-function buildPeaceSubindicatorsInfoItems(properties) {
-    if (!properties) return '';
-    const parts = [];
-    PEACE_SUBINDICATOR_DEFS.forEach(({ key, label }) => {
-        if (properties[key] === undefined || properties[key] === null || properties[key] === '') {
-            return;
-        }
-        parts.push(createInfoItem(label, formatValue(properties[key]), false));
-    });
-    return parts.join('');
-}
-
-/**
- * Generate layer score section
- * @param {Object} properties - Feature properties
- * @param {string} layerType - Type of layer
- * @returns {string} - HTML content
- */
 function isAcsCodeNoData(properties) {
     if (!properties || properties.ACS_CODE === undefined || properties.ACS_CODE === null) {
         return false;
@@ -626,33 +658,6 @@ function generateSocialVulnerabilitySection(properties, layerType = 'default', s
     } else {
         content += `<h4>${sectionTitle}</h4>`;
     }
-
-    const subLayerId = SV_LAYER_TYPE_TO_ID[layerType];
-    if (subLayerId) {
-        getSelectedSubindicators(subLayerId)
-            .slice(1)
-            .forEach(fieldKey => {
-                if (fieldKey === primaryField) return;
-                const rawValue = properties[fieldKey];
-                if (rawValue === undefined || rawValue === null || rawValue === '') return;
-                const label = getPrimaryFieldDisplayLabel(fieldKey, layerType);
-                const numericValue = Number(rawValue);
-                let subCategory = '';
-                if (Number.isFinite(numericValue)) {
-                    const categoryLabel = getSubindicatorCategoryLabel(
-                        numericValue,
-                        fieldKey,
-                        layerType,
-                        sourceLayer
-                    );
-                    if (categoryLabel) {
-                        subCategory = ` (${categoryLabel})`;
-                    }
-                }
-                content += createInfoItem(label, `${formatValue(rawValue)}${subCategory}`, false);
-                hasVulnData = true;
-            });
-    }
     
     // Look for other vulnerability-related fields
     const vulnerabilityFields = {
@@ -662,14 +667,6 @@ function generateSocialVulnerabilitySection(properties, layerType = 'default', s
         'Infrastructure': ['INFRASTRUCTURE', 'infra_index', 'INFRA'],
         'Economic Index': ['ECONOMIC', 'econ_index', 'ECO_INDEX']
     };
-
-    if (layerType === 'sv-admin3') {
-        const peaceSub = buildPeaceSubindicatorsInfoItems(properties);
-        if (peaceSub) {
-            content += `<div class="info-subsection info-peace-subindicators"><h5>Peace cadastre sub-indicators</h5>${peaceSub}</div>`;
-            hasVulnData = true;
-        }
-    }
 
     Object.entries(vulnerabilityFields).forEach(([label, fields]) => {
         const value = getFirstAvailableValue(properties, fields);

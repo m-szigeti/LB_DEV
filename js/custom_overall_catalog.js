@@ -139,18 +139,6 @@ export const CUSTOM_OVERALL_THEMES = [
             { field: 'Trust in security forces', label: 'Distrust in security forces' },
             { field: 'Municipal council entrenchment', label: 'Municipal council entrenchment' },
             { field: 'State Citizen Incidents ', label: 'Number of state Citizen Incidents' },
-            {
-                field: 'Municipal authorities effect on quality of life: worsened life somewhat + alot',
-                label: 'Municipal authorities effect on quality of life'
-            },
-            {
-                field: 'LAF effect on quality of life: worsened life somewhat + alot',
-                label: 'LAF effect on quality of life'
-            },
-            {
-                field: 'ISF effect on quality of life: worsened life somewhat + alot',
-                label: 'ISF effect on quality of life'
-            },
             { field: 'Demographic Factor', label: 'Demographic Shock Factor' }
         ]
     },

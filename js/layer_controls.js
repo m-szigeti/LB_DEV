@@ -41,6 +41,11 @@ import {
     loadInterventionMappingLayer
 } from './intervention_mapping.js';
 import { CUSTOM_COMPOSITE_FIELD } from './composite_score.js';
+import { getIndicatorDefinitionsForLayer } from './indicator_definitions.js';
+import {
+    matchDefinitionsToFields,
+    subindicatorOptionsFromDefinitions
+} from './indicator_match.js';
 import {
     usesCustomComposite
 } from './composite_sandbox_state.js';
@@ -1318,86 +1323,6 @@ const SV_SUBINDICATOR_LAYER_IDS = new Set([
 
 const THEME_SUBINDICATOR_LAYER_IDS = ['svClimateLayer', 'svPoliticalLayer', 'svGenderLayer'];
 
-/** Property keys from DIS/GOV Theme 7 Political Vulnerability (exact GeoJSON field names). */
-const POLITICAL_SUBINDICATOR_OPTIONS_DISTRICT = [
-    { value: 'Municipal elections turnout', label: 'Abstantion municipal elections turnout' },
-    { value: 'Trust in Parliament', label: 'Distrust in Parliament' },
-    { value: 'Faith in politics', label: 'Lack of faith in politics' },
-    { value: 'Trust in LAF', label: 'Lack in trust in LAF' },
-    { value: 'Faith in elections', label: 'Lack of faith in elections' },
-    { value: 'Trust in the court system', label: 'Distrust in the court system' },
-    { value: 'Trust in security forces', label: 'Distrust in security forces' },
-    { value: 'Municipal council entrenchment', label: 'Municipal council entrenchment' },
-    {
-        value: 'State Citizen Incidents ',
-        label: 'Number of state Citizen Incidents'
-    },
-    {
-        value: 'Municipal authorities effect on quality of life: worsened life somewhat + alot',
-        label: 'Municipal authorities effect on quality of life'
-    },
-    {
-        value: 'LAF effect on quality of life: worsened life somewhat + alot',
-        label: 'LAF effect on quality of life'
-    },
-    {
-        value: 'ISF effect on quality of life: worsened life somewhat + alot',
-        label: 'ISF effect on quality of life'
-    },
-    {
-        value: 'Demographic Factor',
-        label: 'Demographic Shock Factor'
-    }
-];
-
-const POLITICAL_SUBINDICATOR_OPTIONS_GOVERNORATE = POLITICAL_SUBINDICATOR_OPTIONS_DISTRICT;
-
-/** Display labels for Theme 8 Gender (GeoJSON field keys unchanged). */
-const GENDER_SUBINDICATOR_OPTIONS_DISTRICT = [
-    {
-        value: 'Reported incidents of gender-based violence',
-        label: 'Reported incidents of gender-based violence'
-    },
-    {
-        value: 'Service access difficulty (female)',
-        label: 'Service access difficulty (female)'
-    },
-    {
-        value: 'Safety at night (female)',
-        label: 'lack of safety at night (female)'
-    },
-    {
-        value: 'Fear of movement or travel (female)',
-        label: 'Fear of movement or travel (female)'
-    },
-    {
-        value: 'Reports of harassment or violence',
-        label: 'Reports of harassment or violence'
-    },
-    {
-        value: 'Trust in the court system',
-        label: 'Distrust in the court system (female)'
-    },
-    {
-        value: 'Female unemployment rate',
-        label: 'Unemployment rate (female)'
-    }
-];
-
-const GENDER_SUBINDICATOR_OPTIONS_GOVERNORATE = GENDER_SUBINDICATOR_OPTIONS_DISTRICT;
-
-/** Property keys from CAD/DIS/GOV Theme 6 Climate Risk (exact GeoJSON field names). */
-const CLIMATE_SUBINDICATOR_OPTIONS = [
-    { value: 'Consecutive Dry Days', label: 'Consecutive Dry Days' },
-    { value: 'Consecutive Wet Days', label: 'Consecutive Wet Days' },
-    { value: 'Days withh at least 10 mm rainfall', label: 'Days with at least 10 mm rainfall' },
-    { value: 'Days withh at least 20 mm rainfall', label: 'Days with at least 20 mm rainfall' },
-    { value: 'Very Hot Days (Tmax > 35°C)', label: 'Very Hot Days (Tmax > 35°C)' },
-    { value: 'Hot days (Tmax > 30°C)', label: 'Hot days (Tmax > 30°C)' },
-    { value: 'Forest fire risk', label: 'Forest fire risk' },
-    { value: 'Annual Dry Spell Length', label: 'Annual Dry Spell Length' }
-];
-
 function mergeSubindicatorOptionLists(primary, secondary) {
     const seen = new Set();
     const merged = [];
@@ -1409,44 +1334,43 @@ function mergeSubindicatorOptionLists(primary, secondary) {
     return merged;
 }
 
-function getThemeSubindicatorFallbackOptions(layerId, resolution = getActiveAdminResolution()) {
-    if (layerId === 'svClimateLayer') {
-        return CLIMATE_SUBINDICATOR_OPTIONS;
+function getSheetMatchedSubindicatorOptions(layerId) {
+    const definitions = getIndicatorDefinitionsForLayer(layerId);
+    if (!definitions.length) return [];
+    const config = layerConfig[layerId];
+    const compositeAttr = config?.svAttribute || 'composite_score';
+    const props = getLayerSampleProperties(layerId);
+    const fieldKeys = props
+        ? Object.keys(props).filter(key => isSubindicatorCandidateKey(key, compositeAttr, PEACE_ID_FIELDS))
+        : [];
+    if (fieldKeys.length) {
+        return subindicatorOptionsFromDefinitions(matchDefinitionsToFields(definitions, fieldKeys));
     }
-    if (layerId === 'svPoliticalLayer') {
-        return resolution === 'governorate'
-            ? POLITICAL_SUBINDICATOR_OPTIONS_GOVERNORATE
-            : POLITICAL_SUBINDICATOR_OPTIONS_DISTRICT;
-    }
-    if (layerId === 'svGenderLayer') {
-        return resolution === 'governorate'
-            ? GENDER_SUBINDICATOR_OPTIONS_GOVERNORATE
-            : GENDER_SUBINDICATOR_OPTIONS_DISTRICT;
-    }
-    return [];
+    return definitions
+        .filter(entry => entry?.indicator)
+        .map(entry => ({ value: entry.indicator, label: entry.indicator }));
 }
 
 function getThemeSubindicatorFieldLabel(layerId, fieldKey) {
-    const fallback = getThemeSubindicatorFallbackOptions(layerId).find(o => o.value === fieldKey);
-    return fallback?.label || fieldKey;
+    const matched = getSheetMatchedSubindicatorOptions(layerId).find(o => o.value === fieldKey);
+    if (matched?.label) return matched.label;
+    const definitions = getIndicatorDefinitionsForLayer(layerId);
+    const byName = definitions.find(entry => entry.indicator === fieldKey);
+    return byName?.indicator || fieldKey;
 }
 
 function getThemeSubindicatorOptions(layerId) {
+    const fromSheet = getSheetMatchedSubindicatorOptions(layerId);
+    if (fromSheet.length) return fromSheet;
+
     const config = layerConfig[layerId];
     const compositeAttr = config?.svAttribute || 'composite_score';
-    const fallback = getThemeSubindicatorFallbackOptions(layerId);
-    const fromLayer = buildSubindicatorOptionsFromProps(
+    return buildSubindicatorOptionsFromProps(
         getLayerSampleProperties(layerId),
         compositeAttr,
         PEACE_ID_FIELDS,
         key => getThemeSubindicatorFieldLabel(layerId, key)
     );
-    if (fromLayer.length) {
-        return fallback.length
-            ? mergeSubindicatorOptionLists(fallback, fromLayer)
-            : fromLayer;
-    }
-    return fallback;
 }
 
 function isActiveThemeLayer(layerId) {
@@ -3880,6 +3804,30 @@ async function autoLoadSVAdmin1(map, layers, colorScales, addLegendEntry, remove
     }
 }
 
+function countSVLayerFeatures(layer) {
+    const grouped = layer?._svDisplacementMarkerLayer
+        || layer?._svSectarianMarkerLayer
+        || layer?._svAdminOutlineLayer;
+    if (typeof grouped?.eachLayer === 'function') {
+        let count = 0;
+        grouped.eachLayer(() => {
+            count += 1;
+        });
+        return count;
+    }
+    if (typeof layer?.eachLayer === 'function') {
+        let count = 0;
+        layer.eachLayer(() => {
+            count += 1;
+        });
+        return count;
+    }
+    const features = layer?.layerData?.raw?.features
+        || layer?._svPolygonGeoJson?.features
+        || layer?._geojson?.features;
+    return Array.isArray(features) ? features.length : 0;
+}
+
 /**
  * Load a Social Vulnerability layer
  */
@@ -4091,21 +4039,16 @@ async function loadSVLayer(layerId, map, layers, colorScales, addLegendEntry, re
         return;
     }
     if (window.currentInfoPanel && layers.vector[layerId]) {
-    const layerInfo = {
-        id: layerId,
-        name: getLayerDisplayName(layerId, config),
-        type: 'sv-vector',
-        selectedAttribute: getEffectiveChoroplethAttribute(layerId, config),
-        opacity: 0.6,
-        layer: layers.vector[layerId]
-    };
-    
-    let featureCount = 0;
-    const fcSource = layers.vector[layerId]._svDisplacementMarkerLayer || layers.vector[layerId]._svSectarianMarkerLayer || layers.vector[layerId];
-    fcSource.eachLayer(() => featureCount++);
-    layerInfo.featureCount = featureCount;
-    
-    window.currentInfoPanel.addLayer(layerId, layerInfo);
+        const loaded = layers.vector[layerId];
+        window.currentInfoPanel.addLayer(layerId, {
+            id: layerId,
+            name: getLayerDisplayName(layerId, config),
+            type: 'sv-vector',
+            selectedAttribute: getEffectiveChoroplethAttribute(layerId, config),
+            opacity: 0.6,
+            layer: loaded,
+            featureCount: countSVLayerFeatures(loaded)
+        });
     }
     if (ICON_PAIR_LAYER_IDS.includes(layerId)) {
         syncIconPairMarkerPositions(map, layers);
@@ -7863,9 +7806,7 @@ async function syncActiveLayerSelectionsFromProperties(clickedLayerId, propertie
         if (!siblingConfig) continue;
         const lookup = await getSVLayerLookup(layerId, layers);
         const matched = matchLookupProps(lookup, properties);
-        await updateSelectedPolygonInfoPanel(layerId, matched, siblingConfig, layers, {
-            includePillarBreakdown: false
-        });
+        await updateSelectedPolygonInfoPanel(layerId, matched, siblingConfig, layers);
     }
 }
 
@@ -8399,8 +8340,7 @@ async function updateSelectedPolygonInfoPanel(
     layerId,
     properties,
     config,
-    layers = null,
-    { includePillarBreakdown = true } = {}
+    layers = null
 ) {
     if (!window.currentInfoPanel) return;
 
@@ -8417,19 +8357,6 @@ async function updateSelectedPolygonInfoPanel(
     if (attributeName && properties[attributeName] !== undefined && properties[attributeName] !== null) {
         selectedFeature.attribute = getSelectionAttributeLabel(layerId, config, attributeName);
         selectedFeature.value = properties[attributeName];
-    }
-
-    if (
-        includePillarBreakdown &&
-        layers &&
-        (layerId === SV_OVERALL_LAYER_ID ||
-            layerId === CUSTOM_OVERALL_LAYER_ID ||
-            SV_THEME_SCORE_DEFINITIONS.some(theme => theme.layerId === layerId))
-    ) {
-        const pillarBreakdown = await getSVPillarBreakdown(properties, layers);
-        if (pillarBreakdown) {
-            selectedFeature.pillarBreakdown = pillarBreakdown;
-        }
     }
 
     window.currentInfoPanel.updateLayer(layerId, { selectedFeature });

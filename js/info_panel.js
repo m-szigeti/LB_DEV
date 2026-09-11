@@ -3,6 +3,7 @@
 import { WELCOME_TAB_HTML } from './welcome_tab_content.js';
 import { OVERALL_VULNERABILITY_INDEX_DESCRIPTION_HTML } from './overall_vulnerability_index_content.js';
 import { getIndicatorDefinitionsForLayer } from './indicator_definitions.js';
+import { matchDefinitionsToFields, isMetadataFieldKey } from './indicator_match.js';
 import {
     INTERVENTION_MAPPING_DESCRIPTION_HTML,
     INTERVENTION_MAPPING_LAYER_ID
@@ -23,16 +24,37 @@ import { forceAoiStyleRecovery } from './aoi_spotlight.js';
 
 const RANKING_LIST_SIZE = 10;
 
-function renderThemeIndicatorDefinitionsHtml(layerId, escapeHtml) {
+function sampleLayerPropertyKeys(layer) {
+    const features = layer?.layer?.layerData?.raw?.features
+        || (typeof window !== 'undefined' && window.mapLayers?.vector?.[layer?.id]?.layerData?.raw?.features);
+    if (!Array.isArray(features) || !features.length) return [];
+    const keys = new Set();
+    const limit = Math.min(features.length, 40);
+    for (let i = 0; i < limit; i++) {
+        const props = features[i]?.properties;
+        if (!props || typeof props !== 'object') continue;
+        Object.keys(props).forEach(key => {
+            if (!isMetadataFieldKey(key)) keys.add(key);
+        });
+    }
+    return [...keys];
+}
+
+function renderThemeIndicatorDefinitionsHtml(layerId, escapeHtml, propertyKeys = []) {
     const definitions = getIndicatorDefinitionsForLayer(layerId);
     if (!definitions.length) {
         return '';
     }
 
-    const items = definitions
+    const matched = propertyKeys.length
+        ? matchDefinitionsToFields(definitions, propertyKeys)
+        : [];
+    const visible = matched.length ? matched : definitions;
+
+    const items = visible
         .map(entry => {
             const name = escapeHtml(entry.indicator);
-            const definition = String(entry.definition || '').trim();
+            const definition = String(entry.definition || entry.typeQuestion || '').trim();
             if (definition) {
                 return `<li><strong>${name}</strong><p class="layer-indicator-definition">${escapeHtml(definition)}</p></li>`;
             }
@@ -42,10 +64,82 @@ function renderThemeIndicatorDefinitionsHtml(layerId, escapeHtml) {
 
     return `
         <div class="layer-inputs-list layer-indicator-definitions">
-            <div class="layer-inputs-title">Indicators</div>
             <ul>${items}</ul>
         </div>
     `;
+}
+
+function layerVisualCueHtml(layerId) {
+    const fillSwatch = (c1, c2, c3) => `
+        <div class="welcome-composite-swatch welcome-composite-swatch-fill layer-cue" aria-hidden="true">
+            <span style="background:${c1};"></span>
+            <span style="background:${c2};"></span>
+            <span style="background:${c3};"></span>
+        </div>
+    `;
+    const iconSwatch = (low, medium, high) => `
+        <div class="welcome-composite-swatch welcome-composite-swatch-icons layer-cue" aria-hidden="true">
+            <img src="${low}" alt="">
+            <img src="${medium}" alt="">
+            <img src="${high}" alt="">
+        </div>
+    `;
+
+    switch (layerId) {
+        case 'svOverallTensionLayer':
+        case 'svCustomOverallLayer':
+            return fillSwatch('#ffffff', '#3b82f6', '#1e3a8a');
+        case 'svAdmin3Layer':
+            return fillSwatch('#e6d9f2', '#8e5cbf', '#4a1f73');
+        case 'svAdmin2Layer':
+            return `<div class="welcome-composite-swatch layer-cue layer-cue-stripes-gray" aria-hidden="true"></div>`;
+        case 'svAdmin4Layer':
+            return iconSwatch(
+                'assets/service-symbol-low.svg',
+                'assets/service-symbol-medium.svg',
+                'assets/service-symbol-high.svg'
+            );
+        case 'svClimateLayer':
+            return iconSwatch(
+                'assets/forest-fire-low.svg',
+                'assets/forest-fire-medium.svg',
+                'assets/forest-fire-high.svg'
+            );
+        case 'svPoliticalLayer':
+            return `
+                <div class="welcome-composite-swatch welcome-composite-swatch-glow layer-cue" aria-hidden="true">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="56" height="40" viewBox="0 0 56 40">
+                        <defs>
+                            <clipPath id="activeLayerPoliticalGlowClip">
+                                <rect x="6" y="5" width="44" height="30" rx="4"/>
+                            </clipPath>
+                        </defs>
+                        <rect x="1" y="1" width="54" height="38" rx="6" fill="#f8fafc"/>
+                        <g clip-path="url(#activeLayerPoliticalGlowClip)">
+                            <rect x="6" y="5" width="44" height="30" rx="4" fill="none" stroke="#93c5fd" stroke-width="12" opacity="0.28"/>
+                            <rect x="6" y="5" width="44" height="30" rx="4" fill="none" stroke="#3b82f6" stroke-width="7" opacity="0.45"/>
+                            <rect x="6" y="5" width="44" height="30" rx="4" fill="none" stroke="#1e3a8a" stroke-width="3"/>
+                        </g>
+                    </svg>
+                </div>
+            `;
+        case 'svGenderLayer':
+            return iconSwatch(
+                'assets/gender-symbol-low.svg',
+                'assets/gender-symbol-medium.svg',
+                'assets/gender-symbol-high.svg'
+            );
+        case 'svAdmin1Layer':
+            return `
+                <div class="welcome-composite-swatch layer-cue layer-cue-circles" aria-hidden="true">
+                    <span class="layer-cue-circle" style="width:8px;height:8px;background:#fef08a;"></span>
+                    <span class="layer-cue-circle" style="width:12px;height:12px;background:#ea580c;"></span>
+                    <span class="layer-cue-circle" style="width:16px;height:16px;background:#c2410c;"></span>
+                </div>
+            `;
+        default:
+            return '';
+    }
 }
 
 /**
@@ -853,7 +947,8 @@ setupEventListeners() {
         const layersHTML = Array.from(this.activeLayers.values()).map(layer => `
             <div class="layer-item" data-layer-id="${layer.id}">
                 <div class="layer-header">
-                    <span class="layer-name">${layer.name}</span>
+                    ${layerVisualCueHtml(layer.id)}
+                    <span class="layer-name">${this.escapeHtml(layer.name)}</span>
                 </div>
                 <div class="layer-details">
                     ${this.generateLayerDetails(layer)}
@@ -888,7 +983,8 @@ setupEventListeners() {
         if (layer.type === 'sv-vector' || layer.id?.startsWith?.('sv')) {
             const fromSheet = renderThemeIndicatorDefinitionsHtml(
                 layer.id,
-                value => this.escapeHtml(value)
+                value => this.escapeHtml(value),
+                sampleLayerPropertyKeys(layer)
             );
             if (fromSheet) {
                 return fromSheet;
@@ -932,26 +1028,9 @@ setupEventListeners() {
             }
         });
 
-        Array.from(this.activeLayers.values()).forEach(layer => {
-            if (!Array.isArray(layer?.selectedFeature?.pillarBreakdown) || !layer.selectedFeature.pillarBreakdown.length) {
-                return;
-            }
-            blocks.push(`
-                <div class="analysis-layer-block selected-feature-pillar-chart">
-                    <div class="selected-feature-pillar-title">${this.escapeHtml(layer.name)}: ${this.escapeHtml(layer.selectedFeature.name)} — pillar proportions</div>
-                    <canvas
-                        class="selected-feature-pillar-canvas"
-                        id="selected-pillar-chart-${layer.id}"
-                        width="340"
-                        height="240"
-                    ></canvas>
-                </div>
-            `);
-        });
-
         if (blocks.length === 0) {
             container.innerHTML =
-                '<p class="no-results-message">Enable a map layer to see unit ranking charts here. Click a map unit for pillar breakdown (Overall Vulnerability Index).</p>';
+                '<p class="no-results-message">Enable a map layer to see unit ranking charts here.</p>';
             return;
         }
 
@@ -968,12 +1047,12 @@ setupEventListeners() {
                 <div class="ranking-chart-block">
                     <div class="quick-stats-header">${labels.highTitle}</div>
                     ${this.renderRankingBarChartHtml(rankings.highest, 'vulnerable')}
-                    <p class="ranking-chart-footnote">${labels.highFootnote}</p>
+                    ${labels.highFootnote ? `<p class="ranking-chart-footnote">${labels.highFootnote}</p>` : ''}
                 </div>
                 <div class="ranking-chart-block">
                     <div class="quick-stats-header">${labels.lowTitle}</div>
                     ${this.renderRankingBarChartHtml(rankings.lowest, 'resilient')}
-                    <p class="ranking-chart-footnote">${labels.lowFootnote}</p>
+                    ${labels.lowFootnote ? `<p class="ranking-chart-footnote">${labels.lowFootnote}</p>` : ''}
                 </div>
             </div>
         `;
@@ -999,8 +1078,8 @@ setupEventListeners() {
         return {
             highTitle: `Highest values — top ${RANKING_LIST_SIZE} ${unitLabel}`,
             lowTitle: `Lowest values — bottom ${RANKING_LIST_SIZE} ${unitLabel}`,
-            highFootnote: 'Red bars = higher values.',
-            lowFootnote: 'Green bars = lower values.'
+            highFootnote: '',
+            lowFootnote: ''
         };
     }
 
@@ -1277,8 +1356,6 @@ setupEventListeners() {
                 this.drawQuickHistogram(canvas, stats.chartData);
             }
         });
-
-        this.renderSelectedPillarCharts();
     }
 
     isExcludedFromRankings(name) {
@@ -1485,22 +1562,6 @@ setupEventListeners() {
         return 'units';
     }
 
-    renderSelectedPillarCharts() {
-        Array.from(this.activeLayers.values()).forEach(layer => {
-            const selected = layer.selectedFeature;
-            if (!selected?.pillarBreakdown?.length) {
-                return;
-            }
-
-            const canvas = document.getElementById(`selected-pillar-chart-${layer.id}`);
-            if (!canvas) {
-                return;
-            }
-
-            this.drawSelectedPillarBarChart(canvas, selected.pillarBreakdown);
-        });
-    }
-
     drawQuickPieChart(canvas, chartData) {
         const ctx = canvas.getContext('2d');
         const width = canvas.width;
@@ -1627,71 +1688,6 @@ setupEventListeners() {
         }
     }
 
-    drawSelectedPillarBarChart(canvas, pillarBreakdown) {
-        const ctx = canvas.getContext('2d');
-        const width = canvas.width;
-        const height = canvas.height;
-        ctx.clearRect(0, 0, width, height);
-
-        const paddingLeft = 36;
-        const paddingRight = 10;
-        const paddingTop = 14;
-        const paddingBottom = 34;
-        const chartWidth = width - paddingLeft - paddingRight;
-        const chartHeight = height - paddingTop - paddingBottom;
-
-        ctx.fillStyle = '#f8f9fa';
-        ctx.fillRect(paddingLeft, paddingTop, chartWidth, chartHeight);
-
-        // Y-axis grid for proportions.
-        ctx.strokeStyle = '#e9ecef';
-        ctx.fillStyle = '#6c757d';
-        ctx.font = '9px Arial';
-        ctx.textAlign = 'right';
-        ctx.textBaseline = 'middle';
-        const yTicks = [0, 0.25, 0.5, 0.75, 1];
-        yTicks.forEach(tick => {
-            const y = paddingTop + chartHeight - tick * chartHeight;
-            ctx.beginPath();
-            ctx.moveTo(paddingLeft, y);
-            ctx.lineTo(paddingLeft + chartWidth, y);
-            ctx.stroke();
-            ctx.fillText(`${Math.round(tick * 100)}%`, paddingLeft - 6, y);
-        });
-
-        const barSlot = chartWidth / pillarBreakdown.length;
-        pillarBreakdown.forEach((pillar, index) => {
-            const barWidth = Math.max(20, barSlot - 12);
-            const x = paddingLeft + index * barSlot + (barSlot - barWidth) / 2;
-            const barHeight = pillar.proportion * chartHeight;
-            const y = paddingTop + chartHeight - barHeight;
-
-            ctx.fillStyle = pillar.color;
-            ctx.fillRect(x, y, barWidth, barHeight);
-
-            ctx.strokeStyle = '#1f2937';
-            ctx.lineWidth = 0.8;
-            ctx.strokeRect(x, y, barWidth, barHeight);
-
-            ctx.fillStyle = '#374151';
-            ctx.font = '9px Arial';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'bottom';
-            ctx.fillText(`${Math.round(pillar.proportion * 100)}%`, x + barWidth / 2, y - 2);
-
-            ctx.textBaseline = 'top';
-            ctx.fillText(pillar.label, x + barWidth / 2, height - paddingBottom + 8);
-        });
-
-        ctx.strokeStyle = '#adb5bd';
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(paddingLeft, paddingTop);
-        ctx.lineTo(paddingLeft, paddingTop + chartHeight);
-        ctx.lineTo(paddingLeft + chartWidth, paddingTop + chartHeight);
-        ctx.stroke();
-    }
-    
     /**
      * Generate summary report with correlations and visualizations
      */

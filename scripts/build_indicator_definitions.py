@@ -18,8 +18,20 @@ THEME_TO_LAYER = {
     "Socioeconomic Vulnerability": "svAdmin2Layer",
     "Service & Infrastructure Vulnerability": "svAdmin4Layer",
     "Climate Risk": "svClimateLayer",
+    "Climate and Environmental Risk": "svClimateLayer",
+    "Climate Change and Environmental Risk": "svClimateLayer",
     "Political Vulnerability": "svPoliticalLayer",
     "Gender Based Vulnerabilities": "svGenderLayer",
+}
+
+CANONICAL_THEME_NAMES = {
+    "svAdmin1Layer": "Displacement Pressure",
+    "svAdmin3Layer": "Tensions and Conflict Risk",
+    "svAdmin2Layer": "Socioeconomic Vulnerability",
+    "svAdmin4Layer": "Service & Infrastructure Vulnerability",
+    "svClimateLayer": "Climate Risk",
+    "svPoliticalLayer": "Political Vulnerability",
+    "svGenderLayer": "Gender Based Vulnerabilities",
 }
 
 
@@ -47,19 +59,24 @@ def main() -> None:
         if not layer_id or not indicator:
             continue
         theme_number = row[idx["Theme #"]]
-        by_layer[layer_id].append(
-            {
-                "code": code,
-                "indicator": indicator,
-                "definition": definition,
-                "typeQuestion": type_question,
-                "themeName": theme,
-                "themeNumber": int(theme_number) if theme_number is not None else None,
-            }
-        )
+        entry = {
+            "code": code,
+            "indicator": indicator,
+            "definition": definition,
+            "typeQuestion": type_question,
+            "themeName": CANONICAL_THEME_NAMES.get(layer_id, theme),
+            "themeNumber": int(theme_number) if theme_number is not None else None,
+        }
+        existing = by_layer[layer_id]
+        if any(
+            item["code"] == entry["code"] and item["indicator"] == entry["indicator"]
+            for item in existing
+        ):
+            continue
+        existing.append(entry)
 
-    layer_theme_names = {layer: theme for theme, layer in THEME_TO_LAYER.items()}
     payload = dict(by_layer)
+    layer_theme_names = CANONICAL_THEME_NAMES
 
     js = f"""/**
  * Indicator definitions for Active Layers (from scripts/Indicators_Inside_Tool.xlsx).

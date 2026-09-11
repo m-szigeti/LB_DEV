@@ -17,6 +17,8 @@ import {
 } from './composite_score.js';
 import { loadIndicatorWeightsConfig } from './composite_weight_config.js';
 import { themesForResolution, getThemeByLayerId } from './custom_overall_catalog.js';
+import { getIndicatorDefinitionsForLayer } from './indicator_definitions.js';
+import { matchDefinitionsToFields, subindicatorOptionsFromDefinitions, isMetadataFieldKey } from './indicator_match.js';
 import { getColorRamp } from './color_ramp_selector.js';
 import { getValueClassIndex, resolveClassificationBreaks } from './vector_layers.js';
 import { getClassificationMode } from './map_display_controls.js';
@@ -289,6 +291,28 @@ async function renderThemeList(resolution) {
         : `<p class="custom-overall-empty">No themes available at ${escapeHtml(resLabel)} resolution.</p>`;
 }
 
+function catalogIndicatorsForAvailableKeys(theme, available) {
+    const keys = [...available].filter(key => !isMetadataFieldKey(key));
+    const fromSheet = subindicatorOptionsFromDefinitions(
+        matchDefinitionsToFields(getIndicatorDefinitionsForLayer(theme.layerId), keys)
+    );
+    if (fromSheet.length) {
+        return fromSheet.map(opt => ({ field: opt.value, label: opt.label }));
+    }
+    return (theme.indicators || [])
+        .map(ind => {
+            if (available.has(ind.field)) return ind;
+            const stripped = ind.field.trim();
+            for (const key of available) {
+                if (key.trim() === stripped) {
+                    return { field: key, label: ind.label };
+                }
+            }
+            return null;
+        })
+        .filter(Boolean);
+}
+
 async function indicatorsPresentInSource(theme, resolution) {
     try {
         const sourceGeo = await context.getSourceLayerGeoJson?.(theme.layerId, resolution);
@@ -298,20 +322,18 @@ async function indicatorsPresentInSource(theme, resolution) {
         for (let i = 0; i < limit; i++) {
             Object.keys(sourceGeo.features[i]?.properties || {}).forEach(key => available.add(key));
         }
-        return theme.indicators
-            .map(ind => {
-                if (available.has(ind.field)) return ind;
-                const stripped = ind.field.trim();
-                for (const key of available) {
-                    if (key.trim() === stripped) {
-                        return { field: key, label: ind.label };
-                    }
-                }
-                return null;
-            })
-            .filter(Boolean);
+        return catalogIndicatorsForAvailableKeys(theme, available);
     } catch (error) {
         console.warn(`Custom overall: could not inspect ${theme.layerId}`, error);
+        const fromSheet = subindicatorOptionsFromDefinitions(
+            matchDefinitionsToFields(
+                getIndicatorDefinitionsForLayer(theme.layerId),
+                (theme.indicators || []).map(ind => ind.field)
+            )
+        );
+        if (fromSheet.length) {
+            return fromSheet.map(opt => ({ field: opt.value, label: opt.label }));
+        }
         return theme.indicators;
     }
 }
@@ -686,7 +708,7 @@ function resolveScoreField(scoreField, available) {
 }
 
 function isFullCompositeSelection(theme, resolvedSelected, available) {
-    const catalogFields = (theme.indicators || [])
+    const catalogFields = catalogIndicatorsForAvailableKeys(theme, available)
         .map(ind => resolveFieldName(ind.field, available))
         .filter(Boolean);
     if (!catalogFields.length) return false;

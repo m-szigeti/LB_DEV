@@ -145,7 +145,8 @@ const DEFAULT_COPY = {
 export function generateThemeSpiderHtml(model, copy = {}) {
     if (!model?.items?.length) return '';
 
-    const titles = { ...DEFAULT_COPY, ...copy };
+    const { showLegend = true, sideHtml = '', ...textCopy } = copy;
+    const titles = { ...DEFAULT_COPY, ...textCopy };
     const title = model.stacked ? titles.titleStacked : titles.titleProfile;
     const hint = model.stacked ? titles.hintStacked : titles.hintProfile;
 
@@ -164,23 +165,32 @@ export function generateThemeSpiderHtml(model, copy = {}) {
         }))
     }));
 
-    const legend = model.items
-        .map(theme => `
+    const legend = showLegend
+        ? `<div class="info-theme-spider-legend">${model.items
+            .map(theme => `
             <div class="info-theme-spider-legend-item">
                 <span class="info-theme-spider-swatch" style="background:${escapeHtml(theme.color)}"></span>
                 <span class="info-theme-spider-legend-label" title="${escapeHtml(theme.label)}">${escapeHtml(shortThemeLabel(theme))}</span>
                 <span class="info-theme-spider-legend-value">${escapeHtml(formatSpiderValue(theme.value))}</span>
             </div>
         `)
-        .join('');
+            .join('')}</div>`
+        : '';
+
+    const side = String(sideHtml || '').trim()
+        ? `<div class="info-theme-spider-side">${sideHtml}</div>`
+        : '';
 
     return `
         <div class="info-section info-theme-section">
             <h4>${escapeHtml(title)}</h4>
             <p class="info-theme-hint">${hint}</p>
-            <div class="info-theme-spider">
-                <canvas class="info-theme-spider-canvas" data-spider="${payload}" width="360" height="340" aria-label="Theme spider chart"></canvas>
-                <div class="info-theme-spider-legend">${legend}</div>
+            <div class="info-theme-spider-layout${side ? ' has-side' : ''}">
+                <div class="info-theme-spider">
+                    <canvas class="info-theme-spider-canvas" data-spider="${payload}" width="360" height="340" aria-label="Theme spider chart"></canvas>
+                    ${legend}
+                </div>
+                ${side}
             </div>
         </div>
     `;

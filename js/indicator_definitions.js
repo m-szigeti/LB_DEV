@@ -1,10 +1,17 @@
 /**
  * Indicator definitions for Active Layers (from scripts/Indicators_Inside_Tool.xlsx).
  * Keys are SV layer ids; each entry lists Indicator + Definition for that theme.
- * Generated — re-run scripts/build_indicator_definitions.py to refresh.
+ * Regenerate: python scripts/build_indicator_definitions.py
  */
 
-/** @typedef {{ code: string, indicator: string, definition: string, typeQuestion: string, themeName: string, themeNumber: number|null }} IndicatorDefinition */
+/** @typedef {
+ *   code: string,
+ *   indicator: string,
+ *   definition: string,
+ *   typeQuestion: string,
+ *   themeName: string,
+ *   themeNumber: number|null
+ * } IndicatorDefinition */
 
 /** @type {Record<string, IndicatorDefinition[]>} */
 export const INDICATOR_DEFINITIONS_BY_LAYER = {
@@ -74,18 +81,18 @@ export const INDICATOR_DEFINITIONS_BY_LAYER = {
       "themeNumber": 7
     },
     {
-      "code": "PV16",
-      "indicator": "Number of state Citizen Incidents",
-      "definition": "Number of incidents under the state-citizen typology",
-      "typeQuestion": "How often do state-citizen tensions break out into incidents of confrontation?",
+      "code": "T17",
+      "indicator": "Demographic Shock Factor",
+      "definition": "To what extent is internal displacement leading to demographic tension?",
+      "typeQuestion": "To what extent is internal displacement leading to demographic tension?",
       "themeName": "Political Vulnerability",
       "themeNumber": 7
     },
     {
-      "code": "PV17",
-      "indicator": "Demographic Shock Factor",
-      "definition": "Demographic pressure combining resident population scale and population heterogeneity (DF = S × H), used as a shock factor within Political Vulnerability.",
-      "typeQuestion": "How strongly do demographic scale and heterogeneity amplify local political vulnerability?",
+      "code": "PV16",
+      "indicator": "Number of state Citizen Incidents",
+      "definition": "Number of incidents under the state-citizen typology",
+      "typeQuestion": "How often do state-citizen tensions break out into incidents of confrontation?",
       "themeName": "Political Vulnerability",
       "themeNumber": 7
     }
@@ -310,56 +317,56 @@ export const INDICATOR_DEFINITIONS_BY_LAYER = {
     {
       "code": "S15",
       "indicator": "Quality of education",
-      "definition": "",
-      "typeQuestion": "",
+      "definition": "Additional kg per day generated in a particular locality",
+      "typeQuestion": "How much additional waste is being generated within a certain locality? (adjustable to caza or cadaster)",
       "themeName": "Service & Infrastructure Vulnerability",
       "themeNumber": 4
     },
     {
       "code": "S18",
       "indicator": "Quality of healthcare services",
-      "definition": "",
-      "typeQuestion": "",
+      "definition": "% of respondents rating the quality of education services as poor or very poor",
+      "typeQuestion": "How is the quality of education perceived among the population?",
       "themeName": "Service & Infrastructure Vulnerability",
       "themeNumber": 4
     },
     {
       "code": "S19",
       "indicator": "Incidents around electricity",
-      "definition": "",
-      "typeQuestion": "",
+      "definition": "% of respondents rating the quality of healthcare services as poor or very poor",
+      "typeQuestion": "How is the quality of healthcare services perceived among the population?",
       "themeName": "Service & Infrastructure Vulnerability",
       "themeNumber": 4
     },
     {
       "code": "S20",
       "indicator": "Incidents around generator",
-      "definition": "",
-      "typeQuestion": "",
+      "definition": "number of tension incidents around electricity services and provision",
+      "typeQuestion": "How often do tensions around electricity manifest in incidents?",
       "themeName": "Service & Infrastructure Vulnerability",
       "themeNumber": 4
     },
     {
       "code": "S21",
       "indicator": "Incidents around health",
-      "definition": "",
-      "typeQuestion": "",
+      "definition": "number of tension incidents around private generator services and provision",
+      "typeQuestion": "How often do tensions around private generators manifest in incidents?",
       "themeName": "Service & Infrastructure Vulnerability",
       "themeNumber": 4
     },
     {
       "code": "S22",
       "indicator": "Incidents around education",
-      "definition": "",
-      "typeQuestion": "",
+      "definition": "number of tension incidents around private health services and provision",
+      "typeQuestion": "How often do tensions around health manifest in incidents?",
       "themeName": "Service & Infrastructure Vulnerability",
       "themeNumber": 4
     },
     {
       "code": "S23",
       "indicator": "Incidents around civil defence",
-      "definition": "",
-      "typeQuestion": "",
+      "definition": "number of tension incidents around education services and provision",
+      "typeQuestion": "How often do tensions around education manifest in incidents?",
       "themeName": "Service & Infrastructure Vulnerability",
       "themeNumber": 4
     }
@@ -367,54 +374,14 @@ export const INDICATOR_DEFINITIONS_BY_LAYER = {
   "svClimateLayer": [
     {
       "code": "E1",
-      "indicator": "Consecutive Dry Days",
-      "definition": "Maximum run of consecutive dry days.",
-      "typeQuestion": "How long do dry spells last?",
+      "indicator": "Mean annual hot days",
+      "definition": "number of tension incidents around civil defense services",
+      "typeQuestion": "How often do tensions around civil defense manifest in incidents?",
       "themeName": "Climate Risk",
       "themeNumber": 6
     },
     {
       "code": "E2",
-      "indicator": "Consecutive Wet Days",
-      "definition": "Maximum run of consecutive wet days.",
-      "typeQuestion": "How long do wet spells last?",
-      "themeName": "Climate Risk",
-      "themeNumber": 6
-    },
-    {
-      "code": "E3",
-      "indicator": "Days with at least 10 mm rainfall",
-      "definition": "Number of days with at least 10 mm of rainfall.",
-      "typeQuestion": "How often does moderate rainfall occur?",
-      "themeName": "Climate Risk",
-      "themeNumber": 6
-    },
-    {
-      "code": "E4",
-      "indicator": "Days with at least 20 mm rainfall",
-      "definition": "Number of days with at least 20 mm of rainfall.",
-      "typeQuestion": "How often does heavy rainfall occur?",
-      "themeName": "Climate Risk",
-      "themeNumber": 6
-    },
-    {
-      "code": "E5",
-      "indicator": "Very Hot Days (Tmax > 35°C)",
-      "definition": "Number of days with maximum temperature above 35°C.",
-      "typeQuestion": "How often does extreme heat occur?",
-      "themeName": "Climate Risk",
-      "themeNumber": 6
-    },
-    {
-      "code": "E6",
-      "indicator": "Hot days (Tmax > 30°C)",
-      "definition": "Number of days with maximum temperature above 30°C.",
-      "typeQuestion": "How often do hot days occur?",
-      "themeName": "Climate Risk",
-      "themeNumber": 6
-    },
-    {
-      "code": "E7",
       "indicator": "Forest fire risk",
       "definition": "",
       "typeQuestion": "% change in number of forest fires per district;",
@@ -422,10 +389,58 @@ export const INDICATOR_DEFINITIONS_BY_LAYER = {
       "themeNumber": 6
     },
     {
-      "code": "E8",
+      "code": "E3",
       "indicator": "Annual Dry Spell Length",
       "definition": "",
       "typeQuestion": "Numbers of consecutive dry days per year",
+      "themeName": "Climate Risk",
+      "themeNumber": 6
+    },
+    {
+      "code": "E4",
+      "indicator": "Consecutive Dry Days",
+      "definition": "Consecutive dry days (CDD) is a climate index defined as the maximum number of continuous days in a specific period where precipitation is below a defined threshold, usually less than 1 mm per day",
+      "typeQuestion": "How many consecutive days without precipitation",
+      "themeName": "Climate Risk",
+      "themeNumber": 6
+    },
+    {
+      "code": "E5",
+      "indicator": "Consecutive Wet Days",
+      "definition": "Consecutive wet days refer to an unbroken sequence of days where each day records a measurable amount of precipitation meeting or exceeding a specific threshold, typically 1 millimeter",
+      "typeQuestion": "How many consecutive days without precipitation",
+      "themeName": "Climate Risk",
+      "themeNumber": 6
+    },
+    {
+      "code": "E6",
+      "indicator": "Days with at least 10 mm rainfall",
+      "definition": "A day with at least 10mm of rainfall is officially classified in meteorology as a day of moderate-to-heavy precipitation or a heavy precipitation day",
+      "typeQuestion": "Days with at least 10mm rainfall",
+      "themeName": "Climate Risk",
+      "themeNumber": 6
+    },
+    {
+      "code": "E7",
+      "indicator": "Days with at least 20 mm rainfall",
+      "definition": "In climatology, the phrase \"days with at least 20mm rainfall\" refers to a standard climate index known as R20mm, which measures the frequency of very heavy precipitation days",
+      "typeQuestion": "Days with at least 20mm rainfall",
+      "themeName": "Climate Risk",
+      "themeNumber": 6
+    },
+    {
+      "code": "E8",
+      "indicator": "Very Hot Days (Tmax > 35°C)",
+      "definition": "Days with temperatures above 35 °C are commonly classified in climatology and meteorology as extreme summer days or days contributing to extreme heat and heat stress indices",
+      "typeQuestion": "Days with temperatures above 35 °C",
+      "themeName": "Climate Risk",
+      "themeNumber": 6
+    },
+    {
+      "code": "E9",
+      "indicator": "Hot days (Tmax > 30°C)",
+      "definition": "Days with temperatures above 30 °C are commonly classified in climatology and meteorology as extreme summer days or days contributing to extreme heat and heat stress indices",
+      "typeQuestion": "Days with temperatures above 30 °C",
       "themeName": "Climate Risk",
       "themeNumber": 6
     }
