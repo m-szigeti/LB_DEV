@@ -160,7 +160,7 @@ function syncTrayButtons() {
 
 function syncIsolateButtons() {
     const activeId = state.colorOnly
-        ? state.context?.getCurrentSvLayerId?.() || state.isolatedLayerId || null
+        ? state.isolatedLayerId || state.context?.getCurrentSvLayerId?.() || null
         : null;
     document.querySelectorAll('.sv-isolate-btn[data-isolate-layer]').forEach(btn => {
         const layerId = btn.getAttribute('data-isolate-layer');

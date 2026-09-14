@@ -108,6 +108,7 @@ export function loadVectorLayer(url, options = {}) {
             };
             
             const vectorLayer = L.geoJSON(data, {
+                ...(options.geoJsonOptions || {}),
                 style: feature => {
                     // Apply styling based on property and color ramp if provided
                     if (options.selectedProperty && options.colorRamp && feature.properties) {
@@ -172,6 +173,7 @@ export function updateVectorLayerStyle(layer, property, colorRamp, opacity = 1, 
     try {
         const classificationMode = options.classificationMode || getClassificationMode();
         const hideOutline = options.hideOutline === true;
+        const sealFillGaps = options.sealFillGaps === true;
         const colorSpec = buildColorSpec(layer.layerData.raw, property, colorRamp, classificationMode);
         layer.layerData.colorSpec = colorSpec;
         const styleSignature = buildStyleSignature(
@@ -180,7 +182,8 @@ export function updateVectorLayerStyle(layer, property, colorRamp, opacity = 1, 
             opacity,
             colorSpec.mode,
             classificationMode,
-            hideOutline
+            hideOutline,
+            sealFillGaps
         );
         const needsStyleUpdate = layer.layerData._styleSignature !== styleSignature;
         const skipTooltips = options?.skipTooltips === true;
@@ -188,7 +191,7 @@ export function updateVectorLayerStyle(layer, property, colorRamp, opacity = 1, 
 
         if (needsStyleUpdate) {
             const colorResolver = createColorResolverFromSpec(colorSpec, colorRamp);
-            applyLayerStyle(layer, property, colorResolver, opacity, { hideOutline });
+            applyLayerStyle(layer, property, colorResolver, opacity, { hideOutline, sealFillGaps });
             layer.layerData._styleSignature = styleSignature;
         }
 
@@ -216,17 +219,42 @@ export function updateVectorLayerStyle(layer, property, colorRamp, opacity = 1, 
 const AOI_OUTSIDE_FILL = '#94a3b8';
 const AOI_OUTSIDE_FILL_OPACITY = 0.18;
 
+/** Thin same-colour bleed under gray borders — not a visible outline. */
+const SEAL_FILL_STROKE_WEIGHT = 0.5;
+
 function applyLayerStyle(layer, property, colorResolver, opacity, styleOptions = {}) {
     const hideOutline = styleOptions.hideOutline === true;
+    const sealFillGaps = styleOptions.sealFillGaps === true;
     const strokeWeight = hideOutline ? 0 : 2;
     const strokeOpacity = hideOutline ? 0 : opacity;
     layer.setStyle(feature => {
         if (!feature?.properties) {
+            if (sealFillGaps) {
+                return {
+                    fillOpacity: opacity,
+                    color: '#94a3b8',
+                    weight: SEAL_FILL_STROKE_WEIGHT,
+                    opacity,
+                    lineJoin: 'round',
+                    lineCap: 'round'
+                };
+            }
             return { fillOpacity: opacity, opacity: strokeOpacity, weight: strokeWeight };
         }
         
         const props = feature.properties;
         if (props._aoi_outside === true) {
+            if (sealFillGaps) {
+                return {
+                    fillColor: AOI_OUTSIDE_FILL,
+                    fillOpacity: Math.min(opacity, AOI_OUTSIDE_FILL_OPACITY),
+                    color: AOI_OUTSIDE_FILL,
+                    weight: SEAL_FILL_STROKE_WEIGHT,
+                    opacity: Math.min(opacity, AOI_OUTSIDE_FILL_OPACITY),
+                    lineJoin: 'round',
+                    lineCap: 'round'
+                };
+            }
             return {
                 fillColor: AOI_OUTSIDE_FILL,
                 fillOpacity: Math.min(opacity, AOI_OUTSIDE_FILL_OPACITY),
@@ -235,10 +263,22 @@ function applyLayerStyle(layer, property, colorResolver, opacity, styleOptions =
                 color: '#64748b'
             };
         }
+        const fillColor = isAcsCodeNoData(props)
+            ? ACS_CODE_NO_DATA_COLOR
+            : colorResolver(props[property]);
+        if (sealFillGaps) {
+            return {
+                fillColor,
+                fillOpacity: opacity,
+                color: fillColor,
+                weight: SEAL_FILL_STROKE_WEIGHT,
+                opacity,
+                lineJoin: 'round',
+                lineCap: 'round'
+            };
+        }
         return {
-            fillColor: isAcsCodeNoData(props)
-                ? ACS_CODE_NO_DATA_COLOR
-                : colorResolver(props[property]),
+            fillColor,
             fillOpacity: opacity,
             opacity: strokeOpacity,
             weight: strokeWeight,
@@ -320,6 +360,17 @@ function getColorFromRamp(value, data, property, colorRamp) {
  * Calculate class breaks for choropleth maps (3-class aware, handles zero-heavy counts).
  * This is the equal-count (quantile) method and remains the default.
  */
+function quantileEdges(sorted, numClasses) {
+    const n = sorted.length;
+    const breaks = [sorted[0]];
+    for (let i = 1; i < numClasses; i++) {
+        const idx = Math.min(n - 1, Math.round((i / numClasses) * (n - 1)));
+        breaks.push(sorted[idx]);
+    }
+    breaks.push(sorted[n - 1]);
+    return breaks;
+}
+
 export function calculateQuantileBreaks(values, numClasses) {
     const sorted = values.filter(v => Number.isFinite(v)).sort((a, b) => a - b);
     const n = sorted.length;
@@ -333,32 +384,41 @@ export function calculateQuantileBreaks(values, numClasses) {
         return Array.from({ length: numClasses + 1 }, () => min);
     }
 
-    if (numClasses === 3) {
-        const zeroCount = sorted.filter(v => v === 0).length;
-        const positives = sorted.filter(v => v > 0);
-        if (zeroCount > 0 && positives.length > 0 && zeroCount / n >= 0.2) {
-            const pMax = positives[positives.length - 1];
-            if (positives.length === 1) {
-                return [0, 0, pMax, pMax];
-            }
-            const midIdx = Math.floor((positives.length - 1) / 2);
-            const pMid = positives[midIdx];
-            if (pMid >= pMax) {
-                return [0, 0, pMax, pMax];
-            }
-            return [0, 0, pMid, pMax];
+    const positives = sorted.filter(v => v > 0);
+    const zeroCount = sorted.filter(v => v === 0).length;
+    const p90 = sorted[Math.min(n - 1, Math.floor(n * 0.9))];
+    const longTail = max > 0 && p90 <= max * 0.05;
+
+    if (numClasses === 3 && zeroCount > 0 && positives.length > 0 && zeroCount / n >= 0.2) {
+        const pMax = positives[positives.length - 1];
+        if (positives.length === 1) {
+            return [0, 0, pMax, pMax];
         }
+        const midIdx = Math.floor((positives.length - 1) / 2);
+        const pMid = positives[midIdx];
+        if (pMid >= pMax) {
+            return [0, 0, pMax, pMax];
+        }
+        return [0, 0, pMid, pMax];
     }
 
-    const breaks = [min];
-    for (let i = 1; i < numClasses; i++) {
-        const idx = Math.min(n - 1, Math.round((i / numClasses) * (n - 1)));
-        breaks.push(sorted[idx]);
+    // Many zeros or a few huge outliers: do not fall back to equal interval
+    // (that puts ~99% of cadastres in the first/white class).
+    if (positives.length >= 2 && (zeroCount / n >= 0.15 || longTail)) {
+        const posClasses = zeroCount / n >= 0.15 ? Math.max(1, numClasses - 1) : numClasses;
+        const posEdges = quantileEdges(positives, posClasses);
+        if (zeroCount / n >= 0.15) {
+            return [min, 0, ...posEdges.slice(1)];
+        }
+        return posEdges;
     }
-    breaks.push(max);
 
+    const breaks = quantileEdges(sorted, numClasses);
     if (new Set(breaks).size < numClasses + 1) {
-        return calculateEqualIntervalBreaks(sorted, numClasses);
+        const unique = Array.from(new Set(sorted));
+        if (unique.length >= 2) {
+            return quantileEdges(unique, numClasses);
+        }
     }
 
     return breaks;
@@ -496,6 +556,18 @@ export function formatClassLegendRanges(breaks) {
                 ? `${formatValue(pMid + 1)} - ${formatValue(pMax)}`
                 : `> ${formatValue(pMid)} - ${formatValue(pMax)}`
         ];
+    }
+
+    if (Array.isArray(breaks) && breaks.length > 4 && breaks[0] === 0 && breaks[1] === 0) {
+        const labels = [formatValue(0)];
+        for (let i = 1; i < breaks.length - 1; i++) {
+            if (i === 1) {
+                labels.push(`> ${formatValue(0)} - ${formatValue(breaks[i + 1])}`);
+            } else {
+                labels.push(`${formatValue(breaks[i])} - ${formatValue(breaks[i + 1])}`);
+            }
+        }
+        return labels;
     }
 
     const labels = [];
@@ -675,9 +747,17 @@ function createColorResolverFromSpec(spec, colorRamp) {
     };
 }
 
-function buildStyleSignature(property, colorRamp, opacity, mode, classificationMode = 'equal-count', hideOutline = false) {
+function buildStyleSignature(
+    property,
+    colorRamp,
+    opacity,
+    mode,
+    classificationMode = 'equal-count',
+    hideOutline = false,
+    sealFillGaps = false
+) {
     const colors = Array.isArray(colorRamp?.colors) ? colorRamp.colors.join('|') : '';
-    return `${property}::${opacity}::${mode}::${classificationMode}::${colors}::o${hideOutline ? 0 : 1}`;
+    return `${property}::${opacity}::${mode}::${classificationMode}::${colors}::o${hideOutline ? 0 : 1}::s${sealFillGaps ? 1 : 0}`;
 }
 
 function deferToNextFrame(fn) {

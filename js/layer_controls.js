@@ -17,7 +17,7 @@ import { loadTiff } from './zoom-adaptive-tiff-loader.js';
 import { setupColorRampSelector, getColorRamp } from './color_ramp_selector.js';
 import { legendColorsForMapOpacity } from './color_scales.js';
 import { generateAdminLabels, setAdminLabelLayersEnabled } from './admin_labels.js';
-import { addInfoPopupHandler, hideInfoPopup, configureInfoPopupEnrichment } from './info_popup.js';
+import { addInfoPopupHandler, hideInfoPopup, configureInfoPopupEnrichment, showInfoPopup } from './info_popup.js';
 import {
     configureSVSubindicators,
     registerSVSubindicatorPanel,
@@ -1787,6 +1787,9 @@ function syncChoroplethSubindicatorOverlays(map, layerId, layers, config) {
 
     extras.forEach((attr, idx) => {
         const overlay = L.geoJSON(layer.layerData.raw, {
+            ...(usesCadastrePolygonRendering(config)
+                ? getCadastrePolygonGeoJsonOptions({ interactive: false, useCanvas: true })
+                : {}),
             interactive: false,
             style: { weight: 0, opacity: 0, fillOpacity: 0 }
         });
@@ -2080,8 +2083,8 @@ function refreshSVPeaceCadastreChoropleth(map, layers, addLegendEntry, options =
             scaleDirection: options.singleColorMode ? 'white-to-red' : 'yellow-orange-red'
         });
     };
-    updateVectorLayerStyle(layer, attr, fixedRamp, opacity, updateLegendForLayer, { skipTooltips: true });
-    applySVPolygonOutlineStyle(layer, config, { hide: Boolean(options.singleColorMode) });
+    updateVectorLayerStyle(layer, attr, fixedRamp, opacity, updateLegendForLayer, getSVFillStyleOptions(config));
+    applySVPolygonOutlineStyle(layer, config, { hide: Boolean(options.singleColorMode), map });
     updateSVHoverTooltips(layer, layerId, config);
     reapplySelectedPolygonHighlight(layerId);
     syncChoroplethSubindicatorOverlays(map, layerId, layers, config);
@@ -2109,8 +2112,8 @@ function refreshPopulationChoropleth(map, layers, addLegendEntry) {
             labels
         });
     };
-    updateVectorLayerStyle(layer, attr, fixedRamp, opacity, updateLegendForLayer, { skipTooltips: true });
-    applySVPolygonOutlineStyle(layer, config);
+    updateVectorLayerStyle(layer, attr, fixedRamp, opacity, updateLegendForLayer, getSVFillStyleOptions(config));
+    applySVPolygonOutlineStyle(layer, config, { map });
     updateSVHoverTooltips(layer, layerId, config);
     reapplySelectedPolygonHighlight(layerId);
 }
@@ -2145,8 +2148,8 @@ function refreshSVThemeSubindicatorChoropleth(layerId, map, layers, addLegendEnt
             addLegendEntry
         );
     };
-    updateVectorLayerStyle(layer, attr, fixedRamp, opacity, updateLegendForLayer, { skipTooltips: true });
-    applySVPolygonOutlineStyle(layer, config, { hide: Boolean(options.singleColorMode) });
+    updateVectorLayerStyle(layer, attr, fixedRamp, opacity, updateLegendForLayer, getSVFillStyleOptions(config));
+    applySVPolygonOutlineStyle(layer, config, { hide: Boolean(options.singleColorMode), map });
     updateSVHoverTooltips(layer, layerId, config);
     reapplySelectedPolygonHighlight(layerId);
     syncChoroplethSubindicatorOverlays(map, layerId, layers, config);
@@ -2200,19 +2203,603 @@ function getColorOnlyRamp(_layerId, config) {
     return getColorRamp(SV_SANDBOX_SINGLE_COLOR_RAMP_ID) || getColorRamp(config?.fixedColorRamp);
 }
 
+function decimateRing(ring, stride) {
+    if (!Array.isArray(ring) || ring.length <= stride + 2) return ring;
+    const out = [];
+    for (let i = 0; i < ring.length - 1; i++) {
+        if (i % stride === 0) out.push(ring[i]);
+    }
+    if (!out.length) return ring;
+    const first = out[0];
+    const last = ring[ring.length - 1];
+    const prev = out[out.length - 1];
+    if (!prev || prev[0] !== last[0] || prev[1] !== last[1]) out.push(last);
+    if (first && (out[out.length - 1][0] !== first[0] || out[out.length - 1][1] !== first[1])) {
+        out.push(first);
+    }
+    return out.length >= 4 ? out : ring;
+}
+
+const SV_CANVAS_FILL_STRIDE = 4;
+const SV_CANVAS_HIGHLIGHT_COLORS = new Set(['#f59e0b', '#7c3aed']);
+
+function svClimateColorPerfReset() {
+    window.__svClimateColorPerf = [];
+}
+
+function svClimateColorPerf(label, startedAt, extra) {
+    const ms = +(performance.now() - startedAt).toFixed(1);
+    const rec = extra ? { phase: label, ms, ...extra } : { phase: label, ms };
+    if (!Array.isArray(window.__svClimateColorPerf)) window.__svClimateColorPerf = [];
+    window.__svClimateColorPerf.push(rec);
+    if (extra) console.info(`[sv-climate-color] ${label}: ${ms} ms`, extra);
+    else console.info(`[sv-climate-color] ${label}: ${ms} ms`);
+    return ms;
+}
+
+function ringToFlatLngLat(ring, stride) {
+    const decimated = decimateRing(ring, stride);
+    if (!Array.isArray(decimated) || decimated.length < 4) return null;
+    const flat = new Float32Array(decimated.length * 2);
+    for (let i = 0; i < decimated.length; i++) {
+        const pt = decimated[i];
+        flat[i * 2] = +pt[0];
+        flat[i * 2 + 1] = +pt[1];
+    }
+    return flat;
+}
+
+function extractCadastreFillItems(data, stride = SV_CANVAS_FILL_STRIDE) {
+    const items = [];
+    let vertexCount = 0;
+    const features = data?.features || [];
+    for (let f = 0; f < features.length; f++) {
+        const feature = features[f];
+        const geom = feature?.geometry;
+        if (!geom) continue;
+        const polygonsSrc = geom.type === 'Polygon'
+            ? [geom.coordinates]
+            : (geom.type === 'MultiPolygon' ? geom.coordinates : null);
+        if (!polygonsSrc?.length) continue;
+        const polygons = [];
+        let minX = Infinity;
+        let minY = Infinity;
+        let maxX = -Infinity;
+        let maxY = -Infinity;
+        for (let p = 0; p < polygonsSrc.length; p++) {
+            const poly = polygonsSrc[p];
+            if (!poly?.length) continue;
+            const rings = [];
+            for (let r = 0; r < poly.length; r++) {
+                const flat = ringToFlatLngLat(poly[r], stride);
+                if (!flat || flat.length < 8) continue;
+                rings.push(flat);
+                vertexCount += flat.length / 2;
+                for (let i = 0; i < flat.length; i += 2) {
+                    const lng = flat[i];
+                    const lat = flat[i + 1];
+                    if (lng < minX) minX = lng;
+                    if (lat < minY) minY = lat;
+                    if (lng > maxX) maxX = lng;
+                    if (lat > maxY) maxY = lat;
+                }
+            }
+            if (rings.length) polygons.push({ rings });
+        }
+        if (!polygons.length) continue;
+        items.push({
+            feature,
+            polygons,
+            bbox: [minX, minY, maxX, maxY]
+        });
+    }
+    return { items, vertexCount };
+}
+
+function getCadastreCanvasFillItems(layer, data, stride = SV_CANVAS_FILL_STRIDE) {
+    const cache = layer._svCanvasFillCache;
+    if (cache && cache.data === data && cache.stride === stride) return cache;
+    const startedAt = performance.now();
+    const extracted = extractCadastreFillItems(data, stride);
+    svClimateColorPerf('extract rings', startedAt, {
+        features: extracted.items.length,
+        vertices: extracted.vertexCount,
+        stride
+    });
+    layer._svCanvasFillCache = { data, stride, ...extracted };
+    return layer._svCanvasFillCache;
+}
+
+function bboxIntersects(a, b) {
+    return !(a[2] < b[0] || a[0] > b[2] || a[3] < b[1] || a[1] > b[3]);
+}
+
+function pointInFlatRing(lng, lat, flat) {
+    let inside = false;
+    const n = flat.length / 2;
+    if (n < 3) return false;
+    let j = n - 1;
+    for (let i = 0; i < n; i++) {
+        const xi = flat[i * 2];
+        const yi = flat[i * 2 + 1];
+        const xj = flat[j * 2];
+        const yj = flat[j * 2 + 1];
+        if ((yi > lat) !== (yj > lat) && lng < (xj - xi) * (lat - yi) / ((yj - yi) || 1e-12) + xi) {
+            inside = !inside;
+        }
+        j = i;
+    }
+    return inside;
+}
+
+function itemContainsPoint(item, lng, lat) {
+    const polygons = item?.polygons;
+    if (!polygons?.length) return false;
+    for (let p = 0; p < polygons.length; p++) {
+        const rings = polygons[p].rings;
+        if (!rings?.length || !pointInFlatRing(lng, lat, rings[0])) continue;
+        let inHole = false;
+        for (let r = 1; r < rings.length; r++) {
+            if (pointInFlatRing(lng, lat, rings[r])) {
+                inHole = true;
+                break;
+            }
+        }
+        if (!inHole) return true;
+    }
+    return false;
+}
+
+function traceCanvasItem(path, map, item, ll) {
+    const polygons = item.polygons;
+    for (let p = 0; p < polygons.length; p++) {
+        const rings = polygons[p].rings;
+        for (let r = 0; r < rings.length; r++) {
+            const flat = rings[r];
+            const len = flat.length;
+            if (len < 8) continue;
+            ll.lat = flat[1];
+            ll.lng = flat[0];
+            let pt = map.latLngToContainerPoint(ll);
+            path.moveTo(pt.x, pt.y);
+            for (let i = 2; i < len; i += 2) {
+                ll.lat = flat[i + 1];
+                ll.lng = flat[i];
+                pt = map.latLngToContainerPoint(ll);
+                path.lineTo(pt.x, pt.y);
+            }
+            path.closePath();
+        }
+    }
+}
+
+let SVCanvasChoroplethClass = null;
+
+function getSVCanvasChoroplethClass() {
+    if (SVCanvasChoroplethClass) return SVCanvasChoroplethClass;
+    SVCanvasChoroplethClass = L.Layer.extend({
+        initialize(items, options) {
+            L.setOptions(this, options);
+            this._items = items || [];
+            this._styleFn = null;
+            this._highlightItems = new Set();
+            this._svIsCanvasChoropleth = true;
+            this._ll = L.latLng(0, 0);
+        },
+
+        onAdd(map) {
+            this._map = map;
+            if (!this._canvas) {
+                this._canvas = L.DomUtil.create('canvas', 'leaflet-zoom-hide sv-canvas-choropleth');
+                this._ctx = this._canvas.getContext('2d', { alpha: true });
+                this._container = this._canvas;
+                this._canvas.style.pointerEvents = this.options.interactive === false ? 'none' : 'auto';
+                this._canvas.style.position = 'absolute';
+            }
+            const pane = map.getPane(this.options.pane) || map.getPanes().overlayPane;
+            pane.appendChild(this._canvas);
+            if (this.options.interactive !== false) {
+                L.DomEvent.on(this._canvas, 'click', this._onClick, this);
+                L.DomEvent.on(this._canvas, 'mousemove', this._onMouseMove, this);
+                L.DomEvent.on(this._canvas, 'mouseout', this._onMouseOut, this);
+            }
+            map.on('moveend', this._onViewChange, this);
+            map.on('zoomend', this._onViewChange, this);
+            map.on('resize', this._onViewChange, this);
+            this._redrawNow();
+        },
+
+        onRemove(map) {
+            this._cancelRedraw();
+            this._closeHoverTooltip();
+            if (this._canvas) {
+                L.DomEvent.off(this._canvas, 'click', this._onClick, this);
+                L.DomEvent.off(this._canvas, 'mousemove', this._onMouseMove, this);
+                L.DomEvent.off(this._canvas, 'mouseout', this._onMouseOut, this);
+                L.DomUtil.remove(this._canvas);
+            }
+            map.off('moveend', this._onViewChange, this);
+            map.off('zoomend', this._onViewChange, this);
+            map.off('resize', this._onViewChange, this);
+            this._map = null;
+        },
+
+        setStyle(style) {
+            this._styleFn = style;
+            this.redraw();
+            return this;
+        },
+
+        setItems(items) {
+            this._items = items || [];
+            this._highlightItems.clear();
+            this.redraw();
+            return this;
+        },
+
+        eachLayer(callback) {
+            if (typeof callback !== 'function') return this;
+            for (let i = 0; i < this._items.length; i++) {
+                callback(this._stubFor(this._items[i]));
+            }
+            return this;
+        },
+
+        clearLayers() {
+            this._items = [];
+            this._highlightItems.clear();
+            this.redraw();
+            return this;
+        },
+
+        redraw() {
+            this._scheduleRedraw();
+            return this;
+        },
+
+        bringToFront() {
+            if (this._canvas?.parentNode) {
+                this._canvas.parentNode.appendChild(this._canvas);
+            }
+            return this;
+        },
+
+        _cancelRedraw() {
+            if (this._redrawRaf) {
+                cancelAnimationFrame(this._redrawRaf);
+                this._redrawRaf = null;
+            }
+        },
+
+        _scheduleRedraw() {
+            if (!this._map || !this._canvas) return;
+            if (this._redrawRaf) return;
+            this._redrawRaf = requestAnimationFrame(() => {
+                this._redrawRaf = null;
+                this._redrawNow();
+            });
+        },
+
+        _onViewChange() {
+            this._scheduleRedraw();
+        },
+
+        _syncCanvasBox() {
+            const map = this._map;
+            const size = map.getSize();
+            const dpr = Math.min(window.devicePixelRatio || 1, 2);
+            const topLeft = map.containerPointToLayerPoint([0, 0]);
+            L.DomUtil.setPosition(this._canvas, topLeft);
+            const width = Math.max(1, Math.round(size.x * dpr));
+            const height = Math.max(1, Math.round(size.y * dpr));
+            if (this._canvas.width !== width || this._canvas.height !== height) {
+                this._canvas.width = width;
+                this._canvas.height = height;
+                this._canvas.style.width = `${size.x}px`;
+                this._canvas.style.height = `${size.y}px`;
+            }
+            this._dpr = dpr;
+            this._size = size;
+        },
+
+        _resolveStyle(feature) {
+            if (typeof this._styleFn === 'function') return this._styleFn(feature) || {};
+            return this._styleFn || {};
+        },
+
+        _redrawNow() {
+            if (!this._map || !this._canvas || !this._ctx) return;
+            const startedAt = performance.now();
+            this._syncCanvasBox();
+            const map = this._map;
+            const ctx = this._ctx;
+            const size = this._size;
+            const dpr = this._dpr || 1;
+            const ll = this._ll;
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+            ctx.clearRect(0, 0, size.x, size.y);
+            if (!this._styleFn) return;
+
+            const bounds = map.getBounds().pad(0.12);
+            const viewBBox = [bounds.getWest(), bounds.getSouth(), bounds.getEast(), bounds.getNorth()];
+            ctx.lineJoin = 'round';
+            ctx.lineCap = 'round';
+            const usePath2D = typeof Path2D === 'function';
+            const canBatchGray = usePath2D
+                && typeof Path2D.prototype.addPath === 'function'
+                && this.options.drawGrayOutlines !== false;
+            const grayPath = canBatchGray ? new Path2D() : null;
+
+            for (let i = 0; i < this._items.length; i++) {
+                const item = this._items[i];
+                if (!bboxIntersects(item.bbox, viewBBox)) continue;
+                const style = this._resolveStyle(item.feature);
+                const path = usePath2D ? new Path2D() : ctx;
+                if (!usePath2D) ctx.beginPath();
+                traceCanvasItem(path, map, item, ll);
+                ctx.globalAlpha = style.fillOpacity != null ? style.fillOpacity : 0.6;
+                ctx.fillStyle = style.fillColor || '#cbd5e1';
+                if (usePath2D) ctx.fill(path, 'evenodd');
+                else ctx.fill('evenodd');
+                if ((style.weight || 0) > 0 && style.color) {
+                    ctx.globalAlpha = style.opacity != null ? style.opacity : 1;
+                    ctx.strokeStyle = style.color;
+                    ctx.lineWidth = style.weight;
+                    if (usePath2D) ctx.stroke(path);
+                    else ctx.stroke();
+                }
+                if (grayPath) grayPath.addPath(path);
+            }
+
+            if (grayPath) {
+                ctx.globalAlpha = SV_OUTLINE_CADASTRE_OPACITY;
+                ctx.strokeStyle = SV_OUTLINE_CADASTRE_COLOR;
+                ctx.lineWidth = SV_OUTLINE_CADASTRE_WEIGHT;
+                ctx.stroke(grayPath);
+            } else if (this.options.drawGrayOutlines !== false) {
+                ctx.beginPath();
+                for (let i = 0; i < this._items.length; i++) {
+                    const item = this._items[i];
+                    if (!bboxIntersects(item.bbox, viewBBox)) continue;
+                    traceCanvasItem(ctx, map, item, ll);
+                }
+                ctx.globalAlpha = SV_OUTLINE_CADASTRE_OPACITY;
+                ctx.strokeStyle = SV_OUTLINE_CADASTRE_COLOR;
+                ctx.lineWidth = SV_OUTLINE_CADASTRE_WEIGHT;
+                ctx.stroke();
+            }
+
+            this._highlightItems.forEach(item => {
+                const style = item._highlightStyle;
+                if (!style) return;
+                ctx.beginPath();
+                traceCanvasItem(ctx, map, item, ll);
+                ctx.globalAlpha = style.opacity != null ? style.opacity : 1;
+                ctx.strokeStyle = style.color || '#f59e0b';
+                ctx.lineWidth = style.weight || 3;
+                ctx.stroke();
+            });
+
+            if (isShowLabelsMode() && shouldShowPermanentScoreLabels(map) && this.options.layerId) {
+                this._drawScoreLabels(ctx, map, size, viewBBox);
+            }
+
+            const ms = performance.now() - startedAt;
+            if (!this._loggedFirstDraw || ms > 40) {
+                svClimateColorPerf(this._loggedFirstDraw ? 'canvas redraw' : 'canvas first draw', startedAt, {
+                    items: this._items.length,
+                    view: `${size.x}x${size.y}`
+                });
+                this._loggedFirstDraw = true;
+            }
+        },
+
+        _drawScoreLabels(ctx, map, size, viewBBox) {
+            const layerId = this.options.layerId;
+            const config = this.options.config;
+            if (!layerId || !config) return;
+            ctx.save();
+            ctx.globalAlpha = 1;
+            ctx.fillStyle = '#111827';
+            ctx.strokeStyle = 'rgba(255,255,255,0.92)';
+            ctx.lineWidth = 3;
+            ctx.font = '600 11px system-ui, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            const ll = this._ll;
+            for (let i = 0; i < this._items.length; i++) {
+                const item = this._items[i];
+                if (!bboxIntersects(item.bbox, viewBBox)) continue;
+                const text = buildSVPermanentScoreLabelText(item.feature.properties, layerId, config);
+                if (!text) continue;
+                ll.lat = (item.bbox[1] + item.bbox[3]) / 2;
+                ll.lng = (item.bbox[0] + item.bbox[2]) / 2;
+                const pt = map.latLngToContainerPoint(ll);
+                if (pt.x < 0 || pt.y < 0 || pt.x > size.x || pt.y > size.y) continue;
+                ctx.strokeText(text, pt.x, pt.y);
+                ctx.fillText(text, pt.x, pt.y);
+            }
+            ctx.restore();
+        },
+
+        _stubFor(item) {
+            if (item.stub) return item.stub;
+            const host = this;
+            item.stub = {
+                feature: item.feature,
+                options: {
+                    color: SV_OUTLINE_CADASTRE_COLOR,
+                    weight: SV_OUTLINE_CADASTRE_WEIGHT,
+                    opacity: SV_OUTLINE_CADASTRE_OPACITY,
+                    fill: true
+                },
+                setStyle(style) {
+                    Object.assign(this.options, style || {});
+                    const isHighlight = Boolean(
+                        style
+                        && SV_CANVAS_HIGHLIGHT_COLORS.has(style.color)
+                        && (style.weight || 0) >= 3
+                    );
+                    if (isHighlight) {
+                        item._highlightStyle = style;
+                        host._highlightItems.add(item);
+                    } else {
+                        item._highlightStyle = null;
+                        host._highlightItems.delete(item);
+                    }
+                    host.redraw();
+                    return this;
+                },
+                bringToFront() {
+                    if (item._highlightStyle) {
+                        host._highlightItems.delete(item);
+                        host._highlightItems.add(item);
+                        host.redraw();
+                    }
+                    return this;
+                },
+                on() { return this; },
+                off() { return this; },
+                bindTooltip() { return this; },
+                unbindTooltip() { return this; },
+                closeTooltip() { return this; }
+            };
+            return item.stub;
+        },
+
+        _hitTest(latlng) {
+            const lng = latlng.lng;
+            const lat = latlng.lat;
+            for (let i = this._items.length - 1; i >= 0; i--) {
+                const item = this._items[i];
+                const bbox = item.bbox;
+                if (lng < bbox[0] || lng > bbox[2] || lat < bbox[1] || lat > bbox[3]) continue;
+                if (itemContainsPoint(item, lng, lat)) return item;
+            }
+            return null;
+        },
+
+        _onClick(event) {
+            const map = this._map;
+            if (!map) return;
+            const latlng = map.mouseEventToLatLng(event);
+            const item = this._hitTest(latlng);
+            if (!item) return;
+            L.DomEvent.stopPropagation(event);
+            const stub = this._stubFor(item);
+            const fakeEvent = {
+                latlng,
+                containerPoint: map.mouseEventToContainerPoint(event),
+                originalEvent: event
+            };
+            showInfoPopup(item.feature, this.options.layerType || 'sv-default', fakeEvent, this);
+            if (this.options.layerId && this.options.layers) {
+                handlePolygonSelection(this.options.layerId, this, stub, this.options.layers, this.options.config);
+            }
+        },
+
+        _onMouseMove(event) {
+            const map = this._map;
+            if (!map) return;
+            const latlng = map.mouseEventToLatLng(event);
+            const item = this._hitTest(latlng);
+            this._canvas.style.cursor = item ? 'pointer' : '';
+            if (!item) {
+                this._closeHoverTooltip();
+                this._hoverItem = null;
+                return;
+            }
+            if (typeof L.tooltip !== 'function') return;
+            const getText = this.options.getTooltipText;
+            const text = typeof getText === 'function'
+                ? getText(item.feature.properties)
+                : '';
+            if (!this._hoverTooltip) {
+                this._hoverTooltip = L.tooltip({
+                    sticky: true,
+                    direction: 'top',
+                    opacity: 0.95
+                });
+            }
+            this._hoverTooltip.setLatLng(latlng);
+            if (text && item !== this._hoverItem) this._hoverTooltip.setContent(text);
+            this._hoverItem = item;
+            if (text && !map.hasLayer(this._hoverTooltip)) this._hoverTooltip.addTo(map);
+        },
+
+        _onMouseOut() {
+            if (this._canvas) this._canvas.style.cursor = '';
+            this._hoverItem = null;
+            this._closeHoverTooltip();
+        },
+
+        _closeHoverTooltip() {
+            const map = this._map;
+            if (map && this._hoverTooltip && map.hasLayer(this._hoverTooltip)) {
+                map.removeLayer(this._hoverTooltip);
+            }
+        }
+    });
+    return SVCanvasChoroplethClass;
+}
+
+function createSVCanvasChoroplethLayer(items, options = {}) {
+    const CanvasClass = getSVCanvasChoroplethClass();
+    return new CanvasClass(items, {
+        interactive: true,
+        drawGrayOutlines: true,
+        ...options
+    });
+}
+
+function bindSVCanvasChoroplethContext(fillLayer, layerId, layers, config) {
+    if (!fillLayer?._svIsCanvasChoropleth) return;
+    fillLayer.options.layerId = layerId;
+    fillLayer.options.layers = layers;
+    fillLayer.options.config = config;
+    fillLayer.options.layerType = config?.layerType || 'sv-default';
+    fillLayer.options.getTooltipText = props => buildSVHoverTooltipText(props, layerId, config);
+}
+
 function ensureSVPolygonChoroplethLayer(layer, config) {
     const data = getSVPolygonSourceData(layer);
     if (!data?.features?.length) return null;
+    const cadastre = usesCadastrePolygonRendering(config);
+    const deferred = layerDefersCadastrePolygons(config);
+    const useCanvasFill = deferred && cadastre && typeof L?.Layer?.extend === 'function';
+
+    if (layer._svChoroplethFillLayer && useCanvasFill && !layer._svChoroplethFillLayer._svIsCanvasChoropleth) {
+        const stale = layer._svChoroplethFillLayer;
+        if (typeof stale.clearLayers === 'function') stale.clearLayers();
+        layer._svChoroplethFillLayer = null;
+    }
+
     if (!layer._svChoroplethFillLayer) {
-        layer._svChoroplethFillLayer = L.geoJSON(data, {
-            interactive: false,
-            style: {
-                weight: 0,
-                opacity: 0,
-                fill: true,
-                fillOpacity: 0.6
-            }
-        });
+        if (useCanvasFill) {
+            const cache = getCadastreCanvasFillItems(layer, data, SV_CANVAS_FILL_STRIDE);
+            const startedAt = performance.now();
+            layer._svChoroplethFillLayer = createSVCanvasChoroplethLayer(cache.items, {
+                interactive: true,
+                drawGrayOutlines: true
+            });
+            svClimateColorPerf('create canvas layer', startedAt, { items: cache.items.length });
+        } else {
+            const renderer = getCadastreCanvasRenderer();
+            layer._svChoroplethFillLayer = L.geoJSON(data, {
+                ...(cadastre ? getCadastrePolygonGeoJsonOptions({
+                    interactive: deferred,
+                    useCanvas: true
+                }) : {}),
+                ...(cadastre && renderer ? { renderer } : {}),
+                interactive: deferred,
+                style: {
+                    weight: 0,
+                    opacity: 0,
+                    fill: true,
+                    fillOpacity: 0.6
+                }
+            });
+        }
         layer._svChoroplethFillLayer.layerData = {
             raw: data,
             propertyFields: Object.keys(data.features[0]?.properties || {}),
@@ -2221,19 +2808,55 @@ function ensureSVPolygonChoroplethLayer(layer, config) {
         };
     } else if (layer._svChoroplethFillLayer.layerData) {
         layer._svChoroplethFillLayer.layerData.raw = data;
-        layer._svChoroplethFillLayer.layerData._styleSignature = null;
+        if (layer._svChoroplethFillLayer._svIsCanvasChoropleth) {
+            const cache = getCadastreCanvasFillItems(layer, data, SV_CANVAS_FILL_STRIDE);
+            if (layer._svChoroplethFillLayer._items !== cache.items) {
+                layer._svChoroplethFillLayer.setItems(cache.items);
+            }
+        }
     }
     return layer._svChoroplethFillLayer;
 }
 
+function destroySVChoroplethFill(map, layer) {
+    if (!layer) return;
+    if (layer._svChoroplethFillRaf) {
+        cancelAnimationFrame(layer._svChoroplethFillRaf);
+        layer._svChoroplethFillRaf = null;
+    }
+    layer._svChoroplethFillPending = null;
+    layer._svChoroplethFillReadyCbs = [];
+    const fill = layer._svChoroplethFillLayer;
+    if (!fill) return;
+    removeCadastreChoroplethOutline(map, fill);
+    const outline = fill._svVisualOutlineLayer;
+    if (typeof fill.clearLayers === 'function') fill.clearLayers();
+    if (map && map.hasLayer(fill)) map.removeLayer(fill);
+    if (outline) {
+        if (typeof outline.clearLayers === 'function') outline.clearLayers();
+        if (map && map.hasLayer(outline)) map.removeLayer(outline);
+    }
+    layer._svChoroplethFillLayer = null;
+}
+
 function setSVChoroplethFillOnMap(map, layer, onMap) {
     if (!map || !layer?._svChoroplethFillLayer) return;
+    const fill = layer._svChoroplethFillLayer;
+    const outline = fill._svVisualOutlineLayer;
     if (onMap) {
-        if (!map.hasLayer(layer._svChoroplethFillLayer)) {
-            layer._svChoroplethFillLayer.addTo(map);
+        if (!map.hasLayer(fill)) {
+            fill.addTo(map);
         }
-    } else if (map.hasLayer(layer._svChoroplethFillLayer)) {
-        map.removeLayer(layer._svChoroplethFillLayer);
+        if (outline && !map.hasLayer(outline)) {
+            outline.addTo(map);
+        }
+    } else {
+        if (map.hasLayer(fill)) {
+            map.removeLayer(fill);
+        }
+        if (outline && map.hasLayer(outline)) {
+            map.removeLayer(outline);
+        }
     }
 }
 
@@ -2246,12 +2869,22 @@ function applySVColorOnlyChoropleth(layerId, map, layers, addLegendEntry) {
     const layer = layers.vector[layerId];
     if (!config || !layer || !activeSVLayers.has(layerId)) return;
 
+    const colorPerf = layerId === 'svClimateLayer' || config.renderMode === 'forest-fire-symbol';
+    const colorPerfStartedAt = colorPerf ? performance.now() : 0;
+    if (colorPerf) svClimateColorPerfReset();
+
     if (layer._isSVServiceSymbolLayer || layer._isSVForestFireSymbolLayer) {
         syncServicePolygonScoresFromMarkers(layer);
     }
 
     const usesAux = layerUsesAuxiliaryColorFill(layer, config);
+    const deferredCadastre = layerDefersCadastrePolygons(config);
+    const ensureStartedAt = colorPerf ? performance.now() : 0;
     const fillLayer = usesAux ? ensureSVPolygonChoroplethLayer(layer, config) : layer;
+    if (colorPerf && usesAux) svClimateColorPerf('ensure fill layer', ensureStartedAt, {
+        canvas: Boolean(fillLayer?._svIsCanvasChoropleth),
+        deferredCadastre
+    });
     if (!fillLayer) return;
 
     const attr = getColorOnlyAttribute(layerId, config);
@@ -2271,29 +2904,28 @@ function applySVColorOnlyChoropleth(layerId, map, layers, addLegendEntry) {
         } else if (layer._isSVServiceSymbolLayer) {
             setSVServiceMarkersOnMap(map, layer, false);
         } else if (layer._isSVForestFireSymbolLayer) {
-            setSVForestFireMarkersOnMap(map, layer, false);
+            const hideStartedAt = colorPerf ? performance.now() : 0;
+            setSVForestFireMarkersOnMap(map, layer, false, layers);
+            if (colorPerf) svClimateColorPerf('hide forest-fire icons', hideStartedAt);
         }
     } else if (config.renderMode === 'stripe-pattern' || config.renderMode === 'service-pattern') {
         clearStripePatternFill(layer);
     }
 
     const polygonData = getSVPolygonSourceData(layer);
+    if (layerId === 'svAdmin1Layer' && polygonData?.features) {
+        polygonData.features.forEach(feature => {
+            const props = feature.properties;
+            if (!props) return;
+            const value = resolveDisplacementPropertyValue(props, attr);
+            if (Number.isFinite(value) && (props[attr] === undefined || props[attr] === null || props[attr] === '')) {
+                props[attr] = value;
+            }
+        });
+    }
     if (fillLayer.layerData) {
         fillLayer.layerData.raw = polygonData || fillLayer.layerData.raw;
         fillLayer.layerData.selectedProperty = attr;
-        fillLayer.layerData._styleSignature = null;
-    }
-
-    if (usesAux) {
-        setSVChoroplethFillOnMap(map, layer, true);
-        const outline = layer._svAdminOutlineLayer;
-        if (outline && map && !map.hasLayer(outline)) {
-            outline.addTo(map);
-        }
-        applySVHitPolygonStyle(outline, { thinBoundaries: Boolean(config.thinBoundaries) });
-        applySVPolygonOutlineStyle(outline, config);
-    } else if (map && !map.hasLayer(layer)) {
-        layer.addTo(map);
     }
 
     const updateLegendForLayer = (layerName, colorScheme, description, labels) => {
@@ -2321,31 +2953,84 @@ function applySVColorOnlyChoropleth(layerId, map, layers, addLegendEntry) {
         );
     };
 
-    updateVectorLayerStyle(fillLayer, attr, fixedRamp, opacity, updateLegendForLayer, {
-        skipTooltips: true,
-        hideOutline: true
-    });
-    if (usesAux) {
-        applySVPolygonOutlineStyle(fillLayer, config, { hide: true });
-        applySVPolygonOutlineStyle(layer._svAdminOutlineLayer, config);
-    } else {
-        applySVPolygonOutlineStyle(fillLayer, config);
-    }
+    const paintColorOnly = () => {
+        if (fillLayer._svIsCanvasChoropleth) {
+            bindSVCanvasChoroplethContext(fillLayer, layerId, layers, config);
+        }
 
-    const hoverTarget = layer._svAdminOutlineLayer || fillLayer;
-    updateSVHoverTooltips(hoverTarget, layerId, config);
-    reapplySelectedPolygonHighlight(layerId);
-    if (layerId === 'svAdmin1Layer') {
-        syncDisplacementSubindicatorExtras(map, layerId, layers, config);
-    } else if (
-        layerId === 'svAdmin2Layer' ||
-        layerId === 'svAdmin3Layer' ||
-        THEME_SUBINDICATOR_LAYER_IDS.includes(layerId)
-    ) {
-        syncChoroplethSubindicatorOverlays(map, layerId, layers, config);
-    }
-    if (window.currentInfoPanel) {
-        window.currentInfoPanel.updateLayer(layerId, { selectedAttribute: attr, opacity });
+        if (usesAux) {
+            const skipIconChrome = deferredCadastre;
+            if (!skipIconChrome) {
+                ensureSVIconPolygonChrome(layer, map, config, layerId, layers);
+            }
+            if (layer._svAdminOutlineLayer) {
+                layer._svAdminOutlineLayer._svKeepOutlinesWhenZoomedOut = false;
+            }
+            layer._svKeepOutlinesWhenZoomedOut = false;
+        } else if (map && !map.hasLayer(layer)) {
+            layer.addTo(map);
+        }
+
+        const styleStartedAt = colorPerf ? performance.now() : 0;
+        updateVectorLayerStyle(fillLayer, attr, fixedRamp, opacity, updateLegendForLayer, getSVFillStyleOptions(config, {
+            skipTooltips: true,
+            hideOutline: true
+        }));
+        if (colorPerf) svClimateColorPerf('updateVectorLayerStyle', styleStartedAt);
+
+        if (usesAux) {
+            const addStartedAt = colorPerf ? performance.now() : 0;
+            setSVChoroplethFillOnMap(map, layer, true);
+            if (colorPerf) svClimateColorPerf('add fill to map', addStartedAt);
+            const outline = layer._svAdminOutlineLayer;
+            if (outline && map && !map.hasLayer(outline)) {
+                outline.addTo(map);
+            }
+            if (outline) {
+                applySVHitPolygonStyle(outline, { thinBoundaries: Boolean(config.thinBoundaries) });
+                applySVPolygonOutlineStyle(outline, config, { map });
+            }
+            if (layer._svAdminOutlineLayer) {
+                layer._svAdminOutlineLayer._svKeepOutlinesWhenZoomedOut = false;
+            }
+            layer._svKeepOutlinesWhenZoomedOut = false;
+            if (!deferredCadastre) {
+                applySVPolygonOutlineStyle(fillLayer, config, { hide: true, map });
+                applySVPolygonOutlineStyle(layer._svAdminOutlineLayer, config, { map });
+            }
+            if (!fillLayer._svIsCanvasChoropleth) {
+                bindSVIconPolygonInteractions(fillLayer, config, layerId, layers);
+            }
+        } else {
+            layer._svKeepOutlinesWhenZoomedOut = false;
+            applySVPolygonOutlineStyle(fillLayer, config, { map });
+        }
+
+        if (!fillLayer._svIsCanvasChoropleth) {
+            const hoverTarget = layer._svAdminOutlineLayer || fillLayer;
+            updateSVHoverTooltips(hoverTarget, layerId, config);
+        }
+        reapplySelectedPolygonHighlight(layerId);
+        if (layerId === 'svAdmin1Layer') {
+            syncDisplacementSubindicatorExtras(map, layerId, layers, config);
+        } else if (
+            layerId === 'svAdmin2Layer' ||
+            layerId === 'svAdmin3Layer'
+        ) {
+            syncChoroplethSubindicatorOverlays(map, layerId, layers, config);
+        }
+        if (window.currentInfoPanel) {
+            window.currentInfoPanel.updateLayer(layerId, { selectedAttribute: attr, opacity });
+        }
+    };
+
+    paintColorOnly();
+    if (colorPerf) {
+        svClimateColorPerf('TOTAL applySVColorOnlyChoropleth', colorPerfStartedAt, {
+            layerId,
+            canvas: Boolean(fillLayer._svIsCanvasChoropleth)
+        });
+        console.info('[sv-climate-color] Paste every [sv-climate-color] line if color mode is still slow. Details: window.__svClimateColorPerf');
     }
 }
 
@@ -2374,6 +3059,11 @@ function restoreSVDisplacementCirclesFromColorOnly(map, layers, layerId) {
         layer.addTo(map);
     }
     layer._svDisplacementColorOnly = false;
+    if (outline) outline._svKeepOutlinesWhenZoomedOut = true;
+    layer._svKeepOutlinesWhenZoomedOut = true;
+    if (outline && map) {
+        attachCadastreOutlineZoomSync(map, outline, layerConfig[layerId]);
+    }
 }
 
 
@@ -2468,9 +3158,13 @@ async function refreshSVLayerForDisplay(layerId, map, layers, addLegendEntry) {
     const singleColorMode = isColorOnlyMode();
     if (singleColorMode) {
         applySVColorOnlyChoropleth(layerId, map, layers, addLegendEntry);
+        const afterStartedAt = performance.now();
         updateSVHoverTooltips(layer, layerId, config);
         syncSVPermanentScoreLabels(map, layers);
         keepRoadLayerOnTop(layers);
+        if (layerId === 'svClimateLayer' || config.renderMode === 'forest-fire-symbol') {
+            svClimateColorPerf('refresh after color-only (tooltips/labels)', afterStartedAt);
+        }
         if (window.currentInfoPanel) {
             window.currentInfoPanel.updateLayer(layerId, {
                 selectedAttribute: getColorOnlyAttribute(layerId, config)
@@ -2528,8 +3222,8 @@ async function refreshSVLayerForDisplay(layerId, map, layers, addLegendEntry) {
             if (layer.layerData) {
                 layer.layerData._styleSignature = null;
             }
-            updateVectorLayerStyle(layer, chAttr, fixedRamp, opacity, updateLegendForLayer, { skipTooltips: true });
-            applySVPolygonOutlineStyle(layer, config);
+            updateVectorLayerStyle(layer, chAttr, fixedRamp, opacity, updateLegendForLayer, getSVFillStyleOptions(config));
+            applySVPolygonOutlineStyle(layer, config, { map });
             reapplySelectedPolygonHighlight(layerId);
         }
     }
@@ -2610,7 +3304,11 @@ async function getSourceLayerGeoJson(sourceLayerId, resolution, layers) {
 }
 
 function createVectorLayerFromGeoJson(data, config = {}) {
+    const cadastre = usesCadastrePolygonRendering(config);
     const vectorLayer = L.geoJSON(data, {
+        ...(cadastre
+            ? getCadastrePolygonGeoJsonOptions({ useCanvas: usesCadastreCanvasFill(config) })
+            : {}),
         style: config.style || {
             color: '#0f766e',
             weight: 2,
@@ -2651,6 +3349,7 @@ async function showCustomOverallLayer(geojson, map, layers, addLegendEntry, remo
     // Remove any previous instance
     if (layers.vector[layerId]) {
         removeSubindicatorMapExtras(map, layers.vector[layerId]);
+        removeCadastreChoroplethOutline(map, layers.vector[layerId]);
         clearPolygonSelection(layerId, layers);
         if (map.hasLayer(layers.vector[layerId])) map.removeLayer(layers.vector[layerId]);
         removeLegendEntry?.(layerId);
@@ -2713,9 +3412,9 @@ async function showCustomOverallLayer(geojson, map, layers, addLegendEntry, remo
             fixedRamp,
             opacity,
             updateLegendForLayer,
-            { skipTooltips: true }
+            getSVFillStyleOptions(config)
         );
-        applySVPolygonOutlineStyle(layers.vector[layerId], config);
+        applySVPolygonOutlineStyle(layers.vector[layerId], config, { map });
         reapplySelectedPolygonHighlight(layerId);
         if (aoiMode) {
             reapplyAnalysisSelectionStyles();
@@ -2741,6 +3440,7 @@ function hideCustomOverallVisibility(map, layers, removeLegendEntry, restoreOffi
     const layer = layers.vector[layerId];
     if (layer) {
         removeSubindicatorMapExtras(map, layer);
+        removeCadastreChoroplethOutline(map, layer);
         clearPolygonSelection(layerId, layers);
         if (map.hasLayer(layer)) map.removeLayer(layer);
         removeLegendEntry?.(layerId);
@@ -2832,6 +3532,8 @@ const SV_OUTLINE_PEACE_CADASTRE_OPACITY = 0.9;
 
 const SV_SERVICE_DISABLE_CLUSTERING_AT_ZOOM = 13;
 const SV_SERVICE_CADASTRE_OUTLINE_MAX_ZOOM = 12;
+/** Icon layers (Climate, Service) skip cadastre polygon chrome until this zoom. */
+const SV_ICON_CADASTRE_POLYGON_MIN_ZOOM = 11;
 const SV_SERVICE_MARKER_SIZE_DEFAULT = 22;
 const SV_SERVICE_MARKER_SIZE_AGGREGATE = 32;
 const SV_SERVICE_MARKER_SIZE_UNCLUSTERED_CADASTRE = 26;
@@ -2883,9 +3585,9 @@ const ICON_PAIR_MIN_CENTER_GAP_FRAC = 0.92;
 /** Pane above markers so AOI/info clicks hit polygons, not icons/clusters. */
 const SV_HIT_PANE_NAME = 'svHitPane';
 const SV_HIT_PANE_Z_INDEX = 625;
-/** Visible cadastre/admin outlines sit below fills and icons (tilePane = 200, overlayPane = 400). */
+/** Visible cadastre/admin outlines sit above fills, below markers (overlayPane = 400, markerPane = 600). */
 const SV_OUTLINE_PANE_NAME = 'svOutlinePane';
-const SV_OUTLINE_PANE_Z_INDEX = 350;
+const SV_OUTLINE_PANE_Z_INDEX = 450;
 /** Displacement cluster icons sit below Climate / Service / Gender markers (markerPane = 600). */
 const SV_DISPLACEMENT_CLUSTER_PANE_NAME = 'svDisplacementClusterPane';
 const SV_DISPLACEMENT_CLUSTER_PANE_Z_INDEX = 550;
@@ -2918,6 +3620,112 @@ function ensureSVOutlinePane(map) {
         pane.style.pointerEvents = 'none';
     }
     return SV_OUTLINE_PANE_NAME;
+}
+
+function usesCadastrePolygonRendering(config = null) {
+    if (config?.thinBoundaries) return true;
+    return Boolean(config?.type === 'sv-vector' && getActiveAdminResolution() === 'cadastre');
+}
+
+function usesCadastreCanvasFill(config = null) {
+    if (!usesCadastrePolygonRendering(config)) return false;
+    const mode = config?.renderMode;
+    return mode !== 'stripe-pattern' && mode !== 'service-pattern';
+}
+
+function getCadastreCanvasRenderer() {
+    if (typeof L?.canvas !== 'function') return null;
+    if (!getCadastreCanvasRenderer._shared) {
+        getCadastreCanvasRenderer._shared = L.canvas({ padding: 0.5 });
+    }
+    return getCadastreCanvasRenderer._shared;
+}
+
+function getCadastrePolygonGeoJsonOptions({ interactive, pane, useCanvas = true } = {}) {
+    const options = { smoothFactor: 0 };
+    if (interactive === false) options.interactive = false;
+    if (pane) options.pane = pane;
+    if (useCanvas) {
+        const renderer = getCadastreCanvasRenderer();
+        if (renderer) options.renderer = renderer;
+    }
+    return options;
+}
+
+function getSVFillStyleOptions(config, extra = {}) {
+    const cadastre = usesCadastrePolygonRendering(config);
+    return {
+        skipTooltips: extra.skipTooltips !== false,
+        hideOutline: extra.hideOutline === true && !cadastre,
+        sealFillGaps: extra.sealFillGaps !== false && cadastre
+    };
+}
+
+function getCadastreVisualOutlineLayer(layer) {
+    if (!layer) return null;
+    return layer._svVisualOutlineLayer
+        || layer._svAdminOutlineLayer?._svVisualOutlineLayer
+        || null;
+}
+
+function cadastreGrayOutlinesShouldShow(map, _layer, _config) {
+    return Boolean(map);
+}
+
+function updateCadastreOutlineVisibility(map, layer, config) {
+    const outline = getCadastreVisualOutlineLayer(layer);
+    if (!map || !outline) return;
+    const shouldShow = cadastreGrayOutlinesShouldShow(map, layer, config);
+    const isShown = map.hasLayer(outline);
+    if (shouldShow && !isShown) outline.addTo(map);
+    else if (!shouldShow && isShown) map.removeLayer(outline);
+}
+
+function attachCadastreOutlineZoomSync(map, layer, config) {
+    if (!map || !layer) return;
+    detachCadastreOutlineZoomSync(map, layer);
+    const handler = () => updateCadastreOutlineVisibility(map, layer, config);
+    layer._svCadastreChoroplethOutlineZoomHandler = handler;
+    map.on('zoomend', handler);
+    updateCadastreOutlineVisibility(map, layer, config);
+}
+
+function detachCadastreOutlineZoomSync(map, layer) {
+    if (!map || !layer?._svCadastreChoroplethOutlineZoomHandler) return;
+    map.off('zoomend', layer._svCadastreChoroplethOutlineZoomHandler);
+    layer._svCadastreChoroplethOutlineZoomHandler = null;
+}
+
+function ensureCadastreChoroplethOutline(layer, map, config) {
+    if (!layer || !usesCadastrePolygonRendering(config)) return null;
+    const existing = getCadastreVisualOutlineLayer(layer);
+    if (existing) {
+        attachCadastreOutlineZoomSync(map, layer, config);
+        return existing;
+    }
+    const data = getSVPolygonSourceData(layer) || layer.layerData?.raw;
+    if (!data?.features?.length) return null;
+
+    const outlinePane = ensureSVOutlinePane(map);
+    const visualLayer = L.geoJSON(data, {
+        smoothFactor: 0,
+        interactive: false,
+        ...(outlinePane ? { pane: outlinePane } : {}),
+        style: () => buildSVVisualOutlineStyle({ thinBoundaries: true })
+    });
+    layer._svVisualOutlineLayer = visualLayer;
+    attachCadastreOutlineZoomSync(map, layer, config);
+    return visualLayer;
+}
+
+function removeCadastreChoroplethOutline(map, layer) {
+    if (!layer) return;
+    detachCadastreOutlineZoomSync(map, layer);
+    if (layer._svAdminOutlineLayer) {
+        detachCadastreOutlineZoomSync(map, layer._svAdminOutlineLayer);
+    }
+    const outline = layer._svVisualOutlineLayer;
+    if (map && outline && map.hasLayer(outline)) map.removeLayer(outline);
 }
 
 function ensureSVDisplacementClusterPane(map) {
@@ -2954,24 +3762,28 @@ function buildSVVisualOutlineStyle({ thinBoundaries = false } = {}) {
 function createSVHitPolygonLayer(geoJsonData, { map = null, thinBoundaries = false } = {}) {
     const hitPane = ensureSVHitPane(map);
     const outlinePane = ensureSVOutlinePane(map);
+    const cadastreOpts = thinBoundaries
+        ? getCadastrePolygonGeoJsonOptions({ useCanvas: false })
+        : {};
     const hitLayer = L.geoJSON(geoJsonData, {
+        ...cadastreOpts,
         ...(hitPane ? { pane: hitPane } : {}),
         interactive: true,
         style: () => buildSVHitPolygonStyle()
     });
     const visualLayer = L.geoJSON(geoJsonData, {
+        ...(thinBoundaries ? { smoothFactor: 0 } : {}),
         ...(outlinePane ? { pane: outlinePane } : {}),
         interactive: false,
         style: () => buildSVVisualOutlineStyle({ thinBoundaries })
     });
     hitLayer._svVisualOutlineLayer = visualLayer;
+    hitLayer._svKeepOutlinesWhenZoomedOut = true;
     hitLayer.on('add', () => {
         const hostMap = hitLayer._map;
         if (!hostMap) return;
         ensureSVOutlinePane(hostMap);
-        if (visualLayer && !hostMap.hasLayer(visualLayer)) {
-            visualLayer.addTo(hostMap);
-        }
+        updateCadastreOutlineVisibility(hostMap, hitLayer, { thinBoundaries });
     });
     hitLayer.on('remove', () => {
         const hostMap = visualLayer?._map;
@@ -3009,12 +3821,83 @@ function applySVHitPolygonStyle(outlineLayer, { thinBoundaries = false } = {}) {
 
 function getSVPolygonInteractionLayer(loadedLayer) {
     if (!loadedLayer) return null;
+    if (isColorOnlyMode() && loadedLayer._svChoroplethFillLayer) {
+        return loadedLayer._svChoroplethFillLayer;
+    }
     return (
         loadedLayer._svAdminOutlineLayer ||
         loadedLayer._svHitPolygonLayer ||
         loadedLayer._svChoroplethFillLayer ||
         loadedLayer
     );
+}
+
+function layerDefersCadastrePolygons(config) {
+    return usesCadastrePolygonRendering(config)
+        && (config?.renderMode === 'forest-fire-symbol' || config?.renderMode === 'service-symbol');
+}
+
+function cadastreIconPolygonsShouldShow(map, config) {
+    if (!layerDefersCadastrePolygons(config)) return true;
+    // Climate/Gender cadastre icons use grid clusters + interactive markers.
+    // Building SVG hit/visual copies of 400k-vertex polygons is the 10–15s stall.
+    if (config?.renderMode === 'forest-fire-symbol') return false;
+    if (isColorOnlyMode()) return false;
+    return Boolean(map && typeof map.getZoom === 'function' && map.getZoom() >= SV_ICON_CADASTRE_POLYGON_MIN_ZOOM);
+}
+
+function bindSVIconPolygonInteractions(outline, config, layerId, layers) {
+    if (!outline || outline._svIconPolygonInteractionsBound) return;
+    outline._svIconPolygonInteractionsBound = true;
+    addInfoPopupHandler(outline, config?.layerType || 'sv-default');
+    if (layerId && layers) {
+        attachPolygonSelectionHandlers(layerId, outline, layers, config);
+    }
+}
+
+function ensureSVIconPolygonChrome(layer, map, config, layerId, layers) {
+    if (!layer) return null;
+    if (layer._svAdminOutlineLayer) {
+        bindSVIconPolygonInteractions(layer._svAdminOutlineLayer, config, layerId, layers);
+        return layer._svAdminOutlineLayer;
+    }
+    const data = getSVPolygonSourceData(layer);
+    if (!data?.features?.length) return null;
+    const outline = createSVHitPolygonLayer(data, {
+        map,
+        thinBoundaries: usesCadastrePolygonRendering(config)
+    });
+    layer._svAdminOutlineLayer = outline;
+    layer._svCadastreOutlineLayer = outline;
+    bindSVIconPolygonInteractions(outline, config, layerId, layers);
+    return outline;
+}
+
+function syncSVIconCadastrePolygons(map, layer, config, layerId, layers) {
+    if (!map || !layer || !layerDefersCadastrePolygons(config)) return;
+    if (cadastreIconPolygonsShouldShow(map, config)) {
+        const outline = ensureSVIconPolygonChrome(layer, map, config, layerId, layers);
+        if (outline && !map.hasLayer(outline)) outline.addTo(map);
+        applySVHitPolygonStyle(outline, { thinBoundaries: true });
+        return;
+    }
+    if (layer._svAdminOutlineLayer && map.hasLayer(layer._svAdminOutlineLayer)) {
+        map.removeLayer(layer._svAdminOutlineLayer);
+    }
+}
+
+function attachSVIconCadastrePolygonZoomSync(map, layer, config, layerId, layers) {
+    if (!map || !layer || !layerDefersCadastrePolygons(config)) return;
+    detachSVIconCadastrePolygonZoomSync(map, layer);
+    const handler = () => syncSVIconCadastrePolygons(map, layer, config, layerId, layers);
+    layer._svIconCadastrePolygonZoomHandler = handler;
+    map.on('zoomend', handler);
+}
+
+function detachSVIconCadastrePolygonZoomSync(map, layer) {
+    if (!map || !layer?._svIconCadastrePolygonZoomHandler) return;
+    map.off('zoomend', layer._svIconCadastrePolygonZoomHandler);
+    layer._svIconCadastrePolygonZoomHandler = null;
 }
 
 /**
@@ -3174,6 +4057,10 @@ function setupSVRadioControls(map, layers, colorScales, addLegendEntry, removeLe
 
             if (this.checked) {
                 applySVLayerExclusivity(layerId);
+                currentSVLayer = layerId;
+                if (isColorOnlyMode()) {
+                    setIsolatedLayerId(layerId);
+                }
                 const loadVersion = svResolutionVersion;
                 await loadSVLayer(layerId, map, layers, colorScales, addLegendEntry, removeLegendEntry, updateLegend, hideLegend, loadVersion);
                 if (loadVersion !== svResolutionVersion || !this.checked) {
@@ -3182,6 +4069,9 @@ function setupSVRadioControls(map, layers, colorScales, addLegendEntry, removeLe
                 }
                 activeSVLayers.add(layerId);
                 currentSVLayer = layerId;
+                if (isColorOnlyMode()) {
+                    setIsolatedLayerId(layerId);
+                }
             } else {
                 if (layers.vector[layerId]) {
                     removeSubindicatorMapExtras(map, layers.vector[layerId]);
@@ -3206,6 +4096,9 @@ function setupSVRadioControls(map, layers, colorScales, addLegendEntry, removeLe
                 activeSVLayers.delete(layerId);
                 if (currentSVLayer === layerId) {
                     currentSVLayer = activeSVLayers.size ? Array.from(activeSVLayers).at(-1) : null;
+                }
+                if (isColorOnlyMode()) {
+                    setIsolatedLayerId(currentSVLayer);
                 }
                 if (ICON_PAIR_LAYER_IDS.includes(layerId)) {
                     syncIconPairMarkerPositions(map, layers);
@@ -3666,7 +4559,12 @@ async function loadPopulationLayer(map, layers, colorScales, addLegendEntry) {
 
     try {
         if (!layers.vector[layerId]) {
-            const loadedLayer = await loadVectorLayer(config.url, { style: config.style });
+            const loadedLayer = await loadVectorLayer(config.url, {
+                style: config.style,
+                geoJsonOptions: usesCadastrePolygonRendering(config)
+                    ? getCadastrePolygonGeoJsonOptions({ useCanvas: usesCadastreCanvasFill(config) })
+                    : undefined
+            });
             layers.vector[layerId] = loadedLayer;
             addInfoPopupHandler(loadedLayer, config.layerType || 'population');
             attachPolygonSelectionHandlers(layerId, loadedLayer, layers, config);
@@ -3805,6 +4703,11 @@ async function autoLoadSVAdmin1(map, layers, colorScales, addLegendEntry, remove
 }
 
 function countSVLayerFeatures(layer) {
+    if (layer?._svForestFireRecords?.length) {
+        return layer._svForestFireRecords.length;
+    }
+    const polygonCount = layer?._svPolygonGeoJson?.features?.length;
+    if (polygonCount) return polygonCount;
     const grouped = layer?._svDisplacementMarkerLayer
         || layer?._svSectarianMarkerLayer
         || layer?._svAdminOutlineLayer;
@@ -3858,7 +4761,12 @@ async function loadSVLayer(layerId, map, layers, colorScales, addLegendEntry, re
             } else if (config.renderMode === 'sectarian-glyph') {
                 loadedLayer = await loadSVSectarianGlyphLayer(config, map);
             } else {
-                loadedLayer = await loadVectorLayer(config.url, { style: config.style });
+                loadedLayer = await loadVectorLayer(config.url, {
+                    style: config.style,
+                    geoJsonOptions: usesCadastrePolygonRendering(config)
+                        ? getCadastrePolygonGeoJsonOptions({ useCanvas: usesCadastreCanvasFill(config) })
+                        : undefined
+                });
             }
             if (expectedVersion !== svResolutionVersion) return;
             layers.vector[layerId] = loadedLayer;
@@ -3876,8 +4784,11 @@ async function loadSVLayer(layerId, map, layers, colorScales, addLegendEntry, re
             if (map.hasLayer(layers.vector[layerId])) map.removeLayer(layers.vector[layerId]);
             const loaded = layers.vector[layerId];
             if (layerUsesAuxiliaryColorFill(loaded, config)) {
-                const outline = loaded._svAdminOutlineLayer;
-                if (outline && !map.hasLayer(outline)) outline.addTo(map);
+                if (!layerDefersCadastrePolygons(config)) {
+                    ensureSVIconPolygonChrome(loaded, map, config, layerId, layers);
+                    const outline = loaded._svAdminOutlineLayer;
+                    if (outline && !map.hasLayer(outline)) outline.addTo(map);
+                }
             } else {
                 loaded.addTo(map);
             }
@@ -3909,11 +4820,17 @@ async function loadSVLayer(layerId, map, layers, colorScales, addLegendEntry, re
             if (layers.vector[layerId]?._svAdminOutlineLayer) {
                 layers.vector[layerId]._svAdminOutlineLayer.addTo(map);
             }
+            attachSVIconCadastrePolygonZoomSync(map, layers.vector[layerId], config, layerId, layers);
+            syncSVIconCadastrePolygons(map, layers.vector[layerId], config, layerId, layers);
             attachSVServiceMarkerZoomSync(map, layers.vector[layerId], layers);
             updateSVServiceMarkerIconSizes(map, layers.vector[layerId], layers);
         } else if (config.renderMode === 'forest-fire-symbol') {
             if (layers.vector[layerId]?._svAdminOutlineLayer) {
                 layers.vector[layerId]._svAdminOutlineLayer.addTo(map);
+            }
+            if (!layers.vector[layerId]?._svUsesForestFireGrid) {
+                attachSVIconCadastrePolygonZoomSync(map, layers.vector[layerId], config, layerId, layers);
+                syncSVIconCadastrePolygons(map, layers.vector[layerId], config, layerId, layers);
             }
             attachSVForestFireMarkerZoomSync(map, layers.vector[layerId], layers);
             updateSVForestFireMarkerIconSizes(map, layers.vector[layerId], layers);
@@ -4003,9 +4920,9 @@ async function loadSVLayer(layerId, map, layers, colorScales, addLegendEntry, re
                     colorRamp,
                     opacity,
                     updateLegendForLayer,
-                    { skipTooltips: true }
+                    getSVFillStyleOptions(config)
                 );
-                applySVPolygonOutlineStyle(layers.vector[layerId], config);
+                applySVPolygonOutlineStyle(layers.vector[layerId], config, { map });
                 reapplySelectedPolygonHighlight(layerId);
                 if (layerId === 'svAdmin3Layer' && supportsPeaceSubindicators(config)) {
                     renderSVSubindicatorPanel('svAdmin3Layer');
@@ -4159,19 +5076,33 @@ function getDisplacementClusterFillColor(cluster, styleState) {
 }
 
 function getPolygonIconHome(feature) {
-    try {
-        const tempLayer = L.geoJSON(feature);
-        const bounds = tempLayer.getBounds();
-        if (!bounds?.isValid?.() || !bounds.isValid()) return null;
-        const center = bounds.getCenter();
-        return {
-            lat: center.lat,
-            lng: center.lng,
-            latSpan: Math.max(0, bounds.getNorth() - bounds.getSouth()),
-            lngSpan: Math.max(0, bounds.getEast() - bounds.getWest())
-        };
-    } catch (error) {
-        return null;
+    const coords = feature?.geometry?.coordinates;
+    if (!coords) return null;
+    const bounds = { minLng: Infinity, maxLng: -Infinity, minLat: Infinity, maxLat: -Infinity };
+    extendLngLatBounds(coords, bounds);
+    if (!Number.isFinite(bounds.minLng) || bounds.minLng === Infinity) return null;
+    return {
+        lat: (bounds.minLat + bounds.maxLat) / 2,
+        lng: (bounds.minLng + bounds.maxLng) / 2,
+        latSpan: Math.max(0, bounds.maxLat - bounds.minLat),
+        lngSpan: Math.max(0, bounds.maxLng - bounds.minLng)
+    };
+}
+
+function extendLngLatBounds(coords, bounds) {
+    if (!coords) return;
+    if (typeof coords[0] === 'number') {
+        const lng = coords[0];
+        const lat = coords[1];
+        if (!Number.isFinite(lng) || !Number.isFinite(lat)) return;
+        if (lng < bounds.minLng) bounds.minLng = lng;
+        if (lng > bounds.maxLng) bounds.maxLng = lng;
+        if (lat < bounds.minLat) bounds.minLat = lat;
+        if (lat > bounds.maxLat) bounds.maxLat = lat;
+        return;
+    }
+    for (let i = 0; i < coords.length; i++) {
+        extendLngLatBounds(coords[i], bounds);
     }
 }
 
@@ -4196,7 +5127,7 @@ function buildCenteredIconPointFeatures(sourceFeatures) {
         if (!home) return;
         pointFeatures.push({
             type: 'Feature',
-            properties: { ...(feature.properties || {}) },
+            properties: feature.properties || {},
             geometry: {
                 type: 'Point',
                 coordinates: [home.lng, home.lat]
@@ -4317,6 +5248,9 @@ function syncIconPairMarkerPositions(map, layers) {
             updateSVServiceMarkerIconSizes(map, layer, layers);
         } else if (layer._isSVForestFireSymbolLayer) {
             updateSVForestFireMarkerIconSizes(map, layer, layers);
+            if (layer._svUsesForestFireGrid) {
+                syncSVForestFireCadastreIcons(map, layer, layers);
+            }
         }
     });
     const activeCount = getActiveIconPairLayerIds(layers).length;
@@ -4325,17 +5259,30 @@ function syncIconPairMarkerPositions(map, layers) {
         if (!layer || !isIconPairLayerShowingMarkers(layerId, layers)) return;
         const slot = getIconPairSlot(layerId, layers);
         const markers = layer._svServiceAllMarkers || layer._svForestFireAllMarkers || [];
+        if (layer._svUsesForestFireGrid && !svForestFireCadastreShowsIndividuals(map)) {
+            return;
+        }
+        let moved = false;
         markers.forEach(marker => {
             const home = marker._svIconHome;
             const latlng = latLngForIconPairSlot(home, slot, activeCount, map, layers);
             if (!latlng || typeof marker.setLatLng !== 'function') return;
+            const current = marker.getLatLng?.();
+            if (
+                current
+                && Math.abs(current.lat - latlng.lat) < 1e-10
+                && Math.abs(current.lng - latlng.lng) < 1e-10
+            ) {
+                return;
+            }
             marker.setLatLng(latlng);
+            moved = true;
             if (marker.feature?.geometry?.type === 'Point') {
                 marker.feature.geometry.coordinates = [latlng.lng, latlng.lat];
             }
         });
         const cluster = layer._svServiceClusterLayer || layer._svForestFireClusterLayer;
-        if (cluster?.refreshClusters) {
+        if (moved && cluster?.refreshClusters) {
             cluster.refreshClusters();
         }
     });
@@ -4452,7 +5399,7 @@ async function loadSVServiceSymbolLayer(config, map = null) {
     const symbolColors = config.serviceSymbolColors || ['#22c55e', '#f59e0b', '#dc2626'];
     const iconUrls = getServiceSymbolIconUrls(config);
     const resolution = getActiveAdminResolution();
-    const markerSize = getSVServiceMarkerSize(null, resolution);
+    const markerSize = getSVServiceMarkerSize(map, resolution);
 
     const markerLayer = L.geoJSON({ type: 'FeatureCollection', features: pointFeatures }, {
         pointToLayer: (feature, latlng) => {
@@ -4477,6 +5424,9 @@ async function loadSVServiceSymbolLayer(config, map = null) {
             zoomToBoundsOnClick: true,
             disableClusteringAtZoom: SV_SERVICE_DISABLE_CLUSTERING_AT_ZOOM,
             maxClusterRadius: 52,
+            chunkedLoading: true,
+            chunkInterval: 50,
+            chunkDelay: 10,
             iconCreateFunction: cluster => createSVServiceClusterIcon(cluster, iconUrls)
         })
         : null;
@@ -4489,10 +5439,14 @@ async function loadSVServiceSymbolLayer(config, map = null) {
     const finalLayer = clusterLayer || markerLayer;
     if (clusterLayer) clusterLayer.addLayer(markerLayer);
 
-    const adminOutlineLayer = createSVHitPolygonLayer(data, {
-        map,
-        thinBoundaries: resolution === 'cadastre'
-    });
+    if (resolution !== 'cadastre') {
+        const adminOutlineLayer = createSVHitPolygonLayer(data, {
+            map,
+            thinBoundaries: false
+        });
+        finalLayer._svAdminOutlineLayer = adminOutlineLayer;
+        finalLayer._svCadastreOutlineLayer = adminOutlineLayer;
+    }
 
     finalLayer.layerData = {
         raw: { type: 'FeatureCollection', features: pointFeatures },
@@ -4506,32 +5460,235 @@ async function loadSVServiceSymbolLayer(config, map = null) {
     finalLayer._svServiceClusterLayer = clusterLayer;
     finalLayer._svServiceAllMarkers = allMarkers;
     finalLayer._svServicePriorityOnly = getDefaultServicePriorityOnly();
-    finalLayer._svAdminOutlineLayer = adminOutlineLayer;
-    finalLayer._svCadastreOutlineLayer = adminOutlineLayer;
     finalLayer._svPolygonGeoJson = data;
     return finalLayer;
+}
+
+const SV_FOREST_FIRE_GRID_CELL_PX = 52;
+
+function svForestFireCadastreShowsIndividuals(map) {
+    return Boolean(map && typeof map.getZoom === 'function' && map.getZoom() >= SV_SERVICE_DISABLE_CLUSTERING_AT_ZOOM);
+}
+
+function stampSVForestFireLayer(finalLayer, {
+    layerId,
+    data,
+    pointFeatures,
+    attr,
+    breaks,
+    iconUrls,
+    markerLayer = null,
+    clusterLayer = null,
+    allMarkers = [],
+    records = null,
+    usesGrid = false
+}) {
+    finalLayer.layerData = {
+        raw: { type: 'FeatureCollection', features: pointFeatures },
+        propertyFields: Object.keys(pointFeatures[0]?.properties || {}),
+        selectedProperty: attr,
+        colorRamp: null
+    };
+    finalLayer._isSVForestFireSymbolLayer = true;
+    finalLayer._svForestFireLayerId = layerId;
+    finalLayer._svForestFireMeta = { breaks, iconUrls, svAttribute: attr };
+    finalLayer._svForestFireMarkerLayer = markerLayer;
+    finalLayer._svForestFireClusterLayer = clusterLayer;
+    finalLayer._svForestFireAllMarkers = allMarkers;
+    finalLayer._svForestFireRecords = records;
+    finalLayer._svUsesForestFireGrid = Boolean(usesGrid);
+    finalLayer._svPolygonGeoJson = data;
+    return finalLayer;
+}
+
+function rebuildSVForestFireGridLayer(layer, map, layers) {
+    if (!layer._svForestFireGridLayer) {
+        layer._svForestFireGridLayer = L.layerGroup();
+    } else {
+        layer._svForestFireGridLayer.clearLayers();
+    }
+    const records = layer._svForestFireRecords || [];
+    const iconUrls = layer._svForestFireMeta?.iconUrls || FOREST_FIRE_ICON_URLS;
+    const layerId = layer._svForestFireLayerId;
+    const slot = getIconPairSlot(layerId, layers);
+    const activeCount = getIconPairMultiCount(layers);
+    const zoom = map.getZoom();
+    const markerSize = getForestFireMarkerSize(map, 'cadastre', layers);
+    const cells = new Map();
+    records.forEach(rec => {
+        const latlng = latLngForIconPairSlot(rec.home, slot, activeCount, map, layers)
+            || L.latLng(rec.lat, rec.lng);
+        const projected = map.project(latlng, zoom);
+        const key = `${Math.floor(projected.x / SV_FOREST_FIRE_GRID_CELL_PX)}_${Math.floor(projected.y / SV_FOREST_FIRE_GRID_CELL_PX)}`;
+        let cell = cells.get(key);
+        if (!cell) {
+            cell = { sumLat: 0, sumLng: 0, n: 0, classCounts: [0, 0, 0], records: [] };
+            cells.set(key, cell);
+        }
+        cell.sumLat += latlng.lat;
+        cell.sumLng += latlng.lng;
+        cell.n += 1;
+        if (rec.classIndex >= 0 && rec.classIndex < 3) cell.classCounts[rec.classIndex] += 1;
+        cell.records.push(rec);
+    });
+    const config = layerConfig[layerId];
+    cells.forEach(cell => {
+        const lat = cell.sumLat / cell.n;
+        const lng = cell.sumLng / cell.n;
+        if (cell.n === 1) {
+            const rec = cell.records[0];
+            const marker = L.marker([lat, lng], {
+                icon: buildForestFireMarkerIcon(rec.classIndex, markerSize, iconUrls),
+                opacity: 1,
+                interactive: true,
+                keyboard: false,
+                zIndexOffset: SV_ICON_MARKER_Z_INDEX_OFFSET
+            });
+            marker.feature = {
+                type: 'Feature',
+                properties: rec.properties,
+                geometry: { type: 'Point', coordinates: [lng, lat] }
+            };
+            marker._svIconHome = rec.home;
+            layer._svForestFireGridLayer.addLayer(marker);
+        } else {
+            const marker = L.marker([lat, lng], {
+                icon: buildForestFireCountClusterIcon(cell.classCounts, cell.n, iconUrls),
+                opacity: 1,
+                interactive: true,
+                keyboard: false,
+                zIndexOffset: SV_ICON_MARKER_Z_INDEX_OFFSET
+            });
+            marker.on('click', () => {
+                const nextZoom = Math.min(map.getMaxZoom(), map.getZoom() + 2);
+                map.setView(marker.getLatLng(), nextZoom);
+            });
+            layer._svForestFireGridLayer.addLayer(marker);
+        }
+    });
+    if (config) {
+        bindSVHoverTooltipsOnLayer(layer._svForestFireGridLayer, layerId, config);
+        addInfoPopupHandler(layer._svForestFireGridLayer, config.layerType || 'sv-default');
+    }
+}
+
+function ensureSVForestFireIndividualMarkers(layer, map, layers) {
+    if (layer._svForestFireAllMarkers?.length) return;
+    const records = layer._svForestFireRecords || [];
+    const iconUrls = layer._svForestFireMeta?.iconUrls || FOREST_FIRE_ICON_URLS;
+    const markerSize = getForestFireMarkerSize(map, 'cadastre', layers);
+    const markerLayer = L.layerGroup();
+    const markers = [];
+    records.forEach(rec => {
+        const marker = L.marker([rec.lat, rec.lng], {
+            icon: buildForestFireMarkerIcon(rec.classIndex, markerSize, iconUrls),
+            opacity: 1,
+            interactive: true,
+            keyboard: false,
+            zIndexOffset: SV_ICON_MARKER_Z_INDEX_OFFSET
+        });
+        marker.feature = {
+            type: 'Feature',
+            properties: rec.properties,
+            geometry: { type: 'Point', coordinates: [rec.lng, rec.lat] }
+        };
+        marker._svIconHome = rec.home;
+        markers.push(marker);
+        markerLayer.addLayer(marker);
+    });
+    layer._svForestFireMarkerLayer = markerLayer;
+    layer._svForestFireAllMarkers = markers;
+    const layerId = layer._svForestFireLayerId;
+    const config = layerConfig[layerId];
+    if (config && layers) {
+        addInfoPopupHandler(markerLayer, config.layerType || 'sv-default');
+        attachPolygonSelectionHandlers(layerId, markerLayer, layers, config);
+    }
+}
+
+function syncSVForestFireCadastreIcons(map, layer, layers = null) {
+    if (!map || !layer?._svUsesForestFireGrid) return;
+    if (isColorOnlyMode() || layer._svForestFireMarkersWanted === false) {
+        if (map.hasLayer(layer)) map.removeLayer(layer);
+        return;
+    }
+    if (!map.hasLayer(layer)) layer.addTo(map);
+    if (svForestFireCadastreShowsIndividuals(map)) {
+        if (layer._svForestFireGridLayer && layer.hasLayer(layer._svForestFireGridLayer)) {
+            layer.removeLayer(layer._svForestFireGridLayer);
+        }
+        ensureSVForestFireIndividualMarkers(layer, map, layers);
+        if (layer._svForestFireMarkerLayer && !layer.hasLayer(layer._svForestFireMarkerLayer)) {
+            layer.addLayer(layer._svForestFireMarkerLayer);
+        }
+        return;
+    }
+    if (layer._svForestFireMarkerLayer && layer.hasLayer(layer._svForestFireMarkerLayer)) {
+        layer.removeLayer(layer._svForestFireMarkerLayer);
+    }
+    const layerId = layer._svForestFireLayerId;
+    const slotKey = `${map.getZoom()}|${getIconPairSlot(layerId, layers)}|${getIconPairMultiCount(layers)}`;
+    if (layer._svForestFireGridKey !== slotKey || !layer._svForestFireGridLayer) {
+        rebuildSVForestFireGridLayer(layer, map, layers);
+        layer._svForestFireGridKey = slotKey;
+    }
+    if (layer._svForestFireGridLayer && !layer.hasLayer(layer._svForestFireGridLayer)) {
+        layer.addLayer(layer._svForestFireGridLayer);
+    }
 }
 
 async function loadSVForestFireSymbolLayer(layerId, config, map = null) {
     const response = await fetch(config.url);
     const data = await response.json();
     const sourceFeatures = data?.features || [];
-    const { pointFeatures, homes } = buildCenteredIconPointFeatures(sourceFeatures);
-
     const attr = getEffectiveChoroplethAttribute(layerId, config) || config.svAttribute;
-    const numericValues = pointFeatures
-        .map(feature => Number(feature.properties?.[attr]))
-        .filter(value => Number.isFinite(value));
-    const breaks = resolveClassificationBreaks(numericValues, FOREST_FIRE_CLASS_COUNT, getClassificationMode());
-    const iconUrls = getClassIconUrls(config);
     const resolution = getActiveAdminResolution();
-    const markerSize = getForestFireMarkerSize(null, resolution);
+    const iconUrls = getClassIconUrls(config);
 
+    const located = [];
+    const numericValues = [];
+    sourceFeatures.forEach(feature => {
+        const home = getPolygonIconHome(feature);
+        if (!home) return;
+        const props = feature.properties || {};
+        const raw = Number(props[attr]);
+        if (Number.isFinite(raw)) numericValues.push(raw);
+        located.push({ home, props, raw });
+    });
+    const breaks = resolveClassificationBreaks(numericValues, FOREST_FIRE_CLASS_COUNT, getClassificationMode());
+    const records = [];
+    const pointFeatures = [];
+    const homes = [];
+    located.forEach(({ home, props, raw }) => {
+        const classIndex = Number.isFinite(raw) ? getPatternClassIndex(raw, breaks) : 0;
+        const properties = { ...props, __svForestFireClassIndex: classIndex };
+        records.push({ lat: home.lat, lng: home.lng, home, classIndex, properties });
+        pointFeatures.push({
+            type: 'Feature',
+            properties,
+            geometry: { type: 'Point', coordinates: [home.lng, home.lat] }
+        });
+        homes.push(home);
+    });
+
+    if (resolution === 'cadastre') {
+        const finalLayer = L.layerGroup();
+        return stampSVForestFireLayer(finalLayer, {
+            layerId,
+            data,
+            pointFeatures,
+            attr,
+            breaks,
+            iconUrls,
+            records,
+            usesGrid: true
+        });
+    }
+
+    const markerSize = getForestFireMarkerSize(map, resolution);
     const markerLayer = L.geoJSON({ type: 'FeatureCollection', features: pointFeatures }, {
         pointToLayer: (feature, latlng) => {
-            const raw = Number(feature.properties?.[attr]);
-            const classIndex = Number.isFinite(raw) ? getPatternClassIndex(raw, breaks) : 0;
-            feature.properties = { ...(feature.properties || {}), __svForestFireClassIndex: classIndex };
+            const classIndex = Number(feature.properties?.__svForestFireClassIndex) || 0;
             return L.marker(latlng, {
                 icon: buildForestFireMarkerIcon(classIndex, markerSize, iconUrls),
                 opacity: 1,
@@ -4543,45 +5700,28 @@ async function loadSVForestFireSymbolLayer(layerId, config, map = null) {
     });
     attachIconHomesToMarkers(markerLayer, homes);
 
-    const clusterLayer = usesForestFireMarkerClustering(resolution) && typeof L.markerClusterGroup === 'function'
-        ? L.markerClusterGroup({
-            showCoverageOnHover: false,
-            spiderfyOnMaxZoom: true,
-            zoomToBoundsOnClick: true,
-            disableClusteringAtZoom: SV_SERVICE_DISABLE_CLUSTERING_AT_ZOOM,
-            maxClusterRadius: 52,
-            iconCreateFunction: cluster => createForestFireClusterIcon(cluster, iconUrls)
-        })
-        : null;
-
     const allMarkers = [];
     markerLayer.eachLayer(marker => {
         allMarkers.push(marker);
     });
 
-    const finalLayer = clusterLayer || markerLayer;
-    if (clusterLayer) clusterLayer.addLayer(markerLayer);
-
+    const finalLayer = markerLayer;
     const adminOutlineLayer = createSVHitPolygonLayer(data, {
         map,
-        thinBoundaries: resolution === 'cadastre'
+        thinBoundaries: false
     });
-
-    finalLayer.layerData = {
-        raw: { type: 'FeatureCollection', features: pointFeatures },
-        propertyFields: Object.keys(pointFeatures[0]?.properties || {}),
-        selectedProperty: attr,
-        colorRamp: null
-    };
-    finalLayer._isSVForestFireSymbolLayer = true;
-    finalLayer._svForestFireMeta = { breaks, iconUrls, svAttribute: attr };
-    finalLayer._svForestFireMarkerLayer = markerLayer;
-    finalLayer._svForestFireClusterLayer = clusterLayer;
-    finalLayer._svForestFireAllMarkers = allMarkers;
     finalLayer._svAdminOutlineLayer = adminOutlineLayer;
     finalLayer._svCadastreOutlineLayer = adminOutlineLayer;
-    finalLayer._svPolygonGeoJson = data;
-    return finalLayer;
+    return stampSVForestFireLayer(finalLayer, {
+        layerId,
+        data,
+        pointFeatures,
+        attr,
+        breaks,
+        iconUrls,
+        markerLayer,
+        allMarkers
+    });
 }
 
 /** Class colors for the inward edge glow (Low / Medium / High). */
@@ -4960,6 +6100,11 @@ function restoreSVEdgeFadeFromColorOnly(map, layers, layerId) {
         thinBoundaries: Boolean(layerConfig[layerId]?.thinBoundaries)
     });
     layer._svEdgeFadeColorOnly = false;
+    if (outline) outline._svKeepOutlinesWhenZoomedOut = true;
+    layer._svKeepOutlinesWhenZoomedOut = true;
+    if (outline && map) {
+        attachCadastreOutlineZoomSync(map, outline, layerConfig[layerId]);
+    }
 }
 
 const SECTARIAN_GLYPH_ICON_SIZE = [28, 28];
@@ -5072,14 +6217,9 @@ function getServiceSymbolIconUrl(classIndex, iconUrls = SERVICE_SYMBOL_ICON_URLS
 
 function buildSVServiceMarkerIcon(classIndex, sizePx = SV_SERVICE_MARKER_SIZE_DEFAULT, iconUrls = SERVICE_SYMBOL_ICON_URLS) {
     const size = Math.max(12, Math.round(sizePx));
-    const anchor = Math.round(size / 2);
     const url = getServiceSymbolIconUrl(classIndex, iconUrls);
-    return L.divIcon({
-        className: 'sv-service-symbol-wrapper',
-        html: `<img src="${url}" alt="" width="${size}" height="${size}" style="width:${size}px;height:${size}px;display:block;pointer-events:none;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.35));">`,
-        iconSize: [size, size],
-        iconAnchor: [anchor, anchor]
-    });
+    return getCachedClassMarkerIcon('service', url, size, 'sv-service-symbol-wrapper',
+        'filter:drop-shadow(0 1px 2px rgba(0,0,0,0.35));');
 }
 
 function getSVServiceMarkerSize(map, resolution = getActiveAdminResolution(), layers = null) {
@@ -5098,13 +6238,15 @@ function getSVServiceMarkerSize(map, resolution = getActiveAdminResolution(), la
 
 function updateSVServiceMarkerIconSizes(map, layer, layers = null) {
     if (!layer?._isSVServiceSymbolLayer) return;
+    if (classIconMarkersAreClustered(map, usesServiceMarkerClustering())) return;
     const size = getSVServiceMarkerSize(map, getActiveAdminResolution(), layers);
     const iconUrls = layer._svServiceSymbolMeta?.iconUrls || SERVICE_SYMBOL_ICON_URLS;
     (layer._svServiceAllMarkers || []).forEach(marker => {
         const classIndex = Number(marker?.feature?.properties?.__svServiceClassIndex);
-        if (typeof marker.setIcon === 'function') {
-            marker.setIcon(buildSVServiceMarkerIcon(classIndex, size, iconUrls));
-        }
+        if (typeof marker.setIcon !== 'function') return;
+        const nextIcon = buildSVServiceMarkerIcon(classIndex, size, iconUrls);
+        if (marker.options.icon === nextIcon) return;
+        marker.setIcon(nextIcon);
     });
 }
 
@@ -5138,12 +6280,18 @@ function refreshSVServiceSymbolLayer(map, layers, addLegendEntry, options = {}) 
 
     setSVServiceChoroplethOnMap(map, layer, false);
     setSVServiceMarkersOnMap(map, layer, true);
-    if (layer._svAdminOutlineLayer && map && !map.hasLayer(layer._svAdminOutlineLayer)) {
+    layer._svKeepOutlinesWhenZoomedOut = true;
+    if (layer._svAdminOutlineLayer) layer._svAdminOutlineLayer._svKeepOutlinesWhenZoomedOut = true;
+    if (layer._svAdminOutlineLayer && map && !map.hasLayer(layer._svAdminOutlineLayer)
+        && !layerDefersCadastrePolygons(config)) {
         layer._svAdminOutlineLayer.addTo(map);
     }
-    applySVHitPolygonStyle(layer._svAdminOutlineLayer, {
-        thinBoundaries: Boolean(config.thinBoundaries)
-    });
+    syncSVIconCadastrePolygons(map, layer, config, layerId, layers);
+    if (layer._svAdminOutlineLayer) {
+        applySVHitPolygonStyle(layer._svAdminOutlineLayer, {
+            thinBoundaries: Boolean(config.thinBoundaries)
+        });
+    }
 
     const attr = getEffectiveServiceAttribute(config);
     const pointFeatures = layer.layerData?.raw?.features || [];
@@ -5316,6 +6464,32 @@ function getClassIconDropShadowStyle(iconUrls, { cluster = false } = {}) {
         : 'filter:drop-shadow(0 1px 2px rgba(0,0,0,0.35));';
 }
 
+const classMarkerIconCache = new Map();
+
+function getCachedClassMarkerIcon(kind, url, size, className, extraStyle) {
+    const key = `${kind}|${url}|${size}|${className}|${extraStyle}`;
+    let icon = classMarkerIconCache.get(key);
+    if (icon) return icon;
+    const anchor = Math.round(size / 2);
+    icon = L.divIcon({
+        className,
+        html: `<img src="${url}" alt="" width="${size}" height="${size}" style="width:${size}px;height:${size}px;display:block;pointer-events:none;${extraStyle}">`,
+        iconSize: [size, size],
+        iconAnchor: [anchor, anchor]
+    });
+    classMarkerIconCache.set(key, icon);
+    return icon;
+}
+
+function classIconMarkersAreClustered(map, usesClustering) {
+    return Boolean(
+        usesClustering
+        && map
+        && typeof map.getZoom === 'function'
+        && map.getZoom() < SV_SERVICE_DISABLE_CLUSTERING_AT_ZOOM
+    );
+}
+
 function getForestFireIconUrl(classIndex, iconUrls = FOREST_FIRE_ICON_URLS) {
     const urls = iconUrls?.length ? iconUrls : FOREST_FIRE_ICON_URLS;
     const idx = Math.max(0, Math.min(urls.length - 1, Number(classIndex) || 0));
@@ -5324,15 +6498,9 @@ function getForestFireIconUrl(classIndex, iconUrls = FOREST_FIRE_ICON_URLS) {
 
 function buildForestFireMarkerIcon(classIndex, sizePx = FOREST_FIRE_MARKER_SIZE_DEFAULT, iconUrls = FOREST_FIRE_ICON_URLS) {
     const size = Math.max(16, Math.round(sizePx));
-    const anchor = Math.round(size / 2);
     const url = getForestFireIconUrl(classIndex, iconUrls);
-    const shadow = getClassIconDropShadowStyle(iconUrls);
-    return L.divIcon({
-        className: 'sv-forest-fire-symbol-wrapper',
-        html: `<img src="${url}" alt="" width="${size}" height="${size}" style="width:${size}px;height:${size}px;display:block;pointer-events:none;${shadow}">`,
-        iconSize: [size, size],
-        iconAnchor: [anchor, anchor]
-    });
+    return getCachedClassMarkerIcon('forest', url, size, 'sv-forest-fire-symbol-wrapper',
+        getClassIconDropShadowStyle(iconUrls));
 }
 
 function getForestFireMarkerSize(map, resolution = getActiveAdminResolution(), layers = null) {
@@ -5349,20 +6517,14 @@ function getForestFireMarkerSize(map, resolution = getActiveAdminResolution(), l
     return scalePairedIconSize(base, map, layers);
 }
 
-function createForestFireClusterIcon(cluster, iconUrls = FOREST_FIRE_ICON_URLS) {
-    const children = cluster.getAllChildMarkers();
-    const classCounts = [0, 0, 0];
-    children.forEach(marker => {
-        const idxRaw = marker?.feature?.properties?.__svForestFireClassIndex;
-        const idx = Number.isFinite(Number(idxRaw)) ? Number(idxRaw) : 0;
-        if (idx >= 0 && idx < classCounts.length) classCounts[idx] += 1;
-    });
+function buildForestFireCountClusterIcon(classCounts, count, iconUrls = FOREST_FIRE_ICON_URLS) {
+    const counts = classCounts || [0, 0, 0];
     let dominantClass = 0;
-    for (let i = 1; i < classCounts.length; i++) {
-        if (classCounts[i] > classCounts[dominantClass]) dominantClass = i;
+    for (let i = 1; i < counts.length; i++) {
+        if (counts[i] > counts[dominantClass]) dominantClass = i;
     }
-    const count = Math.max(1, cluster.getChildCount());
-    const diameter = Math.max(34, Math.min(64, Math.round(28 + Math.sqrt(count) * 5.5)));
+    const n = Math.max(1, count);
+    const diameter = Math.max(34, Math.min(64, Math.round(28 + Math.sqrt(n) * 5.5)));
     const iconSize = Math.round(diameter * 0.72);
     const url = getForestFireIconUrl(dominantClass, iconUrls);
     const countSize = Math.max(10, Math.min(14, Math.round(diameter * 0.22)));
@@ -5371,7 +6533,7 @@ function createForestFireClusterIcon(cluster, iconUrls = FOREST_FIRE_ICON_URLS) 
         html: `
             <div style="position:relative;width:${diameter}px;height:${diameter}px;display:flex;align-items:center;justify-content:center;">
                 <img src="${url}" alt="" width="${iconSize}" height="${iconSize}" style="width:${iconSize}px;height:${iconSize}px;display:block;${getClassIconDropShadowStyle(iconUrls, { cluster: true })}">
-                <span style="position:absolute;right:0;bottom:0;min-width:${countSize + 6}px;height:${countSize + 4}px;padding:0 4px;border-radius:999px;background:rgba(17,24,39,0.85);color:#fff;border:1px solid rgba(255,255,255,0.9);font-weight:700;font-size:${countSize}px;line-height:${countSize + 4}px;text-align:center;">${count}</span>
+                <span style="position:absolute;right:0;bottom:0;min-width:${countSize + 6}px;height:${countSize + 4}px;padding:0 4px;border-radius:999px;background:rgba(17,24,39,0.85);color:#fff;border:1px solid rgba(255,255,255,0.9);font-weight:700;font-size:${countSize}px;line-height:${countSize + 4}px;text-align:center;">${n}</span>
             </div>
         `,
         iconSize: [diameter, diameter],
@@ -5379,15 +6541,29 @@ function createForestFireClusterIcon(cluster, iconUrls = FOREST_FIRE_ICON_URLS) 
     });
 }
 
+function createForestFireClusterIcon(cluster, iconUrls = FOREST_FIRE_ICON_URLS) {
+    const children = cluster.getAllChildMarkers();
+    const classCounts = [0, 0, 0];
+    children.forEach(marker => {
+        const idxRaw = marker?.feature?.properties?.__svForestFireClassIndex;
+        const idx = Number.isFinite(Number(idxRaw)) ? Number(idxRaw) : 0;
+        if (idx >= 0 && idx < classCounts.length) classCounts[idx] += 1;
+    });
+    return buildForestFireCountClusterIcon(classCounts, cluster.getChildCount(), iconUrls);
+}
+
 function updateSVForestFireMarkerIconSizes(map, layer, layers = null) {
     if (!layer?._isSVForestFireSymbolLayer) return;
+    if (layer._svUsesForestFireGrid && !svForestFireCadastreShowsIndividuals(map)) return;
+    if (classIconMarkersAreClustered(map, usesForestFireMarkerClustering()) && !layer._svUsesForestFireGrid) return;
     const size = getForestFireMarkerSize(map, getActiveAdminResolution(), layers);
     const iconUrls = layer._svForestFireMeta?.iconUrls || FOREST_FIRE_ICON_URLS;
     (layer._svForestFireAllMarkers || []).forEach(marker => {
         const classIndex = Number(marker?.feature?.properties?.__svForestFireClassIndex);
-        if (typeof marker.setIcon === 'function') {
-            marker.setIcon(buildForestFireMarkerIcon(classIndex, size, iconUrls));
-        }
+        if (typeof marker.setIcon !== 'function') return;
+        const nextIcon = buildForestFireMarkerIcon(classIndex, size, iconUrls);
+        if (marker.options.icon === nextIcon) return;
+        marker.setIcon(nextIcon);
     });
 }
 
@@ -5395,6 +6571,9 @@ function attachSVForestFireMarkerZoomSync(map, layer, layers = null) {
     if (!map || !layer?._isSVForestFireSymbolLayer) return;
     detachSVForestFireMarkerZoomSync(map, layer);
     const handler = () => {
+        if (layer._svUsesForestFireGrid && !isColorOnlyMode()) {
+            syncSVForestFireCadastreIcons(map, layer, layers);
+        }
         if (layers) syncIconPairMarkerPositions(map, layers);
         else updateSVForestFireMarkerIconSizes(map, layer, layers);
     };
@@ -5408,8 +6587,13 @@ function detachSVForestFireMarkerZoomSync(map, layer) {
     layer._svForestFireMarkerZoomHandler = null;
 }
 
-function setSVForestFireMarkersOnMap(map, layer, onMap) {
+function setSVForestFireMarkersOnMap(map, layer, onMap, layers = null) {
     if (!map || !layer) return;
+    layer._svForestFireMarkersWanted = onMap;
+    if (layer._svUsesForestFireGrid) {
+        syncSVForestFireCadastreIcons(map, layer, layers);
+        return;
+    }
     const markerHost = layer._svForestFireClusterLayer || layer._svForestFireMarkerLayer || layer;
     if (onMap) {
         if (!map.hasLayer(markerHost)) markerHost.addTo(map);
@@ -5433,13 +6617,19 @@ function refreshSVForestFireSymbolLayer(layerId, map, layers, addLegendEntry, op
     }
 
     setSVServiceChoroplethOnMap(map, layer, false);
-    setSVForestFireMarkersOnMap(map, layer, true);
-    if (layer._svAdminOutlineLayer && map && !map.hasLayer(layer._svAdminOutlineLayer)) {
+    setSVForestFireMarkersOnMap(map, layer, true, layers);
+    layer._svKeepOutlinesWhenZoomedOut = true;
+    if (layer._svAdminOutlineLayer) layer._svAdminOutlineLayer._svKeepOutlinesWhenZoomedOut = true;
+    if (layer._svAdminOutlineLayer && map && !map.hasLayer(layer._svAdminOutlineLayer)
+        && !layerDefersCadastrePolygons(config)) {
         layer._svAdminOutlineLayer.addTo(map);
     }
-    applySVHitPolygonStyle(layer._svAdminOutlineLayer, {
-        thinBoundaries: Boolean(config.thinBoundaries)
-    });
+    syncSVIconCadastrePolygons(map, layer, config, layerId, layers);
+    if (layer._svAdminOutlineLayer) {
+        applySVHitPolygonStyle(layer._svAdminOutlineLayer, {
+            thinBoundaries: Boolean(config.thinBoundaries)
+        });
+    }
 
     const attr = getEffectiveChoroplethAttribute(layerId, config) || config.svAttribute;
     const pointFeatures = layer.layerData?.raw?.features || [];
@@ -5449,6 +6639,16 @@ function refreshSVForestFireSymbolLayer(layerId, map, layers, addLegendEntry, op
     const breaks = resolveClassificationBreaks(numericValues, FOREST_FIRE_CLASS_COUNT, getClassificationMode());
     const iconUrls = getClassIconUrls(config);
     const allMarkers = layer._svForestFireAllMarkers || [];
+    const records = layer._svForestFireRecords || [];
+
+    records.forEach(rec => {
+        const raw = Number(rec.properties?.[attr]);
+        rec.classIndex = Number.isFinite(raw) ? getPatternClassIndex(raw, breaks) : 0;
+        rec.properties.__svForestFireClassIndex = rec.classIndex;
+    });
+    if (records.length) {
+        layer._svForestFireGridKey = null;
+    }
 
     allMarkers.forEach(marker => {
         if (!marker.feature?.properties) return;
@@ -5462,6 +6662,10 @@ function refreshSVForestFireSymbolLayer(layerId, map, layers, addLegendEntry, op
     layer._svForestFireMeta = { breaks, iconUrls, svAttribute: attr };
     if (layer.layerData) {
         layer.layerData.selectedProperty = attr;
+    }
+    if (layer._svUsesForestFireGrid) {
+        layer._svForestFireGridKey = null;
+        syncSVForestFireCadastreIcons(map, layer, layers);
     }
 
     const clusterLayer = layer._svForestFireClusterLayer;
@@ -5490,7 +6694,7 @@ function refreshSVForestFireSymbolLayer(layerId, map, layers, addLegendEntry, op
         });
     }
 
-    updateSVHoverTooltips(layer._svAdminOutlineLayer || layer, layerId, config);
+    updateSVHoverTooltips(layer._svAdminOutlineLayer || layer._svForestFireGridLayer || layer, layerId, config);
     if (window.currentInfoPanel) {
         const opacitySlider = document.getElementById(config.opacityControl);
         const opacity = opacitySlider ? parseFloat(opacitySlider.value) : 0.6;
@@ -5523,11 +6727,13 @@ function removeSVAuxiliaryLayers(map, layer) {
     detachSVServiceCadastreOutlineZoom(map, layer);
     detachSVServiceMarkerZoomSync(map, layer);
     detachSVForestFireMarkerZoomSync(map, layer);
+    detachSVIconCadastrePolygonZoomSync(map, layer);
+    destroySVChoroplethFill(map, layer);
+    removeCadastreChoroplethOutline(map, layer);
     if (layer._svAdminOutlineLayer && map.hasLayer(layer._svAdminOutlineLayer)) map.removeLayer(layer._svAdminOutlineLayer);
     const visualOutline = layer._svAdminOutlineLayer?._svVisualOutlineLayer;
     if (visualOutline && map.hasLayer(visualOutline)) map.removeLayer(visualOutline);
     if (layer._svCadastreOutlineLayer && map.hasLayer(layer._svCadastreOutlineLayer)) map.removeLayer(layer._svCadastreOutlineLayer);
-    if (layer._svChoroplethFillLayer && map.hasLayer(layer._svChoroplethFillLayer)) map.removeLayer(layer._svChoroplethFillLayer);
     if (layer._svScoreLabelHost && map.hasLayer(layer._svScoreLabelHost)) map.removeLayer(layer._svScoreLabelHost);
 }
 
@@ -5837,9 +7043,9 @@ function setupSVColorRampSelector(map, layers, addLegendEntry, updateLegend) {
                 fixedRamp,
                 opacity,
                 updateLegendForLayer,
-                { skipTooltips: true }
+                getSVFillStyleOptions(config)
             );
-            applySVPolygonOutlineStyle(layers.vector[layerId], config);
+            applySVPolygonOutlineStyle(layers.vector[layerId], config, { map });
             updateSVHoverTooltips(layers.vector[layerId], layerId, config);
             reapplySelectedPolygonHighlight(layerId);
             if (isActiveThemeLayer(layerId)) {
@@ -6128,7 +7334,8 @@ function applySVColorFallback(layerId, layer, config, opacity) {
                 labels
             });
         }
-    });
+    }, getSVFillStyleOptions(config));
+    applySVPolygonOutlineStyle(layer, config);
 }
 
 function applySVStripePatternStyle(layerId, layer, config, opacity, map, addLegendEntry) {
@@ -6362,10 +7569,12 @@ function applySVLayerOpacity(layerId, layers, opacity, map = null, addLegendEntr
         return;
     }
 
-    layer.setStyle({
-        fillOpacity: opacity,
-        opacity: opacity
-    });
+    if (!usesCadastrePolygonRendering(config)) {
+        layer.setStyle({
+            fillOpacity: opacity,
+            opacity: opacity
+        });
+    }
 
     const fixedRamp = getColorRamp(config.fixedColorRamp);
     if (fixedRamp) {
@@ -6381,8 +7590,8 @@ function applySVLayerOpacity(layerId, layers, opacity, map = null, addLegendEntr
                 labels,
                 window.addLegendEntry
             );
-        }, { skipTooltips: true });
-        applySVPolygonOutlineStyle(layer, config);
+        }, getSVFillStyleOptions(config));
+        applySVPolygonOutlineStyle(layer, config, { map });
     }
     updateSVHoverTooltips(layer, layerId, config);
     reapplySelectedPolygonHighlight(layerId);
@@ -7308,7 +8517,7 @@ function updateVectorLayerFromControls(layerId, layers, addLegendEntry, updateLe
         colorRamp, 
         opacity, 
         updateLegendForLayer,
-        { skipTooltips: config.type === 'sv-vector' }
+        getSVFillStyleOptions(config, { skipTooltips: config.type === 'sv-vector' })
     );
     applySVPolygonOutlineStyle(layers.vector[layerId], config);
     reapplySelectedPolygonHighlight(layerId);
@@ -7323,15 +8532,31 @@ function updateVectorLayerFromControls(layerId, layers, addLegendEntry, updateLe
 
 function applySVPolygonOutlineStyle(vectorLayer, config = null, options = {}) {
     if (!vectorLayer || typeof vectorLayer.eachLayer !== 'function') return;
-    const target = vectorLayer._svVisualOutlineLayer || vectorLayer;
+    const isCadastre = usesCadastrePolygonRendering(config);
+    const map = options.map
+        || vectorLayer._map
+        || vectorLayer._svAdminOutlineLayer?._map
+        || vectorLayer._svChoroplethFillLayer?._map
+        || null;
+
+    if (isCadastre && !options.hide && map) {
+        ensureCadastreChoroplethOutline(vectorLayer, map, config);
+    }
+
+    const visual = vectorLayer._svVisualOutlineLayer;
+    const target = visual || vectorLayer;
     if (options.hide) {
+        // Cadastre gray borders stay on the dedicated outline layer at every zoom.
+        if (isCadastre) return;
         target.eachLayer(featureLayer => {
             if (typeof featureLayer?.setStyle !== 'function') return;
             featureLayer.setStyle({ weight: 0, opacity: 0 });
         });
         return;
     }
-    const isCadastre = Boolean(config?.thinBoundaries);
+    if (isCadastre && !visual) {
+        return;
+    }
     const isPeaceCadastre = isCadastre && config?.layerType === 'sv-admin3';
     target.eachLayer(featureLayer => {
         if (typeof featureLayer?.setStyle !== 'function') return;
@@ -7347,6 +8572,9 @@ function applySVPolygonOutlineStyle(vectorLayer, config = null, options = {}) {
                 : (isCadastre ? SV_OUTLINE_CADASTRE_OPACITY : SV_OUTLINE_OPACITY)
         });
     });
+    if (isCadastre && map) {
+        attachCadastreOutlineZoomSync(map, vectorLayer, config);
+    }
 }
 
 /**
@@ -8112,13 +9340,19 @@ function updateSVHoverTooltips(layer, layerId, config) {
         layer._svDisplacementMarkerLayer ||
         layer._svSectarianMarkerLayer ||
         (layer._isSVEdgeFadeRingLayer ? layer._svAdminOutlineLayer : null) ||
-        (layer._isSVForestFireSymbolLayer ? layer._svAdminOutlineLayer : null) ||
+        (layer._isSVForestFireSymbolLayer
+            ? (layer._svAdminOutlineLayer
+                || layer._svChoroplethFillLayer
+                || layer._svForestFireGridLayer
+                || layer._svForestFireMarkerLayer)
+            : null) ||
         layer;
 
-    if (isColorOnlyMode() && layer._svAdminOutlineLayer && typeof layer._svAdminOutlineLayer.eachLayer === 'function') {
-        target = layer._svAdminOutlineLayer;
+    if (isColorOnlyMode()) {
+        target = layer._svAdminOutlineLayer || layer._svChoroplethFillLayer || layer;
     }
 
+    if (target?._svIsCanvasChoropleth) return;
     if (!target || typeof target.eachLayer !== 'function') return;
 
     target.eachLayer(featureLayer => {
@@ -8150,7 +9384,10 @@ function getSVScoreLabelTarget(layer, layerId, config) {
         return ensureSVScoreLabelHost(layer);
     }
     if (config.renderMode === 'forest-fire-symbol') {
-        return layer._svAdminOutlineLayer || ensureSVScoreLabelHost(layer);
+        return layer._svAdminOutlineLayer
+            || (isColorOnlyMode() ? layer._svChoroplethFillLayer : null)
+            || layer._svForestFireMarkerLayer
+            || ensureSVScoreLabelHost(layer);
     }
     if (config.renderMode === 'edge-fade-ring') {
         return layer._svAdminOutlineLayer || ensureSVScoreLabelHost(layer);
@@ -8211,6 +9448,8 @@ function getSVLabelRelatedLayers(layer) {
         layer._svChoroplethFillLayer,
         layer._svDisplacementMarkerLayer,
         layer._svSectarianMarkerLayer,
+        layer._svForestFireGridLayer,
+        layer._svForestFireMarkerLayer,
         layer._svScoreLabelHost
     ].filter(Boolean);
 }
@@ -8238,6 +9477,9 @@ function syncSVPermanentScoreLabels(map, layers) {
             const config = layerConfig[id];
             const layer = layers?.vector?.[id];
             if (layer && config) updateSVHoverTooltips(layer, id, config);
+            if (layer?._svChoroplethFillLayer?._svIsCanvasChoropleth) {
+                layer._svChoroplethFillLayer.redraw();
+            }
         });
         return;
     }
@@ -8274,6 +9516,11 @@ function syncSVPermanentScoreLabels(map, layers) {
 
         updateSVHoverTooltips(lyr, id, cfg);
     });
+
+    if (labelTarget?._svIsCanvasChoropleth) {
+        if (typeof labelTarget.redraw === 'function') labelTarget.redraw();
+        return;
+    }
 
     if (!labelTarget || typeof labelTarget.eachLayer !== 'function') {
         updateSVHoverTooltips(layer, layerId, config);
