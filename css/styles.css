@@ -254,38 +254,41 @@
 }
 
 .map-aoi-select-btn {
-    border: 1px solid #c4b5fd;
+    border: 1px solid #ced4da;
     border-radius: 6px;
-    background: #fff;
-    color: #5b21b6;
+    background: #ffffff;
+    color: #495057;
+    font-family: inherit;
     font-size: 12px;
     font-weight: 600;
+    line-height: 1.25;
     padding: 8px 12px;
     cursor: pointer;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-    transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+    transition: background-color 0.2s, border-color 0.2s, color 0.2s;
 }
 
 .map-aoi-select-btn:hover {
-    background: #f5f3ff;
-    border-color: #a78bfa;
+    background: #f8f9fa;
+    border-color: #6c757d;
 }
 
 .map-aoi-select-btn.is-active,
 .map-aoi-select-btn[aria-pressed="true"] {
-    background: #7c3aed;
-    border-color: #7c3aed;
-    color: #fff;
+    background: linear-gradient(135deg, #0f766e 0%, #14b8a6 100%);
+    border-color: #0f766e;
+    color: #ffffff;
 }
 
 .map-aoi-select-btn.is-active:hover,
 .map-aoi-select-btn[aria-pressed="true"]:hover {
-    background: #6d28d9;
-    border-color: #6d28d9;
+    background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%);
+    border-color: #0f766e;
+    color: #ffffff;
 }
 
 .map-aoi-select-btn:focus-visible {
-    outline: 2px solid #7c3aed;
+    outline: 2px solid #0f766e;
     outline-offset: 2px;
 }
 
