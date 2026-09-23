@@ -4056,10 +4056,20 @@ function setupSVRadioControls(map, layers, colorScales, addLegendEntry, removeLe
             }
 
             if (this.checked) {
+                // Color mode stays on the layer it was turned on for. Choosing a
+                // different layer drops color mode so that layer loads in its
+                // default style (circles, stripes, symbols, glow, or fill).
+                const leaveColorForNewLayer =
+                    event.isTrusted &&
+                    isColorOnlyMode() &&
+                    getIsolatedLayerId() !== layerId;
                 applySVLayerExclusivity(layerId);
                 currentSVLayer = layerId;
-                if (isColorOnlyMode()) {
+                if (isColorOnlyMode() && !leaveColorForNewLayer) {
                     setIsolatedLayerId(layerId);
+                }
+                if (leaveColorForNewLayer) {
+                    await setColorOnlyMode(false);
                 }
                 const loadVersion = svResolutionVersion;
                 await loadSVLayer(layerId, map, layers, colorScales, addLegendEntry, removeLegendEntry, updateLegend, hideLegend, loadVersion);
@@ -4098,7 +4108,14 @@ function setupSVRadioControls(map, layers, colorScales, addLegendEntry, removeLe
                     currentSVLayer = activeSVLayers.size ? Array.from(activeSVLayers).at(-1) : null;
                 }
                 if (isColorOnlyMode()) {
-                    setIsolatedLayerId(currentSVLayer);
+                    const isolated = getIsolatedLayerId();
+                    const userLeftColorLayer =
+                        event.isTrusted && (layerId === isolated || !currentSVLayer);
+                    if (userLeftColorLayer) {
+                        await setColorOnlyMode(false);
+                    } else {
+                        setIsolatedLayerId(currentSVLayer);
+                    }
                 }
                 if (ICON_PAIR_LAYER_IDS.includes(layerId)) {
                     syncIconPairMarkerPositions(map, layers);

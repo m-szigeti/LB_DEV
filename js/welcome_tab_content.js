@@ -53,7 +53,7 @@ export const WELCOME_TAB_HTML = `
             <div style="font-size:12px; font-weight:700; color:#6d6d6d; letter-spacing:0.06em; margin:6px 0 8px; border-bottom:1px solid #d9d9d9; padding-bottom:5px;">DISPLAY OPTIONS</div>
             <div style="font-size:12px; color:#3e3e3e; line-height:1.55; margin-bottom:14px;">
                 <div style="margin-bottom:6px;"><strong>Show Labels</strong> &mdash; Displays score labels on the map for the active layer.</div>
-                <div style="margin-bottom:6px;"><strong>Color</strong> (on each composite layer) &mdash; Shows that layer alone as a plain color choropleth. Click again to return to the default symbol, stripe, or glow style.</div>
+                <div style="margin-bottom:6px;"><strong>Color</strong> (on each composite layer) &mdash; Shows that layer alone as a plain color choropleth. Click again, or choose another layer, to return to the default symbol, stripe, or glow style.</div>
                 <div><strong>Custom Overall Index</strong> &mdash; Build an exploratory composite from selected themes and sub-indicators, keeping the official Overall as the reference.</div>
             </div>
 
