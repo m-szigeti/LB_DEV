@@ -73,6 +73,7 @@ import {
     setColorOnlyMode
 } from './map_display_controls.js';
 import { configureAoiProviders } from './aoi_context.js';
+import { sumPillars } from './aoi_summary.js';
 import { configureAoiSpotlight, forceAoiStyleRecovery } from './aoi_spotlight.js';
 
 const JUNE17_DATA = 'data/June17';
@@ -3281,6 +3282,7 @@ function bindSVHoverTooltipsOnLayer(target, layerId, config) {
 }
 
 const sourceGeoJsonCache = new Map();
+let globalThemeSumsCache = { key: '', value: null };
 
 async function getSourceLayerGeoJson(sourceLayerId, resolution, layers) {
     const loaded = layers.vector[sourceLayerId]?.layerData?.raw;
@@ -4260,6 +4262,7 @@ function setupSVRadioControls(map, layers, colorScales, addLegendEntry, removeLe
             );
         },
         getPillarBreakdown: properties => getSVPillarBreakdown(properties, layers),
+        getGlobalThemeSums: () => getGlobalSVThemeSums(layers),
         isOverallLayer: layerId =>
             layerId === SV_OVERALL_LAYER_ID || layerId === CUSTOM_OVERALL_LAYER_ID,
         getActiveResolution: () => getActiveAdminResolution()
@@ -4385,6 +4388,7 @@ async function applySVResolution(resolution, map, layers, colorScales, addLegend
     }
     await clearCustomOverallOnResolutionChange();
     sourceGeoJsonCache.clear();
+    globalThemeSumsCache = { key: '', value: null };
     const requestVersion = ++svResolutionVersion;
     clearAnalysisSelection();
     window.currentInfoPanel?.updateAnalysisAreaSelection?.();
@@ -10060,45 +10064,86 @@ async function buildActiveLayerPopupScores(properties, layers) {
     return scores;
 }
 
+function readMatchedThemeScore(matchedProps, pillarConfig, attributeKey) {
+    let rawValue = matchedProps?.[attributeKey];
+    if (
+        (rawValue === undefined || rawValue === null || rawValue === '') &&
+        pillarConfig?.renderMode === 'proportional-circles'
+    ) {
+        rawValue = resolveDisplacementPropertyValue(matchedProps, attributeKey);
+    }
+    const value = typeof rawValue === 'number' ? rawValue : Number(rawValue);
+    return Number.isFinite(value) ? value : 0;
+}
+
+async function collectThemeScoreSpecs(layers) {
+    const resolution = getActiveAdminResolution();
+    const specs = [];
+    for (const theme of SV_THEME_SCORE_DEFINITIONS) {
+        const resolutionLayer = SV_RESOLUTION_CONFIG[resolution]?.[theme.layerId];
+        if (!resolutionLayer?.available || !resolutionLayer?.url) continue;
+        const lookup = await getSVLayerLookup(theme.layerId, layers);
+        const pillarConfig = layerConfig[theme.layerId];
+        specs.push({
+            theme,
+            lookup,
+            pillarConfig,
+            attributeKey:
+                resolutionLayer.svAttribute ||
+                pillarConfig?.svAttribute ||
+                theme.attribute ||
+                'composite_score'
+        });
+    }
+    return specs;
+}
+
+function pillarsForProperties(properties, specs) {
+    if (!properties || !specs.length || !collectFeatureLookupKeys(properties).length) return null;
+    return specs.map(spec => ({
+        label: spec.theme.label,
+        color: spec.theme.color,
+        layerId: spec.theme.layerId,
+        value: readMatchedThemeScore(
+            matchLookupProps(spec.lookup, properties),
+            spec.pillarConfig,
+            spec.attributeKey
+        )
+    }));
+}
+
+/**
+ * Spider-chart sums for every admin unit at the current resolution,
+ * as if the whole map were selected.
+ */
+async function getGlobalSVThemeSums(layers) {
+    const resolution = getActiveAdminResolution();
+    if (globalThemeSumsCache.key === resolution && globalThemeSumsCache.value) {
+        return globalThemeSumsCache.value;
+    }
+
+    const overall = await getSourceLayerGeoJson(SV_OVERALL_LAYER_ID, resolution, layers);
+    const features = overall?.features || [];
+    const specs = await collectThemeScoreSpecs(layers);
+    const themeSets = [];
+    features.forEach(feature => {
+        const properties = feature?.properties;
+        if (!properties || isAcsCodeNoData(properties)) return;
+        const pillars = pillarsForProperties(properties, specs);
+        if (pillars?.length) themeSets.push(pillars);
+    });
+
+    const themeSums = sumPillars(themeSets);
+    const value = { themeSums, unitCount: themeSums.unitCount || 0 };
+    globalThemeSumsCache = { key: resolution, value };
+    return value;
+}
+
 async function getSVPillarBreakdown(properties, layers) {
     if (!properties || !collectFeatureLookupKeys(properties).length) return null;
 
-    const resolution = getActiveAdminResolution();
-    const pillars = [];
-
-    for (const theme of SV_THEME_SCORE_DEFINITIONS) {
-        const resolutionLayer = SV_RESOLUTION_CONFIG[resolution]?.[theme.layerId];
-        if (!resolutionLayer?.available || !resolutionLayer?.url) {
-            continue;
-        }
-
-        const lookup = await getSVLayerLookup(theme.layerId, layers);
-        const matchedProps = matchLookupProps(lookup, properties);
-        const pillarConfig = layerConfig[theme.layerId];
-        const attributeKey =
-            resolutionLayer.svAttribute ||
-            pillarConfig?.svAttribute ||
-            theme.attribute ||
-            'composite_score';
-        let rawValue = matchedProps?.[attributeKey];
-        if (
-            (rawValue === undefined || rawValue === null || rawValue === '') &&
-            pillarConfig?.renderMode === 'proportional-circles'
-        ) {
-            rawValue = resolveDisplacementPropertyValue(matchedProps, attributeKey);
-        }
-        const value = typeof rawValue === 'number' ? rawValue : Number(rawValue);
-        pillars.push({
-            label: theme.label,
-            color: theme.color,
-            layerId: theme.layerId,
-            value: Number.isFinite(value) ? value : 0
-        });
-    }
-
-    if (!pillars.length) {
-        return null;
-    }
+    const pillars = pillarsForProperties(properties, await collectThemeScoreSpecs(layers));
+    if (!pillars?.length) return null;
 
     const total = pillars.reduce((sum, item) => sum + Math.max(0, item.value), 0);
     if (total <= 0) {

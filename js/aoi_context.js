@@ -93,6 +93,21 @@ export function getAoiProviders() {
     return providers;
 }
 
+/** Theme sums for every unit at the current resolution (no AOI selection yet). */
+export async function buildGlobalThemeSpiderBundle() {
+    if (!providers?.getGlobalThemeSums) return null;
+    const result = await providers.getGlobalThemeSums();
+    const infoLayers = Array.from(providers.getActiveInfoLayers?.() || []);
+    const themeSums = result?.themeSums || { pillars: [], unitCount: 0 };
+    return {
+        global: true,
+        themeSums,
+        selectionCount: result?.unitCount || themeSums.unitCount || 0,
+        resolutionLabel: getActiveAdminResolutionLabel(),
+        activeLayerIds: infoLayers.map(layer => layer?.id).filter(Boolean)
+    };
+}
+
 function parseNumeric(raw) {
     const value = typeof raw === 'number' ? raw : Number(raw);
     return Number.isFinite(value) ? value : null;
@@ -463,7 +478,7 @@ export async function buildAoiSummaries() {
         districtsInSelection: [
             ...new Set(
                 items
-                    .map(item => getDistrictName(item.properties))
+                    .map(item => item.name || getDistrictName(item.properties))
                     .filter(Boolean)
             )
         ].sort((a, b) => a.localeCompare(b))

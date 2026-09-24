@@ -9,6 +9,7 @@ import {
 } from './aoi_summary.js';
 import {
     buildAoiSummaries,
+    buildGlobalThemeSpiderBundle,
     findFeaturesInDistrict,
     getActiveResolutionFromProviders,
     getPrimaryLeafletLayerForSelection,
@@ -169,10 +170,6 @@ function renderMetricCards(summary) {
                 <div class="aoi-metric-value">${escapeHtml(formatAoiNumber(summary.stats.mean))}</div>
             </div>
             <div class="aoi-metric-card">
-                <div class="aoi-metric-label">Median</div>
-                <div class="aoi-metric-value">${escapeHtml(formatAoiNumber(summary.stats.median))}</div>
-            </div>
-            <div class="aoi-metric-card">
                 <div class="aoi-metric-label">Mean (pop-weighted)</div>
                 <div class="aoi-metric-value">${escapeHtml(formatAoiNumber(summary.weighted.weightedMean))}</div>
                 <div class="aoi-metric-note">${escapeHtml(weightedNote)}</div>
@@ -218,7 +215,7 @@ function renderClassBars(summary) {
         .join('');
     return `
         <div class="aoi-section">
-            <div class="aoi-section-title">Class distribution (units)</div>
+            <div class="aoi-section-title">Class Distribution</div>
             ${rows}
             ${
                 summary.distribution.noDataUnits
@@ -273,6 +270,8 @@ function renderAoiThemeSpider(bundle) {
     if (!pillars.length) return '';
     const count = Number(bundle.selectionCount) || bundle.themeSums.unitCount || 0;
     const unitWord = count === 1 ? 'unit' : 'units';
+    const global = Boolean(bundle.global);
+    const scope = global ? `all ${count} ${unitWord}` : `the ${count} selected ${unitWord}`;
     const model = buildThemeSpiderModel({
         themes: pillars,
         activeLayerIds: bundle.activeLayerIds || []
@@ -281,12 +280,12 @@ function renderAoiThemeSpider(bundle) {
         <div class="aoi-theme-spider">
             ${generateThemeSpiderHtml(model, {
                 showLegend: false,
-                titleProfile: 'Theme scores (AOI sum)',
-                titleStacked: 'Selected themes (AOI sum)',
+                titleProfile: global ? 'Theme scores (all units)' : 'Theme scores (AOI sum)',
+                titleStacked: global ? 'Selected themes (all units)' : 'Selected themes (AOI sum)',
                 hintProfile:
-                    `Each corner is a theme. Distance from the centre is the <strong>sum</strong> of that theme&rsquo;s scores across the ${count} selected ${unitWord}. Higher = higher vulnerability. Scores do <strong>not</strong> add up to 1.`,
+                    `Each corner is a theme. Distance from the centre is the <strong>sum</strong> of that theme&rsquo;s scores across ${scope}. Higher = higher vulnerability. Scores do <strong>not</strong> add up to 1.`,
                 hintStacked:
-                    `Each coloured web is one selected theme. Larger web = the <strong>sum</strong> of that theme&rsquo;s scores across the ${count} selected ${unitWord}. Scores are independent and do <strong>not</strong> add up to 1.`
+                    `Each coloured web is one selected theme. Larger web = the <strong>sum</strong> of that theme&rsquo;s scores across ${scope}. Scores are independent and do <strong>not</strong> add up to 1.`
             })}
         </div>
     `;
@@ -322,9 +321,9 @@ function renderLayerSummary(summary) {
         <div class="aoi-layer-block" data-aoi-layer="${escapeHtml(summary.layerId)}">
             <h5 class="aoi-layer-title">${escapeHtml(summary.layerName)}</h5>
             <p class="aoi-layer-attribute">${escapeHtml(summary.attributeLabel)} · ${summary.scoredCount}/${summary.unitCount} scored</p>
-            ${renderMetricCards(summary)}
             ${renderClassBars(summary)}
             ${renderExtremes(summary)}
+            ${renderMetricCards(summary)}
             <p class="aoi-footnote">Means summarise unit scores at the current resolution; they are not a new composite index.</p>
         </div>
     `;
@@ -354,34 +353,41 @@ export async function renderAoiPanelHtml() {
     const resolution = getActiveResolutionFromProviders();
 
     if (!count) {
-        if (isAnalysisSelectionActive()) {
+        const globalBundle = await buildGlobalThemeSpiderBundle();
+        const spider = globalBundle ? renderAoiThemeSpider(globalBundle) : '';
+        if (!spider) {
             return `
                 <div class="aoi-empty">
-                    <p class="no-results-message">Click map units to build an AOI, or add a whole district below.</p>
-                    ${renderDistrictSelectControls(resolution)}
+                    <p class="no-results-message">Use Select Area of Interest on the map, then click units to build an AOI.</p>
                 </div>
             `;
         }
         return `
-            <div class="aoi-empty">
-                <p class="no-results-message">Use Select Area of Interest on the map, then click units to build an AOI.</p>
+            <div class="aoi-panel">
+                ${spider}
+                ${isAnalysisSelectionActive() ? renderDistrictSelectControls(resolution) : ''}
             </div>
         `;
     }
 
     const bundle = await buildAoiSummaries();
-    const districtNote =
-        bundle.districtsInSelection?.length
-            ? `<p class="aoi-layer-attribute">Districts represented: ${bundle.districtsInSelection
-                  .map(escapeHtml)
-                  .join(', ')}</p>`
-            : '';
+    const representedLabel =
+        bundle.resolutionLabel === 'Governorate'
+            ? 'Governorates'
+            : bundle.resolutionLabel === 'Cadastre'
+              ? 'Cadastres'
+              : 'Districts';
+    const representedNote = bundle.districtsInSelection?.length
+        ? `<div class="aoi-represented">
+                <div class="aoi-represented-label">${representedLabel} represented</div>
+                <div class="aoi-represented-names">${bundle.districtsInSelection.map(escapeHtml).join(', ')}</div>
+           </div>`
+        : '';
 
     const summaryHeader = `
         <div class="aoi-header">
             <h5 class="aoi-title">AOI summary (${escapeHtml(bundle.resolutionLabel)})</h5>
             <p class="aoi-layer-attribute">${bundle.selectionCount} unit${bundle.selectionCount === 1 ? '' : 's'} selected</p>
-            ${districtNote}
         </div>
     `;
 
@@ -389,6 +395,7 @@ export async function renderAoiPanelHtml() {
         return `
             <div class="aoi-panel">
                 ${renderAoiThemeSpider(bundle)}
+                ${representedNote}
                 ${
                     bundle.themeSums?.pillars?.length
                         ? ''
@@ -399,7 +406,7 @@ export async function renderAoiPanelHtml() {
                 <div class="aoi-export-row">
                     ${
                         CUSTOM_OVERALL_BUILDER_ENABLED
-                            ? '<button type="button" class="aoi-export-btn aoi-custom-index-btn" data-aoi-action="design-custom-index">Design custom Index for AOI</button>'
+                            ? '<button type="button" class="aoi-export-btn aoi-custom-index-btn" data-aoi-action="design-custom-index">Design Custom Index</button>'
                             : ''
                     }
                     <button type="button" class="aoi-export-btn" data-aoi-action="clear">Clear AOI</button>
@@ -411,13 +418,14 @@ export async function renderAoiPanelHtml() {
     return `
         <div class="aoi-panel">
             ${renderAoiThemeSpider(bundle)}
+            ${representedNote}
             ${bundle.summaries.map(renderLayerSummary).join('')}
             ${renderDistrictSelectControls(resolution)}
             ${summaryHeader}
             <div class="aoi-export-row">
                 ${
                     CUSTOM_OVERALL_BUILDER_ENABLED
-                        ? '<button type="button" class="aoi-export-btn aoi-custom-index-btn" data-aoi-action="design-custom-index">Design custom Index for AOI</button>'
+                        ? '<button type="button" class="aoi-export-btn aoi-custom-index-btn" data-aoi-action="design-custom-index">Design Custom Index</button>'
                         : ''
                 }
                 <button type="button" class="aoi-export-btn" data-aoi-action="export-csv">Export CSV</button>
