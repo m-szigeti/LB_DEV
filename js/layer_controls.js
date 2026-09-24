@@ -105,7 +105,8 @@ const JUNE17_FILES = {
     },
     theme4: {
         governorate: dataFile('GOV Theme 4 - Service & Infrastructure Vulnerability__from_dis_spatial.geojson'),
-        district: dataFile('DIS Theme 4 - Service & Infrastructure Vulnerability__joined.geojson')
+        district: dataFile('DIS Theme 4 - Service & Infrastructure Vulnerability__joined.geojson'),
+        cadastre: dataFile('CAD Theme 4 - Service & Infrastructure Vulnerability_predicted.geojson')
     },
     theme6: {
         governorate: dataFile('GOV Theme 6 - Climate and Environmental Risk__from_dis_spatial.geojson'),
@@ -114,11 +115,13 @@ const JUNE17_FILES = {
     },
     theme7: {
         governorate: dataFile('GOV Theme 7 - Political Vulnerability__from_dis_spatial.geojson'),
-        district: dataFile('DIS Theme 7 - Political Vulnerability__joined.geojson')
+        district: dataFile('DIS Theme 7 - Political Vulnerability__joined.geojson'),
+        cadastre: dataFile('CAD Theme 7 - Political Vulnerability_predicted.geojson')
     },
     theme8: {
         governorate: dataFile('GOV Theme 8 - Gender Based Vulnerabilities__from_dis_spatial.geojson'),
-        district: dataFile('DIS Theme 8 - Gender Based Vulnerabilities__joined.geojson')
+        district: dataFile('DIS Theme 8 - Gender Based Vulnerabilities__joined.geojson'),
+        cadastre: dataFile('CAD Theme 8 - Gender Based Vulnerabilities_predicted.geojson')
     }
 };
 
@@ -982,10 +985,11 @@ const SV_RESOLUTION_CONFIG = {
             thinBoundaries: true
         },
         svAdmin4Layer: {
-            url: null,
-            available: false,
+            url: JUNE17_FILES.theme4.cadastre,
+            available: true,
             svAttribute: 'composite_score',
-            thinBoundaries: true
+            thinBoundaries: true,
+            mlPredicted: true
         },
         svClimateLayer: {
             url: JUNE17_FILES.theme6.cadastre,
@@ -994,16 +998,18 @@ const SV_RESOLUTION_CONFIG = {
             thinBoundaries: true
         },
         svPoliticalLayer: {
-            url: null,
-            available: false,
+            url: JUNE17_FILES.theme7.cadastre,
+            available: true,
             svAttribute: 'composite_score',
-            thinBoundaries: true
+            thinBoundaries: true,
+            mlPredicted: true
         },
         svGenderLayer: {
-            url: null,
-            available: false,
+            url: JUNE17_FILES.theme8.cadastre,
+            available: true,
             svAttribute: 'composite_score',
-            thinBoundaries: true
+            thinBoundaries: true,
+            mlPredicted: true
         }
     },
     governorate: {
@@ -1576,7 +1582,7 @@ function getServiceFieldLabel(fieldKey) {
 }
 
 function supportsServiceSubindicators(resolution = getActiveAdminResolution()) {
-    return resolution === 'district' || resolution === 'governorate';
+    return resolution === 'district' || resolution === 'governorate' || resolution === 'cadastre';
 }
 
 function getServiceSubindicatorOptions(resolution = getActiveAdminResolution()) {
@@ -4981,7 +4987,8 @@ async function loadSVLayer(layerId, map, layers, colorScales, addLegendEntry, re
             selectedAttribute: getEffectiveChoroplethAttribute(layerId, config),
             opacity: 0.6,
             layer: loaded,
-            featureCount: countSVLayerFeatures(loaded)
+            featureCount: countSVLayerFeatures(loaded),
+            mlPredicted: Boolean(SV_RESOLUTION_CONFIG[getActiveAdminResolution()]?.[layerId]?.mlPredicted)
         });
     }
     if (ICON_PAIR_LAYER_IDS.includes(layerId)) {
@@ -9298,6 +9305,63 @@ function formatSVHoverScoreValue(value) {
     return String(value);
 }
 
+function getStoredSVClassBreaks(layerId, config) {
+    const vector = window.mapLayers?.vector?.[layerId];
+    const mode = config?.renderMode;
+    if (vector && !isColorOnlyMode()) {
+        if (mode === 'stripe-pattern' || mode === 'service-pattern') {
+            const patternBreaks = svPatternCache.get(layerId)?.breaks;
+            if (patternBreaks?.length >= 2) return patternBreaks;
+        }
+        if (mode === 'edge-fade-ring' && vector._svEdgeFadeMeta?.breaks?.length >= 2) {
+            return vector._svEdgeFadeMeta.breaks;
+        }
+        if (mode === 'service-symbol' && vector._svServiceSymbolMeta?.breaks?.length >= 2) {
+            return vector._svServiceSymbolMeta.breaks;
+        }
+        if (mode === 'forest-fire-symbol' && vector._svForestFireMeta?.breaks?.length >= 2) {
+            return vector._svForestFireMeta.breaks;
+        }
+    }
+    const spec =
+        vector?.layerData?.colorSpec ||
+        vector?._svChoroplethFillLayer?.layerData?.colorSpec ||
+        vector?._svAdminOutlineLayer?.layerData?.colorSpec;
+    if (spec?.mode === 'continuous' && spec.breaks?.length >= 2) {
+        return spec.breaks;
+    }
+    return null;
+}
+
+/** Class word for a hovered score, using the same breaks as the drawn layer. */
+function getSVHoverClassLabel(numericValue, layerId, config) {
+    const breaks = getStoredSVClassBreaks(layerId, config);
+    if (!breaks) return null;
+    const classCount = Math.max(1, breaks.length - 1);
+    const labels = classCount <= 3
+        ? ['Low', 'Medium', 'High'].slice(0, classCount)
+        : getQualitativeClassLabels(classCount);
+    let classIndex = getValueClassIndex(numericValue, breaks, labels.length);
+    if (classIndex === null) return null;
+    if (
+        !isColorOnlyMode() &&
+        (config?.renderMode === 'stripe-pattern' || config?.renderMode === 'service-pattern')
+    ) {
+        const attr = getEffectiveStripeAttribute(layerId, config);
+        classIndex = resolveStripePatternClassIndex(classIndex, attr);
+    }
+    return labels[Math.max(0, Math.min(labels.length - 1, classIndex))] || null;
+}
+
+function formatSVHoverScoreLine(value, layerId, config) {
+    const formatted = formatSVHoverScoreValue(value);
+    const numeric = typeof value === 'number' ? value : Number(value);
+    const classLabel = Number.isFinite(numeric)
+        ? getSVHoverClassLabel(numeric, layerId, config)
+        : null;
+    return classLabel ? `${classLabel} (${formatted})` : formatted;
+}
+
 function buildSVHoverTooltipText(props, layerId, config) {
     const { label, name } = getSVHoverFeatureName(props, layerId, config);
     const lines = [`${label}: ${name}`];
@@ -9318,8 +9382,7 @@ function buildSVHoverTooltipText(props, layerId, config) {
         props[attributeName] !== null &&
         props[attributeName] !== ''
     ) {
-        const attributeLabel = getSelectionAttributeLabel(layerId, config, attributeName);
-        lines.push(`${attributeLabel}: ${formatSVHoverScoreValue(props[attributeName])}`);
+        lines.push(formatSVHoverScoreLine(props[attributeName], layerId, config));
     }
 
     return lines.join('<br>');

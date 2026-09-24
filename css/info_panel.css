@@ -246,6 +246,10 @@
     overflow-y: auto;
 }
 
+.info-panel-tab-panel[data-panel="analysis"] {
+    overflow-anchor: none;
+}
+
 .info-panel-tab-panel[hidden] {
     display: none;
 }
@@ -371,6 +375,17 @@
     font-size: 12px;
     color: #6c757d;
     line-height: 1.3;
+}
+
+.layer-ml-disclaimer {
+    margin: 0 0 8px;
+    padding: 8px 10px;
+    background: #faf6ef;
+    border: 1px solid #e8dcc4;
+    border-radius: 8px;
+    color: #5b4f36;
+    font-size: 12px;
+    line-height: 1.4;
 }
 
 .layer-inputs-list {
@@ -715,95 +730,6 @@
     cursor: not-allowed;
 }
 
-/* Area selection (Analysis tab) */
-.analysis-area-selection {
-    margin-bottom: 16px;
-    padding: 12px;
-    background: #f8f9fa;
-    border: 1px solid #e9ecef;
-    border-radius: 6px;
-}
-
-.analysis-area-selection-header h5 {
-    margin: 0 0 4px;
-    font-size: 14px;
-    font-weight: 700;
-    color: #212529;
-}
-
-.analysis-area-hint {
-    margin: 0 0 10px;
-    font-size: 12px;
-    color: #6c757d;
-    line-height: 1.4;
-}
-
-.analysis-selection-toggle {
-    width: 100%;
-    margin-bottom: 8px;
-}
-
-.analysis-selection-toggle.is-active {
-    background: #7c3aed;
-}
-
-.analysis-selection-toggle.is-active:hover {
-    background: #6d28d9;
-}
-
-.analysis-selection-status {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
-    margin-bottom: 8px;
-    font-size: 12px;
-    color: #495057;
-}
-
-.analysis-selection-clear-btn {
-    background: none;
-    border: none;
-    color: #7c3aed;
-    font-size: 12px;
-    font-weight: 600;
-    cursor: pointer;
-    padding: 2px 4px;
-    text-decoration: underline;
-}
-
-.analysis-selection-clear-btn:hover {
-    color: #6d28d9;
-}
-
-.analysis-selection-chips {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    list-style: none;
-    margin: 0;
-    padding: 0;
-}
-
-.analysis-selection-chip {
-    font-size: 11px;
-    padding: 3px 8px;
-    background: #ede9fe;
-    color: #5b21b6;
-    border-radius: 999px;
-    border: 1px solid #c4b5fd;
-    max-width: 100%;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.analysis-selection-chip-more {
-    background: #f1f5f9;
-    color: #475569;
-    border-color: #cbd5e1;
-}
-
 .analysis-area-charts {
     margin-bottom: 16px;
 }
@@ -815,7 +741,8 @@
 }
 
 .aoi-header {
-    margin-bottom: 12px;
+    margin-top: 16px;
+    margin-bottom: 4px;
 }
 
 .aoi-theme-spider {

@@ -9,18 +9,13 @@ import {
     INTERVENTION_MAPPING_LAYER_ID
 } from './intervention_mapping.js';
 import {
-    clearAnalysisSelection,
-    getAnalysisSelectionCount,
-    getAnalysisSelectionItems,
     getFeatureSelectionKey,
-    getActiveAdminResolutionLabel,
     isAnalysisSelectionActive,
     setAnalysisSelectionActive,
     subscribeAnalysisSelection
 } from './analysis_selection.js';
 import { hideInfoPopup } from './info_popup.js';
 import { bindAoiPanelInteractions, renderAoiPanelHtml } from './aoi_panel.js';
-import { forceAoiStyleRecovery } from './aoi_spotlight.js';
 
 const RANKING_LIST_SIZE = 10;
 
@@ -292,31 +287,8 @@ export class InfoPanel {
                         <div class="section-header">
                             <h4>Area of interest</h4>
                         </div>
-                        <div class="analysis-area-selection" id="analysis-area-selection">
-                            <div class="analysis-area-selection-header">
-                                <h5>Select area on the map</h5>
-                                <p class="analysis-area-hint" id="analysis-area-resolution-hint">
-                                    Select map units to build an AOI. Metrics, class shares, and exports update from the selection.
-                                </p>
-                            </div>
-                            <button
-                                type="button"
-                                id="analysis-selection-toggle"
-                                class="run-analysis-btn analysis-selection-toggle"
-                                aria-pressed="false"
-                            >
-                                Select area on map
-                            </button>
-                            <div id="analysis-selection-status" class="analysis-selection-status" hidden>
-                                <span id="analysis-selection-count">0 selected</span>
-                                <button type="button" id="analysis-selection-clear" class="analysis-selection-clear-btn">
-                                    Clear all
-                                </button>
-                            </div>
-                            <ul id="analysis-selection-chips" class="analysis-selection-chips" aria-label="Selected map units"></ul>
-                        </div>
                         <div class="analysis-area-charts" id="analysis-area-charts">
-                            <p class="no-results-message">Enable selection mode and click map units to build an AOI.</p>
+                            <p class="no-results-message">Use Select Area of Interest on the map, then click units to build an AOI.</p>
                         </div>
                     </div>
                 </section>
@@ -520,25 +492,10 @@ setupEventListeners() {
 }
 
     setupAreaSelectionControls() {
-        const toggleBtn = this.container.querySelector('#analysis-selection-toggle');
-        const clearBtn = this.container.querySelector('#analysis-selection-clear');
         const mapBtn = document.getElementById('map-aoi-select-btn');
-
-        toggleBtn?.addEventListener('click', () => {
-            this.toggleAoiSelectionMode({ openAnalysisTab: true });
-        });
-
         mapBtn?.addEventListener('click', () => {
             this.toggleAoiSelectionMode({ openAnalysisTab: true });
         });
-
-        clearBtn?.addEventListener('click', () => {
-            clearAnalysisSelection();
-            setAnalysisSelectionActive(false);
-            void forceAoiStyleRecovery();
-            this.updateAnalysisAreaSelection();
-        });
-
         this.updateAnalysisAreaSelection();
     }
 
@@ -561,30 +518,8 @@ setupEventListeners() {
     }
 
     updateAnalysisAreaSelection() {
-        const resolutionHint = this.container.querySelector('#analysis-area-resolution-hint');
-        const status = this.container.querySelector('#analysis-selection-status');
-        const countEl = this.container.querySelector('#analysis-selection-count');
-        const chips = this.container.querySelector('#analysis-selection-chips');
-        const toggleBtn = this.container.querySelector('#analysis-selection-toggle');
         const areaCharts = document.getElementById('analysis-area-charts');
-
-        const resolution = getActiveAdminResolutionLabel();
-        const count = getAnalysisSelectionCount();
         const active = isAnalysisSelectionActive();
-
-        if (resolutionHint) {
-            resolutionHint.textContent =
-                `Building an AOI at ${resolution} level. Click units to add or remove them` +
-                (resolution === 'Cadastre'
-                    ? ', or use “Add whole district” below.'
-                    : '.');
-        }
-
-        if (toggleBtn) {
-            toggleBtn.setAttribute('aria-pressed', active ? 'true' : 'false');
-            toggleBtn.textContent = active ? 'Stop selecting on map' : 'Select area on map';
-            toggleBtn.classList.toggle('is-active', active);
-        }
 
         const mapBtn = document.getElementById('map-aoi-select-btn');
         if (mapBtn) {
@@ -594,33 +529,6 @@ setupEventListeners() {
             mapBtn.title = active
                 ? 'Stop selecting polygons on the map'
                 : 'Select for area of interest analysis';
-        }
-
-        if (status) {
-            status.hidden = !active && count === 0;
-        }
-
-        if (countEl) {
-            const unit = resolution.toLowerCase();
-            countEl.textContent = `${count} ${unit}${count === 1 ? '' : 's'} selected`;
-        }
-
-        if (chips) {
-            const items = getAnalysisSelectionItems();
-            if (!items.length) {
-                chips.innerHTML = '';
-            } else {
-                const maxChips = 12;
-                const shown = items.slice(0, maxChips);
-                const extra = items.length - shown.length;
-                chips.innerHTML =
-                    shown
-                        .map(item => `<li class="analysis-selection-chip">${this.escapeHtml(item.name)}</li>`)
-                        .join('') +
-                    (extra > 0
-                        ? `<li class="analysis-selection-chip analysis-selection-chip-more">+${extra} more</li>`
-                        : '');
-            }
         }
 
         if (areaCharts) {
@@ -635,13 +543,21 @@ setupEventListeners() {
     async renderAoiAreaCharts(areaCharts) {
         if (!areaCharts) return;
         const requestId = (this._aoiRenderRequestId = (this._aoiRenderRequestId || 0) + 1);
-        areaCharts.innerHTML = '<p class="no-results-message">Updating AOI summary…</p>';
+        const scrollParent = areaCharts.closest('.info-panel-tab-panel');
         try {
             const html = await renderAoiPanelHtml();
             if (requestId !== this._aoiRenderRequestId) return;
+            const scrollTop = scrollParent ? scrollParent.scrollTop : 0;
             areaCharts.innerHTML = html;
             await bindAoiPanelInteractions(areaCharts, {
                 onChanged: () => this.updateAnalysisAreaSelection()
+            });
+            if (requestId !== this._aoiRenderRequestId || !scrollParent) return;
+            scrollParent.scrollTop = scrollTop;
+            requestAnimationFrame(() => {
+                if (requestId === this._aoiRenderRequestId) {
+                    scrollParent.scrollTop = scrollTop;
+                }
             });
         } catch (error) {
             console.error('AOI panel render failed', error);
@@ -951,6 +867,7 @@ setupEventListeners() {
                     <span class="layer-name">${this.escapeHtml(layer.name)}</span>
                 </div>
                 <div class="layer-details">
+                    ${layer.mlPredicted ? '<p class="layer-ml-disclaimer">These scores are machine-learning predictions, not ground-truth data.</p>' : ''}
                     ${this.generateLayerDetails(layer)}
                 </div>
                 ${this.generateSelectedFeatureDetails(layer)}

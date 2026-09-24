@@ -280,6 +280,7 @@ function renderAoiThemeSpider(bundle) {
     return `
         <div class="aoi-theme-spider">
             ${generateThemeSpiderHtml(model, {
+                showLegend: false,
                 titleProfile: 'Theme scores (AOI sum)',
                 titleStacked: 'Selected themes (AOI sum)',
                 hintProfile:
@@ -363,7 +364,7 @@ export async function renderAoiPanelHtml() {
         }
         return `
             <div class="aoi-empty">
-                <p class="no-results-message">Enable selection mode and click map units to build an area of interest (AOI).</p>
+                <p class="no-results-message">Use Select Area of Interest on the map, then click units to build an AOI.</p>
             </div>
         `;
     }
@@ -376,20 +377,25 @@ export async function renderAoiPanelHtml() {
                   .join(', ')}</p>`
             : '';
 
+    const summaryHeader = `
+        <div class="aoi-header">
+            <h5 class="aoi-title">AOI summary (${escapeHtml(bundle.resolutionLabel)})</h5>
+            <p class="aoi-layer-attribute">${bundle.selectionCount} unit${bundle.selectionCount === 1 ? '' : 's'} selected</p>
+            ${districtNote}
+        </div>
+    `;
+
     if (!bundle.summaries.length) {
         return `
             <div class="aoi-panel">
-                <div class="aoi-header">
-                    <h5 class="aoi-title">AOI summary (${escapeHtml(bundle.resolutionLabel)})</h5>
-                    <p class="aoi-layer-attribute">${bundle.selectionCount} unit${bundle.selectionCount === 1 ? '' : 's'} selected</p>
-                    ${districtNote}
-                </div>
                 ${renderAoiThemeSpider(bundle)}
                 ${
                     bundle.themeSums?.pillars?.length
                         ? ''
                         : '<p class="no-results-message">Turn on a composite or theme layer with scores to compute AOI metrics.</p>'
                 }
+                ${renderDistrictSelectControls(resolution)}
+                ${summaryHeader}
                 <div class="aoi-export-row">
                     ${
                         CUSTOM_OVERALL_BUILDER_ENABLED
@@ -398,31 +404,26 @@ export async function renderAoiPanelHtml() {
                     }
                     <button type="button" class="aoi-export-btn" data-aoi-action="clear">Clear AOI</button>
                 </div>
-                ${renderDistrictSelectControls(resolution)}
             </div>
         `;
     }
 
     return `
         <div class="aoi-panel">
-            <div class="aoi-header">
-                <h5 class="aoi-title">AOI summary (${escapeHtml(bundle.resolutionLabel)})</h5>
-                <p class="aoi-layer-attribute">${bundle.selectionCount} unit${bundle.selectionCount === 1 ? '' : 's'} selected</p>
-                ${districtNote}
-                <div class="aoi-export-row">
-                    ${
-                        CUSTOM_OVERALL_BUILDER_ENABLED
-                            ? '<button type="button" class="aoi-export-btn aoi-custom-index-btn" data-aoi-action="design-custom-index">Design custom Index for AOI</button>'
-                            : ''
-                    }
-                    <button type="button" class="aoi-export-btn" data-aoi-action="export-csv">Export CSV</button>
-                    <button type="button" class="aoi-export-btn" data-aoi-action="export-briefing">Export briefing (PDF)</button>
-                    <button type="button" class="aoi-export-btn aoi-export-btn-muted" data-aoi-action="clear">Clear AOI</button>
-                </div>
-            </div>
             ${renderAoiThemeSpider(bundle)}
             ${bundle.summaries.map(renderLayerSummary).join('')}
             ${renderDistrictSelectControls(resolution)}
+            ${summaryHeader}
+            <div class="aoi-export-row">
+                ${
+                    CUSTOM_OVERALL_BUILDER_ENABLED
+                        ? '<button type="button" class="aoi-export-btn aoi-custom-index-btn" data-aoi-action="design-custom-index">Design custom Index for AOI</button>'
+                        : ''
+                }
+                <button type="button" class="aoi-export-btn" data-aoi-action="export-csv">Export CSV</button>
+                <button type="button" class="aoi-export-btn" data-aoi-action="export-briefing">Export briefing (PDF)</button>
+                <button type="button" class="aoi-export-btn aoi-export-btn-muted" data-aoi-action="clear">Clear AOI</button>
+            </div>
         </div>
     `;
 }
