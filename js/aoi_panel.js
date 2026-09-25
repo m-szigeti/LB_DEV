@@ -157,6 +157,153 @@ async function exportAoiBriefingPdf(root, bundle) {
     }
 }
 
+function loadCorsImage(src) {
+    return new Promise((resolve, reject) => {
+        const image = new Image();
+        image.crossOrigin = 'anonymous';
+        image.onload = () => resolve(image);
+        image.onerror = () => reject(new Error('image'));
+        image.src = src;
+    });
+}
+
+async function captureLeafletMap() {
+    const map = window.map;
+    const container = map?.getContainer?.();
+    if (!map || !container) return null;
+    const width = container.clientWidth;
+    const height = container.clientHeight;
+    if (!width || !height) return null;
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#dbe3ea';
+    ctx.fillRect(0, 0, width, height);
+    const mapRect = container.getBoundingClientRect();
+
+    const tiles = container.querySelectorAll('.leaflet-tile-pane img');
+    for (const tile of tiles) {
+        if (!tile.src) continue;
+        const rect = tile.getBoundingClientRect();
+        try {
+            const image = await loadCorsImage(tile.src);
+            ctx.drawImage(
+                image,
+                rect.left - mapRect.left,
+                rect.top - mapRect.top,
+                rect.width,
+                rect.height
+            );
+        } catch (error) {
+            /* skip tiles that block cross-origin capture */
+        }
+    }
+
+    const svg = container.querySelector('.leaflet-overlay-pane svg');
+    if (svg) {
+        const clone = svg.cloneNode(true);
+        clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+        const blob = new Blob([new XMLSerializer().serializeToString(clone)], { type: 'image/svg+xml;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        try {
+            const image = await loadCorsImage(url);
+            const pane = container.querySelector('.leaflet-overlay-pane');
+            const paneRect = pane.getBoundingClientRect();
+            ctx.drawImage(image, paneRect.left - mapRect.left, paneRect.top - mapRect.top);
+        } catch (error) {
+            /* overlay is optional if the SVG cannot be painted */
+        } finally {
+            URL.revokeObjectURL(url);
+        }
+    }
+
+    return canvas.toDataURL('image/png');
+}
+
+function situationStatLines(bundle) {
+    const lines = [];
+    const pillars = bundle?.themeSums?.pillars || [];
+    pillars.forEach(pillar => {
+        lines.push(`${pillar.label}: sum ${formatAoiNumber(pillar.value)}`);
+    });
+    (bundle?.summaries || []).forEach(summary => {
+        const high = summary.extremes?.highest?.[0];
+        const low = summary.extremes?.lowest?.[0];
+        lines.push(`${summary.layerName}: mean ${formatAoiNumber(summary.stats?.mean)}`);
+        if (high) lines.push(`  Highest: ${high.name} (${formatAoiNumber(high.score)})`);
+        if (low) lines.push(`  Lowest: ${low.name} (${formatAoiNumber(low.score)})`);
+    });
+    return lines.slice(0, 18);
+}
+
+async function exportSituationPdf(root) {
+    const jsPdfNamespace = window.jspdf;
+    if (!jsPdfNamespace?.jsPDF) {
+        throw new Error('jsPDF is not available.');
+    }
+    const count = getAnalysisSelectionCount();
+    const bundle = count ? await buildAoiSummaries() : await buildGlobalThemeSpiderBundle();
+    if (!bundle?.themeSums?.pillars?.length) {
+        throw new Error('Turn on a theme layer to export the current situation.');
+    }
+
+    const mapImage = await captureLeafletMap();
+    const spiderCanvas = root.querySelector('.aoi-theme-spider canvas');
+    const spiderImage = spiderCanvas ? spiderCanvas.toDataURL('image/png') : null;
+
+    const { jsPDF } = jsPdfNamespace;
+    const pdf = new jsPDF('p', 'mm', 'a4');
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const margin = 12;
+    const contentWidth = pageWidth - margin * 2;
+    let y = margin;
+
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(16);
+    pdf.text('Current situation', margin, y + 6);
+    y += 10;
+    pdf.setFont('helvetica', 'normal');
+    pdf.setFontSize(10);
+    const scope = bundle.global || !count
+        ? `All units (${bundle.selectionCount || bundle.themeSums.unitCount || 0})`
+        : `${count} selected unit${count === 1 ? '' : 's'}`;
+    pdf.text(
+        `${bundle.resolutionLabel || 'Resolution'} · ${scope} · ${new Date().toLocaleString()}`,
+        margin,
+        y + 4
+    );
+    y += 8;
+    pdf.setFontSize(9);
+    pdf.text('Higher theme scores indicate higher vulnerability. Scores are comparable within this resolution only.', margin, y + 4);
+    y += 8;
+
+    if (mapImage) {
+        const mapHeight = 78;
+        pdf.addImage(mapImage, 'PNG', margin, y, contentWidth, mapHeight);
+        y += mapHeight + 4;
+    }
+
+    const spiderSize = 78;
+    if (spiderImage) {
+        pdf.addImage(spiderImage, 'PNG', margin, y, spiderSize, spiderSize);
+    }
+
+    const textX = margin + (spiderImage ? spiderSize + 6 : 0);
+    const textWidth = contentWidth - (spiderImage ? spiderSize + 6 : 0);
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(11);
+    pdf.text('Theme scores', textX, y + 5);
+    pdf.setFont('helvetica', 'normal');
+    pdf.setFontSize(9);
+    const lines = situationStatLines(bundle);
+    const wrapped = pdf.splitTextToSize(lines.join('\n'), textWidth);
+    pdf.text(wrapped.slice(0, 22), textX, y + 11);
+
+    const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+    pdf.save(`situation-briefing-${stamp}.pdf`);
+}
+
 function renderMetricCards(summary) {
     const weightedNote =
         summary.weighted.weightedCount > 0
@@ -287,6 +434,9 @@ function renderAoiThemeSpider(bundle) {
                 hintStacked:
                     `Each coloured web is one selected theme. Larger web = the <strong>sum</strong> of that theme&rsquo;s scores across ${scope}. Scores are independent and do <strong>not</strong> add up to 1.`
             })}
+        </div>
+        <div class="aoi-export-row aoi-situation-export">
+            <button type="button" class="aoi-export-btn" data-aoi-action="export-situation">Data Export</button>
         </div>
     `;
 }
@@ -460,6 +610,22 @@ export async function bindAoiPanelInteractions(root, { onChanged } = {}) {
             }
             if (action === 'design-custom-index') {
                 void openCustomOverallBuilderForAoi();
+                return;
+            }
+            if (action === 'export-situation') {
+                const btn = button;
+                const originalLabel = btn.textContent;
+                btn.disabled = true;
+                btn.textContent = 'Exporting PDF…';
+                try {
+                    await exportSituationPdf(root);
+                } catch (error) {
+                    console.error('Situation PDF export failed:', error);
+                    window.alert(error?.message || 'Could not export the situation PDF.');
+                } finally {
+                    btn.disabled = false;
+                    btn.textContent = originalLabel;
+                }
                 return;
             }
             const bundle = await buildAoiSummaries();

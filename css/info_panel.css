@@ -745,8 +745,12 @@
     margin-bottom: 4px;
 }
 
+.aoi-situation-export {
+    margin: 0 0 12px;
+}
+
 .aoi-theme-spider {
-    margin-bottom: 16px;
+    margin-bottom: 8px;
     padding: 12px;
     background: #fff;
     border: 1px solid #e9ecef;
