@@ -45,6 +45,32 @@
 
 .navbar-cluster-right {
     justify-content: flex-end;
+    gap: 8px;
+}
+
+.theme-mode-btn {
+    flex-shrink: 0;
+    margin: 0 4px 0 0;
+    border: 1px solid rgba(255, 255, 255, 0.45);
+    background: transparent;
+    color: #ffffff;
+    border-radius: 999px;
+    padding: 6px 12px;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1.2;
+    cursor: pointer;
+}
+
+.theme-mode-btn:hover {
+    border-color: #ffffff;
+    background: rgba(255, 255, 255, 0.12);
+}
+
+.theme-mode-btn:focus-visible {
+    outline: 2px solid #ffffff;
+    outline-offset: 2px;
 }
 
 .navbar-center {

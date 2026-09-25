@@ -6,7 +6,15 @@
     <title>About Us - Lebanon Vulnerability Mapping Tool</title>
     
     <!-- CSS styles -->
+    <script>
+        try {
+            if (localStorage.getItem('lb-theme') === 'dark') {
+                document.documentElement.classList.add('theme-dark');
+            }
+        } catch (e) {}
+    </script>
     <link rel="stylesheet" href="../css/styles.css">
+    <link rel="stylesheet" href="../css/theme_dark.css">
     
     <meta name="description" content="About the Lebanon vulnerability mapping tool and the development team">
     
@@ -127,6 +135,9 @@
                 </ul>
             </div>
             <div class="navbar-cluster-right">
+                <button type="button" class="theme-mode-btn" data-theme-toggle aria-pressed="false" aria-label="Switch to dark mode" title="Dark mode">
+                    <span class="theme-mode-label">Dark</span>
+                </button>
                 <div class="navbar-logo navbar-logo-right">
                     <img src="../assets/undp_logo.png" alt="UNDP Logo" class="logo-image">
                 </div>
@@ -248,5 +259,6 @@
     <footer style="background-color: #343a40; color: white; text-align: center; padding: 20px; margin-top: 40px;">
         <p>© 2026 Lebanon Vulnerability Mapping Tool | All Rights Reserved</p>
     </footer>
+    <script type="module" src="../js/theme_mode.js"></script>
 </body>
 </html>

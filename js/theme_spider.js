@@ -278,7 +278,13 @@ export function drawThemeSpiderChart(canvas, model) {
         };
     };
 
-    const drawWeb = (count, ringColor, edgeColor) => {
+    const dark = document.documentElement.classList.contains('theme-dark');
+    const webRing = dark ? '#3d8eab' : '#e2e8f0';
+    const webEdge = dark ? '#5eb0c8' : '#cbd5e1';
+    const spokeColor = dark ? '#3d8eab' : '#e2e8f0';
+    const spanColor = dark ? '#3d8eab' : '#334155';
+
+    const drawWeb = (count, ringColor, edgeColor, axisColor) => {
         [0.25, 0.5, 0.75, 1].forEach(ring => {
             ctx.beginPath();
             for (let index = 0; index < count; index += 1) {
@@ -290,11 +296,11 @@ export function drawThemeSpiderChart(canvas, model) {
             }
             ctx.closePath();
             ctx.strokeStyle = ring === 1 ? edgeColor : ringColor;
-            ctx.lineWidth = ring === 1 ? 1.1 : 0.8;
+            ctx.lineWidth = ring === 1 ? (dark ? 1.8 : 1.1) : (dark ? 1.25 : 0.8);
             ctx.stroke();
         });
-        ctx.strokeStyle = ringColor;
-        ctx.lineWidth = 0.8;
+        ctx.strokeStyle = axisColor || ringColor;
+        ctx.lineWidth = dark ? 1.35 : 0.8;
         for (let index = 0; index < count; index += 1) {
             const end = axisEnd(index, count);
             ctx.beginPath();
@@ -305,7 +311,7 @@ export function drawThemeSpiderChart(canvas, model) {
     };
 
     if (stacked) {
-        drawWeb(spokeCount, '#e2e8f0', '#cbd5e1');
+        drawWeb(spokeCount, webRing, webEdge, spokeColor);
         const ordered = [...items].sort((a, b) => Number(b.value) - Number(a.value));
         ordered.forEach(theme => {
             const t = Math.max(0, Math.min(1, (Number(theme.value) || 0) / scale));
@@ -325,7 +331,7 @@ export function drawThemeSpiderChart(canvas, model) {
             ctx.stroke();
         });
         ctx.font = '600 9px Calibri, "Segoe UI", sans-serif';
-        ctx.fillStyle = '#94a3b8';
+        ctx.fillStyle = dark ? '#ffffff' : '#94a3b8';
         ctx.textAlign = 'left';
         ctx.textBaseline = 'middle';
         [0.5, 1].forEach(ring => {
@@ -335,7 +341,7 @@ export function drawThemeSpiderChart(canvas, model) {
         return;
     }
 
-    drawWeb(items.length, '#e2e8f0', '#cbd5e1');
+    drawWeb(items.length, webRing, webEdge, spokeColor);
     ctx.beginPath();
     items.forEach((theme, index) => {
         const point = pointAt(index, theme.value);
@@ -343,9 +349,9 @@ export function drawThemeSpiderChart(canvas, model) {
         else ctx.lineTo(point.x, point.y);
     });
     ctx.closePath();
-    ctx.fillStyle = 'rgba(51, 65, 85, 0.12)';
+    ctx.fillStyle = dark ? 'rgba(61, 142, 171, 0.35)' : 'rgba(51, 65, 85, 0.12)';
     ctx.fill();
-    ctx.strokeStyle = '#334155';
+    ctx.strokeStyle = spanColor;
     ctx.lineWidth = 1.6;
     ctx.stroke();
 
@@ -361,7 +367,7 @@ export function drawThemeSpiderChart(canvas, model) {
     });
 
     ctx.font = '600 10px Calibri, "Segoe UI", sans-serif';
-    ctx.fillStyle = '#475569';
+    ctx.fillStyle = dark ? '#ffffff' : '#475569';
     items.forEach((theme, index) => {
         const end = axisEnd(index, items.length);
         const labelRadius = radius + 22;
@@ -376,3 +382,7 @@ export function drawThemeSpiderChart(canvas, model) {
         ctx.fillText(shortThemeLabel(theme), x, y);
     });
 }
+
+window.addEventListener('lb-theme-change', () => {
+    paintThemeSpiderCharts(document);
+});

@@ -3923,6 +3923,31 @@ export function setupLayerControls(map, layers, colorScales, addLegendEntry, rem
     window.currentInfoPanel = infoPanel;
     window.addLegendEntry = addLegendEntry;
     window.removeLegendEntry = removeLegendEntry;
+    window.addEventListener('lb-theme-change', () => {
+        Object.keys(layerConfig).forEach(layerId => {
+            const config = layerConfig[layerId];
+            if (config?.renderMode !== 'stripe-pattern') return;
+            svPatternCache.delete(layerId);
+            const entry = layers?.vector?.[layerId];
+            const leafletLayer = entry?.leafletLayer;
+            if (!leafletLayer || !map.hasLayer(leafletLayer)) return;
+            const opacity = typeof entry.opacity === 'number'
+                ? entry.opacity
+                : (leafletLayer.options?.fillOpacity ?? 0.7);
+            applySVStripePatternStyle(layerId, leafletLayer, config, opacity, map, addLegendEntry);
+        });
+        Object.keys(layerConfig).forEach(layerId => {
+            const config = layerConfig[layerId];
+            if (config?.renderMode !== 'forest-fire-symbol') return;
+            const leafletLayer = layers?.vector?.[layerId]?.leafletLayer;
+            if (!leafletLayer || !map.hasLayer(leafletLayer)) return;
+            updateSVForestFireMarkerIconSizes(map, leafletLayer, layers);
+            if (leafletLayer._svUsesForestFireGrid) {
+                syncSVForestFireCadastreIcons(map, leafletLayer, layers);
+            }
+            leafletLayer._svForestFireClusterLayer?.refreshClusters?.();
+        });
+    });
     // Initialize layer handlers
     Object.keys(layerConfig).forEach(layerId => {
         const config = layerConfig[layerId];
@@ -6524,11 +6549,17 @@ function getForestFireIconUrl(classIndex, iconUrls = FOREST_FIRE_ICON_URLS) {
     return urls[idx] || urls[0];
 }
 
+function climateHighGlowStyle(url) {
+    if (!document.documentElement.classList.contains('theme-dark')) return '';
+    if (!String(url || '').includes('forest-fire-high')) return '';
+    return 'filter:drop-shadow(0 0 2px #ffffff) drop-shadow(0 0 6px rgba(255,255,255,0.72));';
+}
+
 function buildForestFireMarkerIcon(classIndex, sizePx = FOREST_FIRE_MARKER_SIZE_DEFAULT, iconUrls = FOREST_FIRE_ICON_URLS) {
     const size = Math.max(16, Math.round(sizePx));
     const url = getForestFireIconUrl(classIndex, iconUrls);
     return getCachedClassMarkerIcon('forest', url, size, 'sv-forest-fire-symbol-wrapper',
-        getClassIconDropShadowStyle(iconUrls));
+        climateHighGlowStyle(url) || getClassIconDropShadowStyle(iconUrls));
 }
 
 function getForestFireMarkerSize(map, resolution = getActiveAdminResolution(), layers = null) {
@@ -6560,7 +6591,7 @@ function buildForestFireCountClusterIcon(classCounts, count, iconUrls = FOREST_F
         className: 'sv-forest-fire-cluster-wrapper',
         html: `
             <div style="position:relative;width:${diameter}px;height:${diameter}px;display:flex;align-items:center;justify-content:center;">
-                <img src="${url}" alt="" width="${iconSize}" height="${iconSize}" style="width:${iconSize}px;height:${iconSize}px;display:block;${getClassIconDropShadowStyle(iconUrls, { cluster: true })}">
+                <img src="${url}" alt="" width="${iconSize}" height="${iconSize}" style="width:${iconSize}px;height:${iconSize}px;display:block;${climateHighGlowStyle(url) || getClassIconDropShadowStyle(iconUrls, { cluster: true })}">
                 <span style="position:absolute;right:0;bottom:0;min-width:${countSize + 6}px;height:${countSize + 4}px;padding:0 4px;border-radius:999px;background:rgba(17,24,39,0.85);color:#fff;border:1px solid rgba(255,255,255,0.9);font-weight:700;font-size:${countSize}px;line-height:${countSize + 4}px;text-align:center;">${n}</span>
             </div>
         `,
@@ -7123,7 +7154,7 @@ function getPatternClassIndex(value, breaks) {
  * Build an inline SVG legend swatch that mirrors the map pattern for a class.
  */
 function socioStripeSwatchHtml(specIndex, patternColor) {
-    const spec = SOCIO_STRIPE_CLASS_SPECS[specIndex];
+    const spec = getSocioStripeClassSpecs()[specIndex];
     if (!spec) return '';
     const c = spec.color || patternColor;
     const w = 40;
@@ -7170,7 +7201,7 @@ function socioStripeSwatchHtml(specIndex, patternColor) {
  * Fully URI-encodes the SVG so quotes are safe inside HTML style="..." attributes.
  */
 function socioStripeSwatchInlineStyle(specIndex, patternColor) {
-    const spec = SOCIO_STRIPE_CLASS_SPECS[specIndex];
+    const spec = getSocioStripeClassSpecs()[specIndex];
     if (!spec) return '';
     const c = spec.color || patternColor;
 
@@ -7239,6 +7270,18 @@ const SOCIO_STRIPE_CLASS_SPECS = [
     { angle: 45,  weight: 1.6, spaceWeight: 4,   patternOpacity: 1.0, fillOpacity: 1.0, color: '#4b5563' },
     { type: 'crosshatch', angle: 45, weight: 1.4, spaceWeight: 3.5, patternOpacity: 1.0, fillOpacity: 1.0, color: '#111827' }
 ];
+
+const SOCIO_STRIPE_CLASS_SPECS_DARK = [
+    { type: 'dot', dotRadius: 1.6, dotSpacing: 12, patternOpacity: 1.0, fillOpacity: 1.0, color: '#d1d5db' },
+    { angle: 45,  weight: 1.6, spaceWeight: 4,   patternOpacity: 1.0, fillOpacity: 1.0, color: '#f3f4f6' },
+    { type: 'crosshatch', angle: 45, weight: 1.4, spaceWeight: 3.5, patternOpacity: 1.0, fillOpacity: 1.0, color: '#ffffff' }
+];
+
+function getSocioStripeClassSpecs() {
+    return document.documentElement.classList.contains('theme-dark')
+        ? SOCIO_STRIPE_CLASS_SPECS_DARK
+        : SOCIO_STRIPE_CLASS_SPECS;
+}
 
 // Distinct pattern geometry for Service Stress (separate from socio-economic stripes).
 const SERVICE_PATTERN_CLASS_SPECS = [
@@ -7386,7 +7429,8 @@ function applySVStripePatternStyle(layerId, layer, config, opacity, map, addLege
         || cache.opacity !== opacityKey
         || cache.zoomKey !== zoomKey
         || cache.attr !== stripeAttr
-        || cache.classificationMode !== classMode;
+        || cache.classificationMode !== classMode
+        || cache.theme !== (document.documentElement.classList.contains('theme-dark') ? 'dark' : 'light');
 
     if (needsRebuild) {
         if (cache) {
@@ -7405,7 +7449,7 @@ function applySVStripePatternStyle(layerId, layer, config, opacity, map, addLege
         const isServicePattern = config.renderMode === 'service-pattern';
         const classCount = isServicePattern ? SERVICE_SYMBOL_CLASS_COUNT : SOCIO_STRIPE_CLASS_COUNT;
         const breaks = resolveClassificationBreaks(values, classCount, classMode);
-        const patternSpecs = isServicePattern ? SERVICE_PATTERN_CLASS_SPECS : SOCIO_STRIPE_CLASS_SPECS;
+        const patternSpecs = isServicePattern ? SERVICE_PATTERN_CLASS_SPECS : getSocioStripeClassSpecs();
         const patterns = createStripePatterns(targetMap, config.patternColor || '#2b83ba', opacity, patternSpecs);
         cache = {
             map: targetMap,
@@ -7414,7 +7458,8 @@ function applySVStripePatternStyle(layerId, layer, config, opacity, map, addLege
             opacity: opacityKey,
             zoomKey,
             attr: stripeAttr,
-            classificationMode: classMode
+            classificationMode: classMode,
+            theme: document.documentElement.classList.contains('theme-dark') ? 'dark' : 'light'
         };
         svPatternCache.set(layerId, cache);
     }

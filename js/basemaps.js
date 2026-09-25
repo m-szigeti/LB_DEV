@@ -103,7 +103,8 @@ export const basemapOptions = [
  * @param {Object} map - Leaflet map instance
  */
 export function addDefaultBasemap(map) {
-    basemaps.cartoLight.addTo(map);  // Changed default to Carto Light for reliability
+    const dark = document.documentElement.classList.contains('theme-dark');
+    (dark ? basemaps.cartoDark : basemaps.cartoLight).addTo(map);
 }
 
 /**

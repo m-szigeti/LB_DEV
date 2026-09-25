@@ -12,6 +12,7 @@ import { initializeInfoPopup } from './info_popup.js';
 import { WelcomePopup } from './welcome_popup.js';
 import { InfoPanel } from './info_panel.js';
 import { CombinedBasemapControl } from './combined-basemap-control.js';
+import './theme_mode.js';
 
 // Global layer storage
 export const layers = {

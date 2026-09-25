@@ -115,6 +115,20 @@ function createMapFeaturesControl(map, labelLayers, countryOutline, compareMap, 
         updateBasemap(map, this.value);
     });
 
+    const initialBasemap = document.documentElement.classList.contains('theme-dark')
+        ? 'cartoDark'
+        : 'cartoLight';
+    leftMapSelect.value = initialBasemap;
+    if (initialBasemap === 'cartoDark') {
+        updateBasemap(map, 'cartoDark');
+    }
+
+    window.addEventListener('lb-theme-change', (event) => {
+        const basemapId = event.detail?.dark ? 'cartoDark' : 'cartoLight';
+        leftMapSelect.value = basemapId;
+        updateBasemap(map, basemapId);
+    });
+
     toggleButton.addEventListener('click', function(e) {
         e.preventDefault();
         const isMinimized = container.classList.toggle('minimized');
@@ -185,25 +199,10 @@ function createButton(text, container) {
     button.className = 'combined-control-button';
     button.innerHTML = text;
     button.style.padding = '6px 10px';
-    button.style.backgroundColor = '#f8f8f8';
-    button.style.border = '1px solid #ccc';
     button.style.borderRadius = '3px';
     button.style.cursor = 'pointer';
     button.style.width = '100%';
-    button.style.transition = 'all 0.3s';
     button.style.fontWeight = 'normal';
-    
-    // Add hover effect
-    button.onmouseover = function() { 
-        if (!this.classList.contains('active')) {
-            this.style.backgroundColor = '#e6e6e6'; 
-        }
-    };
-    button.onmouseout = function() { 
-        if (!this.classList.contains('active')) {
-            this.style.backgroundColor = '#f8f8f8'; 
-        }
-    };
     container.appendChild(button);
     return button;
 }
@@ -236,7 +235,7 @@ function setLabelLevelEnabled(level, enabled, button, labelLayers, map) {
         }
         if (button && enabled) {
             button.classList.add('active');
-            button.style.backgroundColor = '#d4edda';
+            button.style.backgroundColor = '';
             button.style.fontWeight = 'bold';
         }
         return;
@@ -245,7 +244,7 @@ function setLabelLevelEnabled(level, enabled, button, labelLayers, map) {
     if (!enabled) {
         if (button) {
             button.classList.remove('active');
-            button.style.backgroundColor = '#f8f8f8';
+            button.style.backgroundColor = '';
             button.style.fontWeight = 'normal';
         }
         if (map.hasLayer(labelLayers[level])) {
@@ -256,7 +255,7 @@ function setLabelLevelEnabled(level, enabled, button, labelLayers, map) {
 
     if (button) {
         button.classList.add('active');
-        button.style.backgroundColor = '#d4edda';
+        button.style.backgroundColor = '';
         button.style.fontWeight = 'bold';
     }
 
@@ -364,13 +363,13 @@ function toggleCountryOutline(button, map, countryOutline) {
     if (isActive) {
         // Turn off outline
         button.classList.remove('active');
-        button.style.backgroundColor = '#f8f8f8';
+        button.style.backgroundColor = '';
         button.style.fontWeight = 'normal';
         map.removeLayer(countryOutline);
     } else {
         // Turn on outline
         button.classList.add('active');
-        button.style.backgroundColor = '#d4edda';
+        button.style.backgroundColor = '';
         button.style.fontWeight = 'bold';
         countryOutline.addTo(map);
     }
@@ -389,7 +388,7 @@ function toggleInfoPanel(button, infoPanel) {
     if (isActive) {
         // Turn off info panel
         button.classList.remove('active');
-        button.style.backgroundColor = '#f8f8f8';
+        button.style.backgroundColor = '';
         button.style.fontWeight = 'normal';
         
         if (infoPanel.isVisible) {
@@ -398,7 +397,7 @@ function toggleInfoPanel(button, infoPanel) {
     } else {
         // Turn on info panel
         button.classList.add('active');
-        button.style.backgroundColor = '#d4edda';
+        button.style.backgroundColor = '';
         button.style.fontWeight = 'bold';
         
         if (!infoPanel.isVisible) {
@@ -412,11 +411,11 @@ function syncInfoPanelButtonState(button, isVisible) {
 
     if (isVisible) {
         button.classList.add('active');
-        button.style.backgroundColor = '#d4edda';
+        button.style.backgroundColor = '';
         button.style.fontWeight = 'bold';
     } else {
         button.classList.remove('active');
-        button.style.backgroundColor = '#f8f8f8';
+        button.style.backgroundColor = '';
         button.style.fontWeight = 'normal';
     }
 }
