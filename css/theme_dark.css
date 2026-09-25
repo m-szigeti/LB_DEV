@@ -616,8 +616,25 @@ html.theme-dark .info-popup-pop-chip-value {
     color: #ffffff;
 }
 
-html.theme-dark .info-popup-identity {
+html.theme-dark .info-popup-identity,
+html.theme-dark .info-theme-spider-side {
     border-bottom-color: #1f3e5a;
+    border-top-color: #1f3e5a;
+}
+
+html.theme-dark .info-subindicator-table {
+    color: #e8eef4;
+}
+
+html.theme-dark .info-subindicator-table th,
+html.theme-dark .info-subindicator-table td {
+    color: #e8eef4;
+    border-bottom-color: #1f3e5a;
+}
+
+html.theme-dark .info-subindicator-table th {
+    background: #1a2430;
+    color: #b7c3d0;
 }
 
 html.theme-dark .sv-subindicators-panel,

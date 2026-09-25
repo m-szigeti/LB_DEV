@@ -213,6 +213,7 @@ export async function showInfoPopup(feature, layerType = 'default', clickEvent =
     setInfoPopupArabicTitle(enrichment?.arabicName || getArabicNameFromProperties(properties));
     paintInfoPopupVisuals(body);
     positionInfoPopup(popup, clickEvent);
+    clampPopupBodyToSpider(body);
 }
 
 /**
@@ -225,72 +226,40 @@ export function hideInfoPopup() {
         popup.style.left = '';
         popup.style.top = '';
         popup.style.transform = '';
+        const body = document.getElementById('info-popup-body');
+        if (body) body.style.maxHeight = '';
     }
     setInfoPopupArabicTitle('');
 }
 
 /**
- * Position popup near click target while keeping it in viewport.
- * Falls back to centered positioning if click context is unavailable.
+ * Pin the popup to the top-left of the map.
  */
-function positionInfoPopup(popup, clickEvent = null) {
+function positionInfoPopup(popup) {
     if (!popup) return;
 
-    const pointer = getPointerPosition(clickEvent);
-    if (!pointer) {
-        popup.style.left = '';
-        popup.style.top = '';
-        popup.style.transform = '';
-        return;
-    }
-
-    const offsetX = 150;
-    const offsetY = 18;
     const margin = 12;
-    const viewportWidth = window.innerWidth;
-    const viewportHeight = window.innerHeight;
-
+    const mapEl = document.getElementById('map');
+    const rect = mapEl?.getBoundingClientRect();
     popup.style.transform = 'none';
-
-    const popupWidth = popup.offsetWidth;
-    const popupHeight = popup.offsetHeight;
-
-    let left = pointer.x + offsetX;
-    let top = pointer.y - popupHeight - offsetY;
-
-    // If there isn't enough room above the click point, place below it.
-    if (top < margin) {
-        top = pointer.y + offsetY;
-    }
-
-    // Clamp horizontally and vertically to remain visible.
-    if (left + popupWidth > viewportWidth - margin) {
-        left = pointer.x - popupWidth - offsetX;
-    }
-    left = Math.max(margin, Math.min(left, viewportWidth - popupWidth - margin));
-    top = Math.max(margin, Math.min(top, viewportHeight - popupHeight - margin));
-
-    popup.style.left = `${left}px`;
-    popup.style.top = `${top}px`;
+    popup.style.left = `${(rect?.left ?? margin) + margin}px`;
+    popup.style.top = `${(rect?.top ?? margin) + margin}px`;
 }
 
-function getPointerPosition(clickEvent) {
-    if (!clickEvent) return null;
-
-    if (clickEvent.originalEvent &&
-        typeof clickEvent.originalEvent.clientX === 'number' &&
-        typeof clickEvent.originalEvent.clientY === 'number') {
-        return {
-            x: clickEvent.originalEvent.clientX,
-            y: clickEvent.originalEvent.clientY
-        };
+/**
+ * Keep the spider chart in view. Sub-indicator statistics sit below it and appear on scroll.
+ */
+function clampPopupBodyToSpider(body) {
+    if (!body) return;
+    const side = body.querySelector('.info-theme-spider-side');
+    const spider = body.querySelector('.info-theme-spider');
+    if (!side || !spider) {
+        body.style.maxHeight = '';
+        return;
     }
-
-    if (typeof clickEvent.clientX === 'number' && typeof clickEvent.clientY === 'number') {
-        return { x: clickEvent.clientX, y: clickEvent.clientY };
-    }
-
-    return null;
+    const visibleHeight = Math.ceil(spider.getBoundingClientRect().bottom - body.getBoundingClientRect().top + 8);
+    body.style.maxHeight = `${Math.max(160, visibleHeight)}px`;
+    body.scrollTop = 0;
 }
 
 /**

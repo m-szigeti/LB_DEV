@@ -187,7 +187,7 @@ export function generateThemeSpiderHtml(model, copy = {}) {
             <p class="info-theme-hint">${hint}</p>
             <div class="info-theme-spider-layout${side ? ' has-side' : ''}">
                 <div class="info-theme-spider">
-                    <canvas class="info-theme-spider-canvas" data-spider="${payload}" width="360" height="340" aria-label="Theme spider chart"></canvas>
+                    <canvas class="info-theme-spider-canvas" data-spider="${payload}" width="320" height="304" aria-label="Theme spider chart"></canvas>
                     ${legend}
                 </div>
                 ${side}
@@ -238,8 +238,9 @@ export function drawThemeSpiderChart(canvas, model) {
     if (!canvas || !items.length) return;
     if (!model.stacked && items.length < 3) return;
 
-    const cssWidth = 360;
-    const cssHeight = 340;
+    const inPopup = Boolean(canvas.closest('#info-popup'));
+    const cssWidth = inPopup ? 320 : 360;
+    const cssHeight = inPopup ? 304 : 340;
     const dpr = window.devicePixelRatio || 1;
     canvas.width = Math.round(cssWidth * dpr);
     canvas.height = Math.round(cssHeight * dpr);
@@ -254,7 +255,7 @@ export function drawThemeSpiderChart(canvas, model) {
     const spokeCount = stacked ? 6 : items.length;
     const cx = cssWidth / 2;
     const cy = cssHeight / 2 + (stacked ? 0 : 4);
-    const radius = stacked ? 118 : 108;
+    const radius = inPopup ? (stacked ? 104 : 96) : (stacked ? 118 : 108);
     const scale = spiderRadiusScale(items.map(item => item.value));
     const startAngle = -Math.PI / 2;
 
@@ -349,9 +350,9 @@ export function drawThemeSpiderChart(canvas, model) {
         else ctx.lineTo(point.x, point.y);
     });
     ctx.closePath();
-    ctx.fillStyle = dark ? 'rgba(61, 142, 171, 0.35)' : 'rgba(51, 65, 85, 0.12)';
+    ctx.fillStyle = dark ? 'rgba(125, 211, 240, 0.62)' : 'rgba(51, 65, 85, 0.12)';
     ctx.fill();
-    ctx.strokeStyle = spanColor;
+    ctx.strokeStyle = dark ? '#d7f4ff' : spanColor;
     ctx.lineWidth = 1.6;
     ctx.stroke();
 
