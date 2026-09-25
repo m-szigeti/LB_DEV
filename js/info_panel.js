@@ -10,11 +10,13 @@ import {
 } from './intervention_mapping.js';
 import {
     getFeatureSelectionKey,
+    clearAnalysisSelection,
     isAnalysisSelectionActive,
     setAnalysisSelectionActive,
     subscribeAnalysisSelection
 } from './analysis_selection.js';
 import { hideInfoPopup } from './info_popup.js';
+import { initAoiLasso, stopAoiLasso } from './aoi_lasso.js';
 import { bindAoiPanelInteractions, renderAoiPanelHtml } from './aoi_panel.js';
 
 const RANKING_LIST_SIZE = 10;
@@ -496,6 +498,7 @@ setupEventListeners() {
         mapBtn?.addEventListener('click', () => {
             this.toggleAoiSelectionMode({ openAnalysisTab: true });
         });
+        initAoiLasso();
         this.updateAnalysisAreaSelection();
     }
 
@@ -506,6 +509,10 @@ setupEventListeners() {
      */
     toggleAoiSelectionMode({ openAnalysisTab = true } = {}) {
         const next = !isAnalysisSelectionActive();
+        if (!next) {
+            stopAoiLasso();
+            clearAnalysisSelection();
+        }
         setAnalysisSelectionActive(next);
         if (next) {
             hideInfoPopup();
@@ -527,7 +534,7 @@ setupEventListeners() {
             mapBtn.classList.toggle('is-active', active);
             mapBtn.textContent = active ? 'Stop Selecting' : 'Select Area of Interest';
             mapBtn.title = active
-                ? 'Stop selecting polygons on the map'
+                ? 'Stop selecting and clear the area of interest'
                 : 'Select for area of interest analysis';
         }
 

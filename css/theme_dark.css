@@ -141,6 +141,12 @@ html.theme-dark #legend div[style*="background: #f8f9fa"] {
     color: #e8eef4 !important;
 }
 
+html.theme-dark #legend svg,
+html.theme-dark #legend div[style*="background-color:#eef2f7"],
+html.theme-dark #legend div[style*="background-color: #eef2f7"] {
+    background-color: #09111b !important;
+}
+
 html.theme-dark img[src*="forest-fire-high.svg"] {
     filter: drop-shadow(0 0 2px #ffffff) drop-shadow(0 0 6px rgba(255, 255, 255, 0.72));
 }

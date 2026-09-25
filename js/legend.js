@@ -423,14 +423,8 @@ function renderColorScaleEntry(entry) {
                     <strong>Scale:</strong> Green = Lowest &nbsp;→&nbsp; Red = Highest
                 </div>
             `;
-        } else if (entry.scaleDirection === 'yellow-orange-red') {
+        } else if (entry.scaleDirection === 'yellow-orange-red' || entry.scaleDirection === 'white-to-dark-blue') {
             directionalInfo = '';
-        } else if (entry.scaleDirection === 'white-to-dark-blue') {
-            directionalInfo = `
-                <div class="legend-scale-note" style="margin-top: 8px; padding: 6px; background: #f8f9fa; border-radius: 4px; font-size: 10px; color: #666; line-height: 1.35; max-width: 11.5em;">
-                    <strong>Scale:</strong> White = lower vulnerability<br>→ Dark blue = higher vulnerability
-                </div>
-            `;
         } else if (entry.scaleDirection === 'white-to-red') {
             directionalInfo = `
                 <div class="legend-scale-note" style="margin-top: 8px; padding: 6px; background: #f8f9fa; border-radius: 4px; font-size: 10px; color: #666; line-height: 1.35; max-width: 11.5em;">

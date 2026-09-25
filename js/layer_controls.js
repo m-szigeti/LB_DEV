@@ -4415,7 +4415,6 @@ async function applySVResolution(resolution, map, layers, colorScales, addLegend
     sourceGeoJsonCache.clear();
     globalThemeSumsCache = { key: '', value: null };
     const requestVersion = ++svResolutionVersion;
-    clearAnalysisSelection();
     window.currentInfoPanel?.updateAnalysisAreaSelection?.();
     const selectedResolution = SV_RESOLUTION_CONFIG[resolution] ? resolution : DEFAULT_SV_ADMIN_RESOLUTION;
     const resolutionConfig = SV_RESOLUTION_CONFIG[selectedResolution];
@@ -5001,6 +5000,8 @@ async function loadSVLayer(layerId, map, layers, colorScales, addLegendEntry, re
         updateSVHoverTooltips(layers.vector[layerId], layerId, config);
         refreshSVSubindicatorPanelAfterLoad(layerId);
         syncSVPermanentScoreLabels(map, layers);
+        const interactionLayer = getSVPolygonInteractionLayer(layers.vector[layerId]) || layers.vector[layerId];
+        rematchAnalysisSelectionToLayer(interactionLayer, layerId);
         }
         
     } catch (error) {
@@ -7153,10 +7154,15 @@ function getPatternClassIndex(value, breaks) {
 /**
  * Build an inline SVG legend swatch that mirrors the map pattern for a class.
  */
+function socioStripeSwatchBackground() {
+    return document.documentElement.classList.contains('theme-dark') ? '#09111b' : '#eef2f7';
+}
+
 function socioStripeSwatchHtml(specIndex, patternColor) {
     const spec = getSocioStripeClassSpecs()[specIndex];
     if (!spec) return '';
     const c = spec.color || patternColor;
+    const swatchBackground = socioStripeSwatchBackground();
     const w = 40;
     const h = 24;
 
@@ -7169,7 +7175,7 @@ function socioStripeSwatchHtml(specIndex, patternColor) {
                 circles += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${r}" fill="${c}"/>`;
             }
         }
-        return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" style="display:block;background:#eef2f7;border-radius:3px;">${circles}</svg>`;
+        return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" style="display:block;background:${swatchBackground};border-radius:3px;">${circles}</svg>`;
     }
 
     if (spec.type === 'crosshatch') {
@@ -7180,7 +7186,7 @@ function socioStripeSwatchHtml(specIndex, patternColor) {
             lines += `<line x1="${i}" y1="0" x2="${i + h}" y2="${h}" stroke="${c}" stroke-width="${stroke}"/>`;
             lines += `<line x1="${i + h}" y1="0" x2="${i}" y2="${h}" stroke="${c}" stroke-width="${stroke}"/>`;
         }
-        return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" style="display:block;background:#eef2f7;border-radius:3px;">${lines}</svg>`;
+        return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" style="display:block;background:${swatchBackground};border-radius:3px;">${lines}</svg>`;
     }
 
     // Stripe: same geometry language as Leaflet StripePattern (constant stroke, spaceWeight gap, angle).
@@ -7192,7 +7198,7 @@ function socioStripeSwatchHtml(specIndex, patternColor) {
     for (let y = -h; y < h * 2; y += period) {
         lines += `<line x1="${-w}" y1="${y}" x2="${w * 2}" y2="${y}" stroke="${c}" stroke-width="${stroke}"/>`;
     }
-    return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" style="display:block;background:#eef2f7;border-radius:3px;">`
+    return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" style="display:block;background:${swatchBackground};border-radius:3px;">`
         + `<g transform="rotate(${angle} ${w / 2} ${h / 2})">${lines}</g></svg>`;
 }
 
@@ -7234,7 +7240,7 @@ function socioStripeSwatchInlineStyle(specIndex, patternColor) {
     }
 
     // encodeURIComponent removes all raw quotes; wrap with single quotes for the HTML style attr.
-    return `background-color:#eef2f7;background-image:url('data:image/svg+xml,${encodeURIComponent(svg)}');background-repeat:repeat;background-size:${tile}px ${tile}px;`;
+    return `background-color:${socioStripeSwatchBackground()};background-image:url('data:image/svg+xml,${encodeURIComponent(svg)}');background-repeat:repeat;background-size:${tile}px ${tile}px;`;
 }
 
 function buildSocioStripeLegendItems(breaks, patternColor, invert = false) {

@@ -336,7 +336,8 @@
     text-align: center;
 }
 
-body.analysis-selection-mode #map {
+body.analysis-selection-mode #map,
+body.aoi-lasso-mode #map {
     cursor: crosshair;
 }
 
