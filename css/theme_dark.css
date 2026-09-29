@@ -116,6 +116,17 @@ html.theme-dark .map-panel {
     background: #09111b;
 }
 
+html.theme-dark .sv-score-label-tooltip {
+    color: #d5dde6;
+    font-weight: 600;
+    text-shadow:
+        0 0 1px rgba(9, 17, 27, 0.9),
+        1px 0 0 rgba(9, 17, 27, 0.85),
+        -1px 0 0 rgba(9, 17, 27, 0.85),
+        0 1px 0 rgba(9, 17, 27, 0.85),
+        0 -1px 0 rgba(9, 17, 27, 0.85);
+}
+
 html.theme-dark .legend {
     background: #1a2430;
     border-color: #1f3e5a;
@@ -374,6 +385,84 @@ html.theme-dark .composite-sandbox-panel {
     background: #1a2430;
     color: #e8eef4;
     border-color: #1f3e5a;
+}
+
+html.theme-dark .custom-overall-modal-backdrop {
+    background: rgba(9, 17, 27, 0.72);
+}
+
+html.theme-dark .custom-overall-modal-card,
+html.theme-dark .custom-overall-modal-footer {
+    background: #1a2430;
+    color: #e8eef4;
+    border-color: #1f3e5a;
+}
+
+html.theme-dark .custom-overall-modal-header,
+html.theme-dark .custom-overall-modal-footer {
+    border-color: #1f3e5a;
+}
+
+html.theme-dark .custom-overall-modal-header h2,
+html.theme-dark .custom-overall-theme-label,
+html.theme-dark .custom-overall-theme-title,
+html.theme-dark .custom-overall-indicator {
+    color: #e8eef4;
+}
+
+html.theme-dark .custom-overall-modal-subtitle,
+html.theme-dark .custom-overall-modal-status,
+html.theme-dark .custom-overall-modal-close,
+html.theme-dark .custom-overall-empty {
+    color: #b7c3d0;
+}
+
+html.theme-dark .custom-overall-theme {
+    background: #09111b;
+    border-color: #1f3e5a;
+}
+
+html.theme-dark .custom-overall-btn,
+html.theme-dark .custom-overall-modal-footer .custom-overall-btn-secondary {
+    background: #09111b;
+    color: #e8eef4;
+    border-color: #1f3e5a;
+}
+
+html.theme-dark .custom-overall-btn:hover:not(:disabled),
+html.theme-dark .custom-overall-modal-footer .custom-overall-btn-secondary:hover:not(:disabled) {
+    background: #1a2430;
+    color: #2596be;
+    border-color: #2596be;
+}
+
+html.theme-dark .custom-overall-btn-danger {
+    background: #09111b;
+    color: #fecaca;
+    border-color: #7f1d1d;
+}
+
+html.theme-dark .custom-overall-btn-danger:hover:not(:disabled) {
+    background: #1f3e5a;
+    color: #ffffff;
+}
+
+html.theme-dark .custom-overall-modal-footer .custom-overall-btn-primary,
+html.theme-dark .custom-overall-modal-footer .custom-overall-btn-primary:hover:not(:disabled) {
+    background: #1f3e5a;
+    color: #ffffff;
+    border: 1px solid #2596be;
+}
+
+html.theme-dark .custom-overall-modal-error {
+    background: #1f3e5a;
+    border-color: #2596be;
+    color: #fecaca;
+}
+
+html.theme-dark .custom-overall-indicator-check,
+html.theme-dark .custom-overall-theme-check {
+    accent-color: #2596be;
 }
 
 html.theme-dark .welcome-content {
