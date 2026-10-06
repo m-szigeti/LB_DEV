@@ -1,5 +1,6 @@
 import {
     addAnalysisSelectionFeatures,
+    clearAnalysisSelection,
     isAnalysisSelectionActive,
     setAnalysisSelectionActive
 } from './analysis_selection.js';
@@ -193,6 +194,7 @@ function onMouseDown(event) {
 
 export function stopAoiLasso() {
     const map = window.map;
+    const wasActive = lassoActive;
     lassoActive = false;
     map?.off('mousedown', onMouseDown);
     map?.off('mousemove', onMouseMove);
@@ -202,6 +204,9 @@ export function stopAoiLasso() {
     setMapDrag(true);
     document.body.classList.remove('aoi-lasso-mode');
     syncLassoButton();
+    if (!wasActive) return;
+    clearAnalysisSelection();
+    setAnalysisSelectionActive(false);
 }
 
 export function startAoiLasso() {

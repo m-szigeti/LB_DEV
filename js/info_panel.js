@@ -823,6 +823,7 @@ setupEventListeners() {
         if (this.isVisible) {
             this.updateLayersList();
         }
+        this.updateAnalysisAreaSelection();
     }
     
     /**
@@ -832,6 +833,7 @@ setupEventListeners() {
     removeLayer(id) {
         this.activeLayers.delete(id);
         this.updateLayersList();
+        this.updateAnalysisAreaSelection();
     }
     
     /**

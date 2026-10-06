@@ -139,7 +139,7 @@ const DEFAULT_COPY = {
     hintProfile:
         'Each corner is a theme that has a score on this unit. Distance from the centre is that theme&rsquo;s own composite (usually 0&ndash;1). Higher = higher vulnerability. Scores do <strong>not</strong> add up to 1.',
     hintStacked:
-        'Each coloured web is one selected theme (not every theme on this unit). Larger web = higher vulnerability on that theme. Scores are independent and do <strong>not</strong> add up to 1.'
+        'Each coloured outline is one theme that is turned on for this area. A larger outline means a higher score on that theme. The highest theme reaches the outer ring, and the numbers on the rings are that scale. The colour key shows which outline is which theme.'
 };
 
 export function generateThemeSpiderHtml(model, copy = {}) {
@@ -165,7 +165,7 @@ export function generateThemeSpiderHtml(model, copy = {}) {
         }))
     }));
 
-    const legend = showLegend
+    const legend = (showLegend || model.stacked)
         ? `<div class="info-theme-spider-legend">${model.items
             .map(theme => `
             <div class="info-theme-spider-legend-item">

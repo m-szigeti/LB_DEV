@@ -989,9 +989,9 @@ function renderAoiThemeSpider(bundle) {
                 titleProfile: global ? 'Theme scores (all units)' : 'Theme scores (AOI sum)',
                 titleStacked: global ? 'Selected themes (all units)' : 'Selected themes (AOI sum)',
                 hintProfile:
-                    `Each corner is a theme. Distance from the centre is the <strong>sum</strong> of that theme&rsquo;s scores across ${scope}. Higher = higher vulnerability. Scores do <strong>not</strong> add up to 1.`,
+                    `Each corner is a theme. Distance from the centre is the total of that theme&rsquo;s scores across ${scope}. The numbers on the rings are the scale for those totals.`,
                 hintStacked:
-                    `Each coloured web is one selected theme. Larger web = the <strong>sum</strong> of that theme&rsquo;s scores across ${scope}. Scores are independent and do <strong>not</strong> add up to 1.`
+                    `Each coloured outline is one theme that is turned on. A larger outline means a higher total for that theme across ${scope}. The highest total reaches the outer ring, and the numbers on the rings are that scale. The colour key shows which outline is which theme.`
             })}
         </div>
         <div class="aoi-export-row aoi-situation-export">

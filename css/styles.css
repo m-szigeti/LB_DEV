@@ -2026,6 +2026,7 @@ body.aoi-lasso-mode #map {
     grid-template-columns: 1fr 1fr;
     gap: 5px 12px;
     width: 100%;
+    margin-top: 8px;
 }
 
 .info-theme-spider-legend-item {
