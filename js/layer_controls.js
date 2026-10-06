@@ -4288,6 +4288,7 @@ function setupSVRadioControls(map, layers, colorScales, addLegendEntry, removeLe
         },
         getPillarBreakdown: properties => getSVPillarBreakdown(properties, layers),
         getGlobalThemeSums: () => getGlobalSVThemeSums(layers),
+        getThemeGeoJson: layerId => getSourceLayerGeoJson(layerId, getActiveAdminResolution(), layers),
         isOverallLayer: layerId =>
             layerId === SV_OVERALL_LAYER_ID || layerId === CUSTOM_OVERALL_LAYER_ID,
         getActiveResolution: () => getActiveAdminResolution()

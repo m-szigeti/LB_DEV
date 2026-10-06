@@ -10,14 +10,18 @@ import {
 import {
     buildAoiSummaries,
     buildGlobalThemeSpiderBundle,
+    buildIndicatorSummaries,
+    buildScopedLayerSummaries,
     findFeaturesInDistrict,
     getActiveResolutionFromProviders,
+    getAoiProviders,
     getPrimaryLeafletLayerForSelection,
     listDistrictsOnLayer
 } from './aoi_context.js';
 import {
     addAnalysisSelectionFeatures,
     clearAnalysisSelection,
+    getActiveAdminResolutionLabel,
     getAnalysisSelectionCount,
     isAnalysisSelectionActive,
     setAnalysisSelectionActive
@@ -32,6 +36,8 @@ import {
     generateThemeSpiderHtml,
     paintThemeSpiderCharts
 } from './theme_spider.js';
+import { isDarkTheme } from './theme_mode.js';
+import { themesForResolution } from './custom_overall_catalog.js';
 
 function escapeHtml(text) {
     return String(text)
@@ -89,12 +95,63 @@ function buildAoiBriefingPdfSource(root, bundle) {
     return wrap;
 }
 
+const PDF_EXPORT_WIDTH = 760;
+const PDF_EXPORT_PAD = 24;
+
+function waitForExportImages(root) {
+    const images = [...root.querySelectorAll('img')];
+    return Promise.all(
+        images.map(
+            img =>
+                new Promise(resolve => {
+                    if (img.complete && img.naturalWidth) {
+                        resolve();
+                        return;
+                    }
+                    img.addEventListener('load', () => resolve(), { once: true });
+                    img.addEventListener('error', () => resolve(), { once: true });
+                })
+        )
+    );
+}
+
+function exportThemeColors() {
+    if (isDarkTheme()) {
+        return { background: '#09111b', text: '#e8eef4' };
+    }
+    return { background: '#ffffff', text: '#212529' };
+}
+
+function hexToRgb(hex) {
+    const value = String(hex || '').replace('#', '');
+    return {
+        r: parseInt(value.slice(0, 2), 16),
+        g: parseInt(value.slice(2, 4), 16),
+        b: parseInt(value.slice(4, 6), 16)
+    };
+}
+
+/** Largest frame that keeps the source aspect ratio inside the max box. */
+function fitFrame(srcWidth, srcHeight, maxWidth, maxHeight) {
+    const aspect = srcWidth / srcHeight;
+    let width = maxWidth;
+    let height = width / aspect;
+    if (height > maxHeight) {
+        height = maxHeight;
+        width = height * aspect;
+    }
+    return {
+        width: Math.max(1, Math.round(width)),
+        height: Math.max(1, Math.round(height))
+    };
+}
+
 /**
- * Export the Analysis-tab AOI statistics as a multi-page PDF.
- * @param {HTMLElement} root
- * @param {object} bundle
+ * Place one block on its own page, scaled down so it is never sliced onto the next page.
+ * @param {HTMLElement[]} blocks
+ * @param {string} filename
  */
-async function exportAoiBriefingPdf(root, bundle) {
+async function savePdfBlocks(blocks, filename) {
     if (typeof html2canvas !== 'function') {
         throw new Error('html2canvas is not available.');
     }
@@ -102,59 +159,85 @@ async function exportAoiBriefingPdf(root, bundle) {
     if (!jsPdfNamespace?.jsPDF) {
         throw new Error('jsPDF is not available.');
     }
-
-    const source = buildAoiBriefingPdfSource(root, bundle);
-    source.style.cssText = [
-        'position: fixed',
-        'left: -10000px',
-        'top: 0',
-        'width: 760px',
-        'background: #ffffff',
-        'padding: 24px',
-        'box-sizing: border-box',
-        'z-index: -1'
-    ].join(';');
-    document.body.appendChild(source);
-
-    try {
-        paintThemeSpiderCharts(source);
-        await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-        const canvas = await html2canvas(source, {
-            scale: 2,
-            useCORS: true,
-            allowTaint: false,
-            backgroundColor: '#ffffff',
-            width: source.scrollWidth,
-            height: source.scrollHeight
-        });
-
-        const { jsPDF } = jsPdfNamespace;
-        const pdf = new jsPDF('p', 'mm', 'a4');
-        const pageWidth = pdf.internal.pageSize.getWidth();
-        const pageHeight = pdf.internal.pageSize.getHeight();
-        const margin = 10;
-        const usableWidth = pageWidth - margin * 2;
-        const usableHeight = pageHeight - margin * 2;
-        const imgHeight = (canvas.height * usableWidth) / canvas.width;
-        const imgData = canvas.toDataURL('image/png');
-
-        let heightLeft = imgHeight;
-        let position = margin;
-        pdf.addImage(imgData, 'PNG', margin, position, usableWidth, imgHeight);
-        heightLeft -= usableHeight;
-
-        while (heightLeft > 1) {
-            position = margin - (imgHeight - heightLeft);
-            pdf.addPage();
-            pdf.addImage(imgData, 'PNG', margin, position, usableWidth, imgHeight);
-            heightLeft -= usableHeight;
-        }
-
-        const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
-        pdf.save(`aoi-briefing-${stamp}.pdf`);
-    } finally {
-        source.remove();
+    const pages = (blocks || []).filter(Boolean);
+    if (!pages.length) {
+        throw new Error('Nothing to export.');
     }
+
+    const colors = exportThemeColors();
+    const { jsPDF } = jsPdfNamespace;
+    const pdf = new jsPDF('p', 'mm', 'a4');
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    const margin = 10;
+    const usableWidth = pageWidth - margin * 2;
+    const usableHeight = pageHeight - margin * 2;
+    const rgb = hexToRgb(colors.background);
+    const paintPage = () => {
+        pdf.setFillColor(rgb.r, rgb.g, rgb.b);
+        pdf.rect(0, 0, pageWidth, pageHeight, 'F');
+    };
+
+    for (let index = 0; index < pages.length; index += 1) {
+        const block = pages[index];
+        block.style.cssText = [
+            'position: fixed',
+            'left: -10000px',
+            'top: 0',
+            `width: ${PDF_EXPORT_WIDTH}px`,
+            `background: ${colors.background}`,
+            `color: ${colors.text}`,
+            `padding: ${PDF_EXPORT_PAD}px`,
+            'box-sizing: border-box',
+            'z-index: -1'
+        ].join(';');
+        document.body.appendChild(block);
+        try {
+            paintThemeSpiderCharts(block);
+            await waitForExportImages(block);
+            await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+            const canvas = await html2canvas(block, {
+                scale: 2,
+                useCORS: true,
+                allowTaint: false,
+                backgroundColor: colors.background,
+                width: block.scrollWidth,
+                height: block.scrollHeight,
+                onclone(doc) {
+                    doc.documentElement.classList.toggle('theme-dark', isDarkTheme());
+                }
+            });
+            if (index > 0) pdf.addPage();
+            paintPage();
+            let drawWidth = usableWidth;
+            let drawHeight = (canvas.height * drawWidth) / canvas.width;
+            if (drawHeight > usableHeight) {
+                drawHeight = usableHeight;
+                drawWidth = (canvas.width * drawHeight) / canvas.height;
+            }
+            const x = margin + (usableWidth - drawWidth) / 2;
+            const y =
+                block.dataset.exportAlign === 'center'
+                    ? margin + (usableHeight - drawHeight) / 2
+                    : margin;
+            pdf.addImage(canvas.toDataURL('image/png'), 'PNG', x, y, drawWidth, drawHeight);
+        } finally {
+            block.remove();
+        }
+    }
+
+    pdf.save(filename);
+}
+
+/**
+ * Export the Analysis-tab AOI statistics as a multi-page PDF.
+ * @param {HTMLElement} root
+ * @param {object} bundle
+ */
+async function exportAoiBriefingPdf(root, bundle) {
+    const blocks = briefingBlocks(root, bundle);
+    const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+    await savePdfBlocks(blocks, `aoi-briefing-${stamp}.pdf`);
 }
 
 function loadCorsImage(src) {
@@ -167,141 +250,576 @@ function loadCorsImage(src) {
     });
 }
 
+function elementBox(el, origin) {
+    const rect = el.getBoundingClientRect();
+    return {
+        x: rect.left - origin.left,
+        y: rect.top - origin.top,
+        w: rect.width,
+        h: rect.height
+    };
+}
+
+function paneZIndex(el) {
+    const pane = el.closest?.('.leaflet-pane');
+    const z = pane ? parseInt(window.getComputedStyle(pane).zIndex, 10) : 0;
+    return Number.isFinite(z) ? z : 0;
+}
+
+async function rasterizeSvg(svg) {
+    const clone = svg.cloneNode(true);
+    clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+    clone.removeAttribute('style');
+    clone.removeAttribute('class');
+    const width = svg.width?.baseVal?.value || svg.getBoundingClientRect().width;
+    const height = svg.height?.baseVal?.value || svg.getBoundingClientRect().height;
+    if (!width || !height) return null;
+    clone.setAttribute('width', String(width));
+    clone.setAttribute('height', String(height));
+    clone.setAttribute('preserveAspectRatio', 'xMinYMin meet');
+    const blob = new Blob([new XMLSerializer().serializeToString(clone)], {
+        type: 'image/svg+xml;charset=utf-8'
+    });
+    const url = URL.createObjectURL(blob);
+    try {
+        return await loadCorsImage(url);
+    } finally {
+        URL.revokeObjectURL(url);
+    }
+}
+
+/**
+ * Capture the current map view without stretching the choropleth.
+ * Overlays are painted into their on-screen boxes so they stay aligned
+ * with the basemap; the returned pixel size is the map's real aspect ratio.
+ * @returns {Promise<{ dataUrl: string, width: number, height: number } | null>}
+ */
 async function captureLeafletMap() {
     const map = window.map;
     const container = map?.getContainer?.();
     if (!map || !container) return null;
-    const width = container.clientWidth;
-    const height = container.clientHeight;
-    if (!width || !height) return null;
-    const canvas = document.createElement('canvas');
-    canvas.width = width;
-    canvas.height = height;
-    const ctx = canvas.getContext('2d');
-    ctx.fillStyle = '#dbe3ea';
-    ctx.fillRect(0, 0, width, height);
     const mapRect = container.getBoundingClientRect();
+    const width = mapRect.width;
+    const height = mapRect.height;
+    if (!width || !height) return null;
+
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round(width * dpr));
+    canvas.height = Math.max(1, Math.round(height * dpr));
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.imageSmoothingEnabled = true;
+    ctx.fillStyle = isDarkTheme() ? '#09111b' : '#dbe3ea';
+    ctx.fillRect(0, 0, width, height);
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, 0, width, height);
+    ctx.clip();
 
     const tiles = container.querySelectorAll('.leaflet-tile-pane img');
     for (const tile of tiles) {
-        if (!tile.src) continue;
-        const rect = tile.getBoundingClientRect();
+        const src = tile.currentSrc || tile.src;
+        if (!src) continue;
+        const box = elementBox(tile, mapRect);
+        if (box.w < 1 || box.h < 1) continue;
         try {
-            const image = await loadCorsImage(tile.src);
-            ctx.drawImage(
-                image,
-                rect.left - mapRect.left,
-                rect.top - mapRect.top,
-                rect.width,
-                rect.height
-            );
+            const image = await loadCorsImage(src);
+            ctx.drawImage(image, box.x, box.y, box.w, box.h);
         } catch (error) {
             /* skip tiles that block cross-origin capture */
         }
     }
 
-    const svg = container.querySelector('.leaflet-overlay-pane svg');
-    if (svg) {
-        const clone = svg.cloneNode(true);
-        clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
-        const blob = new Blob([new XMLSerializer().serializeToString(clone)], { type: 'image/svg+xml;charset=utf-8' });
-        const url = URL.createObjectURL(blob);
+    const vectors = [...container.querySelectorAll('.leaflet-map-pane svg, .leaflet-map-pane canvas')]
+        .filter(el => !el.closest('.leaflet-tile-pane'))
+        .sort((a, b) => paneZIndex(a) - paneZIndex(b));
+
+    for (const el of vectors) {
+        const box = elementBox(el, mapRect);
+        if (box.w < 1 || box.h < 1) continue;
         try {
-            const image = await loadCorsImage(url);
-            const pane = container.querySelector('.leaflet-overlay-pane');
-            const paneRect = pane.getBoundingClientRect();
-            ctx.drawImage(image, paneRect.left - mapRect.left, paneRect.top - mapRect.top);
+            if (el.tagName.toLowerCase() === 'canvas') {
+                if (!el.width || !el.height) continue;
+                ctx.drawImage(el, box.x, box.y, box.w, box.h);
+            } else {
+                const image = await rasterizeSvg(el);
+                if (!image) continue;
+                ctx.drawImage(image, box.x, box.y, box.w, box.h);
+            }
         } catch (error) {
-            /* overlay is optional if the SVG cannot be painted */
-        } finally {
-            URL.revokeObjectURL(url);
+            /* overlay is optional if this layer cannot be painted */
         }
     }
 
-    return canvas.toDataURL('image/png');
+    ctx.restore();
+    try {
+        return {
+            dataUrl: canvas.toDataURL('image/png'),
+            width: canvas.width / dpr,
+            height: canvas.height / dpr
+        };
+    } catch (error) {
+        console.warn('Map capture was blocked by cross-origin imagery.', error);
+        return null;
+    }
 }
 
-function situationStatLines(bundle) {
-    const lines = [];
-    const pillars = bundle?.themeSums?.pillars || [];
-    pillars.forEach(pillar => {
-        lines.push(`${pillar.label}: sum ${formatAoiNumber(pillar.value)}`);
+const LEBANON_FALLBACK_BOUNDS = [[33.047, 35.094], [34.692, 36.625]];
+
+function countryBounds(map) {
+    const leaflet = window.L;
+    if (!leaflet || !map) return null;
+    let bounds = null;
+    const extend = layer => {
+        if (!layer || typeof layer.getBounds !== 'function') return;
+        let next = null;
+        try {
+            next = layer.getBounds();
+        } catch (error) {
+            return;
+        }
+        if (!next || typeof next.isValid !== 'function' || !next.isValid()) return;
+        bounds = bounds ? bounds.extend(next) : leaflet.latLngBounds(next.getSouthWest(), next.getNorthEast());
+    };
+    const vectors = window.mapLayers?.vector || {};
+    Object.values(vectors).forEach(layer => {
+        extend(layer);
+        extend(layer?._svChoroplethFillLayer);
+        extend(layer?._svVisualOutlineLayer);
+        extend(layer?._svAdminOutlineLayer);
     });
-    (bundle?.summaries || []).forEach(summary => {
-        const high = summary.extremes?.highest?.[0];
-        const low = summary.extremes?.lowest?.[0];
-        lines.push(`${summary.layerName}: mean ${formatAoiNumber(summary.stats?.mean)}`);
-        if (high) lines.push(`  Highest: ${high.name} (${formatAoiNumber(high.score)})`);
-        if (low) lines.push(`  Lowest: ${low.name} (${formatAoiNumber(low.score)})`);
-    });
-    return lines.slice(0, 18);
+    if (!bounds) bounds = leaflet.latLngBounds(LEBANON_FALLBACK_BOUNDS);
+    return bounds;
 }
 
-async function exportSituationPdf(root) {
-    const jsPdfNamespace = window.jspdf;
-    if (!jsPdfNamespace?.jsPDF) {
-        throw new Error('jsPDF is not available.');
+function waitForMapTiles(container, timeout = 1400) {
+    const start = Date.now();
+    return new Promise(resolve => {
+        const tick = () => {
+            const tiles = [...container.querySelectorAll('.leaflet-tile-pane img')];
+            const pending = tiles.some(img => img.src && !img.complete);
+            if (!pending || Date.now() - start >= timeout) {
+                resolve();
+                return;
+            }
+            window.setTimeout(tick, 80);
+        };
+        tick();
+    });
+}
+
+/**
+ * Reframe the live map to the whole country, capture it, then restore the user's view.
+ * Padding keeps the national outline inside the frame.
+ */
+async function captureCountryMap() {
+    const map = window.map;
+    const container = map?.getContainer?.();
+    if (!map || !container) return captureLeafletMap();
+    const bounds = countryBounds(map);
+    map.invalidateSize(false);
+    const center = map.getCenter();
+    const zoom = map.getZoom();
+    try {
+        await new Promise(resolve => {
+            let settled = false;
+            const finish = () => {
+                if (settled) return;
+                settled = true;
+                map.off('moveend', finish);
+                window.clearTimeout(hardStop);
+                resolve();
+            };
+            const hardStop = window.setTimeout(finish, 900);
+            map.once('moveend', finish);
+            map.fitBounds(bounds, {
+                animate: false,
+                paddingTopLeft: [48, 48],
+                paddingBottomRight: [48, 48]
+            });
+        });
+        await waitForMapTiles(container);
+        await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        return await captureLeafletMap();
+    } finally {
+        map.setView(center, zoom, { animate: false });
     }
-    const count = getAnalysisSelectionCount();
-    const bundle = count ? await buildAoiSummaries() : await buildGlobalThemeSpiderBundle();
-    if (!bundle?.themeSums?.pillars?.length) {
-        throw new Error('Turn on a theme layer to export the current situation.');
+}
+
+function htmlBlock(title, meta, content, { align } = {}) {
+    const wrap = document.createElement('div');
+    wrap.className = 'aoi-pdf-export-root aoi-pdf-block';
+    wrap.setAttribute('aria-hidden', 'true');
+    if (align) wrap.dataset.exportAlign = align;
+    const masthead = document.createElement('div');
+    masthead.className = 'aoi-pdf-masthead';
+    masthead.innerHTML = `
+        <h1 class="aoi-pdf-title">${escapeHtml(title)}</h1>
+        ${meta ? `<p class="aoi-pdf-meta">${escapeHtml(meta)}</p>` : ''}
+    `;
+    wrap.appendChild(masthead);
+    const panel = document.createElement('div');
+    panel.className = 'aoi-panel';
+    if (typeof content === 'string') panel.innerHTML = content;
+    else if (content) panel.appendChild(content);
+    wrap.appendChild(panel);
+    return wrap;
+}
+
+function briefingBlocks(root, bundle) {
+    const source = buildAoiBriefingPdfSource(root, bundle);
+    const meta = source.querySelector('.aoi-pdf-meta')?.textContent?.trim() || '';
+    const panel = source.querySelector('.aoi-panel');
+    const pieces = panel
+        ? [...panel.children].filter(el => !el.classList.contains('aoi-header'))
+        : [];
+    if (!pieces.length) return [source];
+    return pieces.map((piece, index) => {
+        const heading =
+            piece.querySelector('h4, h5, .aoi-section-title, .aoi-represented-label')?.textContent?.trim() ||
+            (index === 0 ? 'AOI Analysis Briefing' : 'AOI summary');
+        return htmlBlock(heading, meta, piece);
+    });
+}
+
+function mapExportBlock(capture, meta) {
+    const figure = document.createElement('figure');
+    figure.className = 'aoi-pdf-map';
+    if (capture?.dataUrl && capture.width > 0 && capture.height > 0) {
+        const frame = fitFrame(
+            capture.width,
+            capture.height,
+            PDF_EXPORT_WIDTH - PDF_EXPORT_PAD * 2 - 2,
+            2400
+        );
+        const image = document.createElement('img');
+        image.src = capture.dataUrl;
+        image.alt = 'Map of Lebanon';
+        image.width = frame.width;
+        image.height = frame.height;
+        image.style.width = `${frame.width}px`;
+        image.style.height = `${frame.height}px`;
+        figure.appendChild(image);
+    } else {
+        const note = document.createElement('p');
+        note.className = 'aoi-footnote';
+        note.textContent = 'The map could not be captured.';
+        figure.appendChild(note);
+    }
+    const block = htmlBlock('Current view', meta, figure, { align: 'center' });
+    const caption = document.createElement('p');
+    caption.className = 'aoi-footnote';
+    caption.textContent = 'Whole country, with space inside the frame so the outline is not cut off.';
+    block.querySelector('.aoi-panel')?.appendChild(caption);
+    return block;
+}
+
+function spiderExportBlock(title, meta, bundle, represented) {
+    const holder = document.createElement('div');
+    holder.innerHTML = renderAoiThemeSpider(bundle);
+    holder.querySelectorAll('.aoi-export-row').forEach(el => el.remove());
+    if (represented?.length) {
+        const note = document.createElement('p');
+        note.className = 'aoi-represented-names';
+        note.textContent = represented.join(', ');
+        holder.appendChild(note);
+    }
+    return htmlBlock(title, meta, holder);
+}
+
+function summaryExportBlocks(heading, meta, bundle, summaries, contributions, represented) {
+    const blocks = [];
+    if (bundle?.themeSums?.pillars?.length) {
+        blocks.push(spiderExportBlock(heading, meta, bundle, represented));
+        const scores = renderExportThemeScores(bundle);
+        if (scores) blocks.push(htmlBlock(`${heading} · Theme scores`, meta, scores));
+    }
+    if (contributions?.pillars?.length) {
+        const averages = renderThemeContributions(contributions);
+        if (averages) blocks.push(htmlBlock(`${heading} · Theme averages`, meta, averages));
+    }
+    (summaries || []).forEach(summary => {
+        blocks.push(htmlBlock(`${heading} · ${summary.layerName}`, meta, renderLayerSummary(summary)));
+    });
+    if (!blocks.length) {
+        blocks.push(
+            htmlBlock(
+                heading,
+                meta,
+                '<p class="aoi-footnote">No scored theme is turned on for this set of units.</p>'
+            )
+        );
+    }
+    return blocks;
+}
+
+function coverageKey(summary) {
+    return `${summary.layerId}::${summary.sourceField || summary.attributeLabel}`;
+}
+
+async function buildDataExportBlocks(choice) {
+    const blocks = [];
+    const when = new Date().toLocaleString();
+    const resolutionLabel = getActiveAdminResolutionLabel();
+    const covered = new Set();
+
+    if (choice.view) {
+        const mapCapture = await captureCountryMap();
+        blocks.push(mapExportBlock(mapCapture, `${resolutionLabel} · Whole country · ${when}`));
     }
 
-    const mapImage = await captureLeafletMap();
-    const spiderCanvas = root.querySelector('.aoi-theme-spider canvas');
-    const spiderImage = spiderCanvas ? spiderCanvas.toDataURL('image/png') : null;
+    if (choice.everything) {
+        const bundle = await buildGlobalThemeSpiderBundle();
+        const summaries = await buildScopedLayerSummaries('all');
+        blocks.push(
+            ...summaryExportBlocks(
+                'All units',
+                `${resolutionLabel} · All units · ${when}`,
+                bundle,
+                summaries,
+                null,
+                null
+            )
+        );
+        summaries.forEach(summary => covered.add(coverageKey(summary)));
+    }
 
-    const { jsPDF } = jsPdfNamespace;
-    const pdf = new jsPDF('p', 'mm', 'a4');
-    const pageWidth = pdf.internal.pageSize.getWidth();
-    const margin = 12;
-    const contentWidth = pageWidth - margin * 2;
-    let y = margin;
+    if (choice.selection) {
+        const bundle = await buildAoiSummaries();
+        const summaries = bundle.summaries || [];
+        blocks.push(
+            ...summaryExportBlocks(
+                'Current selection',
+                `${resolutionLabel} · ${bundle.selectionCount || 0} selected · ${when}`,
+                bundle,
+                summaries,
+                bundle.themeContributions,
+                bundle.districtsInSelection
+            )
+        );
+        summaries.forEach(summary => covered.add(coverageKey(summary)));
+    }
 
-    pdf.setFont('helvetica', 'bold');
-    pdf.setFontSize(16);
-    pdf.text('Current situation', margin, y + 6);
-    y += 10;
-    pdf.setFont('helvetica', 'normal');
-    pdf.setFontSize(10);
-    const scope = bundle.global || !count
-        ? `All units (${bundle.selectionCount || bundle.themeSums.unitCount || 0})`
-        : `${count} selected unit${count === 1 ? '' : 's'}`;
-    pdf.text(
-        `${bundle.resolutionLabel || 'Resolution'} · ${scope} · ${new Date().toLocaleString()}`,
-        margin,
-        y + 4
+    const extra = (choice.layers || []).filter(
+        request => request?.layerId && request?.field && !covered.has(`${request.layerId}::${request.field}`)
     );
-    y += 8;
-    pdf.setFontSize(9);
-    pdf.text('Higher theme scores indicate higher vulnerability. Scores are comparable within this resolution only.', margin, y + 4);
-    y += 8;
-
-    if (mapImage) {
-        const mapHeight = 78;
-        pdf.addImage(mapImage, 'PNG', margin, y, contentWidth, mapHeight);
-        y += mapHeight + 4;
+    if (extra.length) {
+        const scopes = [];
+        if (choice.everything || !choice.selection) scopes.push('all');
+        if (choice.selection) scopes.push('selection');
+        for (const scope of scopes) {
+            const summaries = await buildIndicatorSummaries(extra, scope);
+            const scopeLabel = scope === 'selection' ? 'Selection' : 'All units';
+            if (!summaries.length) {
+                blocks.push(
+                    htmlBlock(
+                        `${scopeLabel} · Additional layers`,
+                        `${resolutionLabel} · ${when}`,
+                        '<p class="aoi-footnote">No values were found for the added layers in this set of units.</p>'
+                    )
+                );
+                continue;
+            }
+            summaries.forEach(summary => {
+                blocks.push(
+                    htmlBlock(
+                        `${scopeLabel} · ${summary.layerName}`,
+                        `${resolutionLabel} · ${summary.attributeLabel} · ${when}`,
+                        renderLayerSummary(summary)
+                    )
+                );
+            });
+        }
     }
 
-    const spiderSize = 78;
-    if (spiderImage) {
-        pdf.addImage(spiderImage, 'PNG', margin, y, spiderSize, spiderSize);
+    if (!blocks.length) {
+        throw new Error('Nothing to export. Choose a view, a set of units, or at least one layer.');
     }
+    return blocks;
+}
 
-    const textX = margin + (spiderImage ? spiderSize + 6 : 0);
-    const textWidth = contentWidth - (spiderImage ? spiderSize + 6 : 0);
-    pdf.setFont('helvetica', 'bold');
-    pdf.setFontSize(11);
-    pdf.text('Theme scores', textX, y + 5);
-    pdf.setFont('helvetica', 'normal');
-    pdf.setFontSize(9);
-    const lines = situationStatLines(bundle);
-    const wrapped = pdf.splitTextToSize(lines.join('\n'), textWidth);
-    pdf.text(wrapped.slice(0, 22), textX, y + 11);
+function activeExportLayerIds() {
+    const layers = getAoiProviders()?.getActiveInfoLayers?.() || [];
+    return new Set(Array.from(layers).map(layer => layer?.id).filter(Boolean));
+}
 
-    const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
-    pdf.save(`situation-briefing-${stamp}.pdf`);
+function renderExportLayerPicker() {
+    const resolution = getActiveResolutionFromProviders();
+    const themes = themesForResolution(resolution);
+    const activeIds = activeExportLayerIds();
+    if (!themes.length) {
+        return '<p class="data-export-note">No themes are available at this resolution.</p>';
+    }
+    return themes
+        .map(theme => {
+            const composite = theme.indicators.find(item => item.field === theme.scoreField);
+            const compositeLabel = composite?.label || 'Theme score';
+            const indicators = theme.indicators.filter(item => item.field !== theme.scoreField);
+            const onMap = activeIds.has(theme.layerId);
+            const indicatorRows = indicators
+                .map(
+                    item => `
+                        <label class="data-export-indicator">
+                            <input type="checkbox" data-export-field data-layer-id="${escapeHtml(theme.layerId)}" data-field="${escapeHtml(item.field)}" data-label="${escapeHtml(item.label)}" data-theme-title="${escapeHtml(theme.title)}">
+                            <span>${escapeHtml(item.label)}</span>
+                        </label>
+                    `
+                )
+                .join('');
+            return `
+                <details class="data-export-theme" ${onMap ? 'open' : ''}>
+                    <summary>
+                        <span>${escapeHtml(theme.title)}</span>
+                        ${onMap ? '<em class="data-export-badge">On map</em>' : ''}
+                    </summary>
+                    <label class="data-export-indicator">
+                        <input type="checkbox" data-export-field data-layer-id="${escapeHtml(theme.layerId)}" data-field="${escapeHtml(theme.scoreField)}" data-label="${escapeHtml(compositeLabel)}" data-theme-title="${escapeHtml(theme.title)}">
+                        <span>${escapeHtml(compositeLabel)}</span>
+                    </label>
+                    ${indicatorRows}
+                </details>
+            `;
+        })
+        .join('');
+}
+
+function readExportChoice(dialog) {
+    const scopes = new Set(
+        [...dialog.querySelectorAll('[data-export-scope]:checked')].map(input => input.value)
+    );
+    const layers = [...dialog.querySelectorAll('[data-export-field]:checked')].map(input => ({
+        layerId: input.dataset.layerId,
+        field: input.dataset.field,
+        label: input.dataset.label,
+        themeTitle: input.dataset.themeTitle
+    }));
+    return {
+        view: scopes.has('view'),
+        everything: scopes.has('everything'),
+        selection: scopes.has('selection'),
+        layers
+    };
+}
+
+function openDataExportDialog() {
+    if (document.querySelector('.data-export-modal')) return;
+    const selectionMode = isAnalysisSelectionActive();
+    const selectionCount = getAnalysisSelectionCount();
+    const showSelection = selectionMode || selectionCount > 0;
+    const selectionReady = selectionCount > 0;
+    const selectionChecked = selectionMode && selectionReady;
+    const unitLabel = getActiveAdminResolutionLabel().toLowerCase();
+    const selectionNote = selectionReady
+        ? `${selectionCount} ${unitLabel}${selectionCount === 1 ? '' : 's'} selected`
+        : 'Selection mode is on, but no units are selected yet';
+
+    const dialog = document.createElement('div');
+    dialog.className = 'data-export-modal';
+    dialog.setAttribute('role', 'dialog');
+    dialog.setAttribute('aria-modal', 'true');
+    dialog.setAttribute('aria-labelledby', 'data-export-title');
+    dialog.innerHTML = `
+        <div class="data-export-backdrop" data-export-cancel></div>
+        <div class="data-export-card">
+            <header class="data-export-header">
+                <div>
+                    <h2 id="data-export-title">Export data</h2>
+                    <p>Choose what to include. Current view, all units, and the selection can be combined.</p>
+                </div>
+                <button type="button" class="data-export-close" data-export-cancel aria-label="Close">×</button>
+            </header>
+            <div class="data-export-body">
+                <div class="data-export-choices">
+                    <label class="data-export-choice">
+                        <input type="checkbox" data-export-scope value="view" checked>
+                        <span>
+                            <strong>Current view</strong>
+                            <small>Map of the whole country, with the layers styled now</small>
+                        </span>
+                    </label>
+                    <label class="data-export-choice">
+                        <input type="checkbox" data-export-scope value="everything" ${selectionChecked ? '' : 'checked'}>
+                        <span>
+                            <strong>Everything</strong>
+                            <small>Statistics for all units at this resolution</small>
+                        </span>
+                    </label>
+                    ${
+                        showSelection
+                            ? `<label class="data-export-choice${selectionMode ? ' is-highlighted' : ''}">
+                                <input type="checkbox" data-export-scope value="selection" ${selectionChecked ? 'checked' : ''} ${selectionReady ? '' : 'disabled'}>
+                                <span>
+                                    <strong>Current selection</strong>
+                                    ${selectionMode ? '<em class="data-export-badge">Selection mode</em>' : ''}
+                                    <small>${escapeHtml(selectionNote)}</small>
+                                </span>
+                            </label>`
+                            : ''
+                    }
+                </div>
+                <h3 class="data-export-section-title">Additional layers</h3>
+                <p class="data-export-note">Add other themes and sub-indicators to the output.</p>
+                <div class="data-export-layers">${renderExportLayerPicker()}</div>
+                <p class="data-export-error" data-export-error hidden></p>
+            </div>
+            <footer class="data-export-footer">
+                <button type="button" class="data-export-secondary" data-export-cancel>Cancel</button>
+                <button type="button" class="data-export-confirm" data-export-confirm>Export PDF</button>
+            </footer>
+        </div>
+    `;
+
+    let busy = false;
+    const close = () => {
+        document.removeEventListener('keydown', onKey);
+        dialog.remove();
+    };
+    const showError = message => {
+        const error = dialog.querySelector('[data-export-error]');
+        if (!error) return;
+        error.hidden = !message;
+        error.textContent = message || '';
+    };
+    const onKey = event => {
+        if (event.key === 'Escape' && !busy) close();
+    };
+
+    dialog.addEventListener('click', async event => {
+        const cancel = event.target.closest?.('[data-export-cancel]');
+        if (cancel) {
+            if (!busy) close();
+            return;
+        }
+        const confirm = event.target.closest?.('[data-export-confirm]');
+        if (!confirm || confirm.disabled) return;
+        const choice = readExportChoice(dialog);
+        if (!choice.view && !choice.everything && !choice.selection && !choice.layers.length) {
+            showError('Select the current view, everything, the selection, or at least one layer.');
+            return;
+        }
+        showError('');
+        busy = true;
+        confirm.disabled = true;
+        confirm.textContent = 'Exporting PDF…';
+        try {
+            const blocks = await buildDataExportBlocks(choice);
+            const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+            await savePdfBlocks(blocks, `data-export-${stamp}.pdf`);
+            close();
+        } catch (error) {
+            console.error('Situation PDF export failed:', error);
+            showError(error?.message || 'Could not export the PDF.');
+            busy = false;
+            confirm.disabled = false;
+            confirm.textContent = 'Export PDF';
+        }
+    });
+
+    document.addEventListener('keydown', onKey);
+    document.body.appendChild(dialog);
+    dialog.querySelector('.data-export-close')?.focus();
 }
 
 function renderMetricCards(summary) {
@@ -384,7 +902,7 @@ function renderPillars(summary) {
             const width = Math.round((Math.max(0, p.value) / max) * 100);
             const share = formatAoiPercent(p.proportion);
             return `
-                <div class="aoi-class-row">
+                <div class="aoi-class-row aoi-score-row">
                     <div class="aoi-class-label">${escapeHtml(p.label)}</div>
                     <div class="aoi-class-bar-track">
                         <div class="aoi-class-bar-fill aoi-pillar-fill" style="width:${width}%;background:${escapeHtml(p.color)}"></div>
@@ -412,6 +930,47 @@ function renderThemeContributions(themeContributions) {
     return renderPillars({ pillars: themeContributions });
 }
 
+function renderExportThemeScores(bundle) {
+    const pillars = [...(bundle?.themeSums?.pillars || [])].sort(
+        (a, b) => Number(b.value) - Number(a.value)
+    );
+    if (!pillars.length) return '';
+    const max = Math.max(0.001, ...pillars.map(p => Number(p.value) || 0));
+    const global = Boolean(bundle.global);
+    const rows = pillars
+        .map(p => {
+            const value = Number(p.value) || 0;
+            const width = Math.round((Math.max(0, value) / max) * 100);
+            return `
+                <div class="aoi-class-row aoi-score-row">
+                    <div class="aoi-class-label">${escapeHtml(p.label)}</div>
+                    <div class="aoi-class-bar-track">
+                        <div class="aoi-class-bar-fill aoi-pillar-fill" style="width:${width}%;background:${escapeHtml(p.color || '#64748b')}"></div>
+                    </div>
+                    <div class="aoi-class-count">${escapeHtml(formatAoiNumber(value))} · ${escapeHtml(formatAoiPercent(p.proportion))}</div>
+                </div>
+            `;
+        })
+        .join('');
+    const worst = bundle.themeSums?.worst;
+    return `
+        <div class="aoi-section aoi-pdf-scores">
+            <div class="aoi-section-title">${global ? 'Theme scores' : 'Theme scores in the selection'}</div>
+            <p class="aoi-footnote">${
+                global
+                    ? 'Sum of each theme across all units at this resolution. The percentage is that theme’s share of the total.'
+                    : 'Sum of each theme across the selected units. The percentage is that theme’s share of the total.'
+            }</p>
+            ${rows}
+            ${
+                worst
+                    ? `<p class="aoi-footnote">Highest theme score: <strong>${escapeHtml(worst.label)}</strong></p>`
+                    : ''
+            }
+        </div>
+    `;
+}
+
 function renderAoiThemeSpider(bundle) {
     const pillars = bundle?.themeSums?.pillars || [];
     if (!pillars.length) return '';
@@ -436,7 +995,7 @@ function renderAoiThemeSpider(bundle) {
             })}
         </div>
         <div class="aoi-export-row aoi-situation-export">
-            <button type="button" class="aoi-export-btn" data-aoi-action="export-situation">Data Export</button>
+            <button type="button" class="aoi-export-btn" data-aoi-action="export-situation">Export data</button>
         </div>
     `;
 }
@@ -613,19 +1172,7 @@ export async function bindAoiPanelInteractions(root, { onChanged } = {}) {
                 return;
             }
             if (action === 'export-situation') {
-                const btn = button;
-                const originalLabel = btn.textContent;
-                btn.disabled = true;
-                btn.textContent = 'Exporting PDF…';
-                try {
-                    await exportSituationPdf(root);
-                } catch (error) {
-                    console.error('Situation PDF export failed:', error);
-                    window.alert(error?.message || 'Could not export the situation PDF.');
-                } finally {
-                    btn.disabled = false;
-                    btn.textContent = originalLabel;
-                }
+                openDataExportDialog();
                 return;
             }
             const bundle = await buildAoiSummaries();

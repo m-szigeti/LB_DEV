@@ -78,7 +78,9 @@ const ADMIN_NAME_ALIASES = {
  *   getColorSpec: (infoLayer: object, leafletLayer: object) => object|null,
  *   getPillarBreakdown: (properties: object) => Promise<object[]|null>,
  *   isOverallLayer: (layerId: string) => boolean,
- *   getActiveResolution: () => string
+ *   getActiveResolution: () => string,
+ *   getGlobalThemeSums: () => Promise<object|null>,
+ *   getThemeGeoJson: (layerId: string) => Promise<object|null>
  * }} */
 let providers = null;
 
@@ -452,20 +454,18 @@ export async function buildAoiSummaries() {
             });
         }
 
-        summaries.push(
-            buildLayerAoiSummary({
-                layerId: infoLayer.id,
-                layerName: infoLayer.name || infoLayer.id,
-                attributeLabel: String(attribute)
-                .replace(/_/g, ' ')
-                .replace(/\b\w/g, letter => letter.toUpperCase()),
-                resolutionLabel,
-                entries,
-                breaks,
-                classLabels,
-                pillarSets: []
-            })
-        );
+        const summary = buildLayerAoiSummary({
+            layerId: infoLayer.id,
+            layerName: infoLayer.name || infoLayer.id,
+            attributeLabel: readableFieldLabel(attribute),
+            resolutionLabel,
+            entries,
+            breaks,
+            classLabels,
+            pillarSets: []
+        });
+        summary.sourceField = attribute;
+        summaries.push(summary);
     }
 
     return {
@@ -516,4 +516,104 @@ export function getPrimaryLeafletLayerForSelection() {
 
 export function getActiveResolutionFromProviders() {
     return providers?.getActiveResolution?.() || 'district';
+}
+
+function readableFieldLabel(field) {
+    return String(field || '')
+        .replace(/_/g, ' ')
+        .replace(/\b\w/g, letter => letter.toUpperCase());
+}
+
+/**
+ * Summaries for explicit theme / sub-indicator fields.
+ * @param {{ layerId: string, field: string, label?: string, themeTitle?: string, breaks?: number[]|null }[]} requests
+ * @param {'all'|'selection'} scope
+ */
+export async function buildIndicatorSummaries(requests, scope = 'all') {
+    const resolution = getActiveAoiResolution();
+    const resolutionLabel = getActiveAdminResolutionLabel();
+    const popLookup = await loadPopulationLookup(resolution);
+    const selectionKeys =
+        scope === 'selection'
+            ? new Set(getAnalysisSelectionItems().map(item => item.key).filter(Boolean))
+            : null;
+    const summaries = [];
+
+    for (const request of requests || []) {
+        if (!request?.layerId || !request?.field) continue;
+        let features = [];
+        try {
+            const geojson = await providers?.getThemeGeoJson?.(request.layerId);
+            features = geojson?.features || [];
+        } catch (error) {
+            console.warn('Export layer failed', request.layerId, error);
+            continue;
+        }
+
+        const breaks = Array.isArray(request.breaks) ? request.breaks : null;
+        const classLabels = breaks
+            ? AOI_CLASS_LABELS.slice(0, Math.max(1, breaks.length - 1))
+            : AOI_CLASS_LABELS;
+        const entries = [];
+        features.forEach(feature => {
+            const properties = feature?.properties || {};
+            const key = getFeatureSelectionKey(properties);
+            if (selectionKeys && (!key || !selectionKeys.has(key))) return;
+            const score = parseNumeric(properties[request.field]);
+            entries.push({
+                key,
+                name: getFeatureDisplayName(properties),
+                score,
+                population: resolvePopulationForProperties(properties, popLookup, resolution),
+                noData: score === null,
+                classIndex: null,
+                district: getDistrictName(properties)
+            });
+        });
+        if (!entries.length) continue;
+
+        const summary = buildLayerAoiSummary({
+            layerId: request.layerId,
+            layerName: request.themeTitle || request.label || request.layerId,
+            attributeLabel: request.label || readableFieldLabel(request.field),
+            resolutionLabel,
+            entries,
+            breaks,
+            classLabels
+        });
+        summary.sourceField = request.field;
+        if (!breaks) {
+            summary.distribution = {
+                classes: [],
+                classifiedUnits: 0,
+                noDataUnits: 0,
+                highClass: null
+            };
+        }
+        summaries.push(summary);
+    }
+
+    return summaries;
+}
+
+/** National or selection summaries for every theme currently turned on. */
+export async function buildScopedLayerSummaries(scope = 'all') {
+    const infoLayers = Array.from(providers?.getActiveInfoLayers?.() || []);
+    const requests = [];
+    for (const infoLayer of infoLayers) {
+        const field = providers?.getScoreAttribute?.(infoLayer);
+        if (!field) continue;
+        const leafletLayer = providers.getLeafletLayer?.(infoLayer);
+        const colorSpec = providers.getColorSpec?.(infoLayer, leafletLayer) || null;
+        const breaks =
+            colorSpec?.mode === 'continuous' && Array.isArray(colorSpec.breaks) ? colorSpec.breaks : null;
+        requests.push({
+            layerId: infoLayer.id,
+            field,
+            label: readableFieldLabel(field),
+            themeTitle: infoLayer.name || infoLayer.id,
+            breaks
+        });
+    }
+    return buildIndicatorSummaries(requests, scope);
 }

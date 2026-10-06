@@ -569,6 +569,86 @@ html.theme-dark .aoi-metric-card {
     color: #e8eef4;
 }
 
+html.theme-dark .aoi-pdf-export-root {
+    background: #09111b;
+    color: #e8eef4;
+}
+
+html.theme-dark .aoi-pdf-masthead {
+    border-bottom-color: #1f3e5a;
+}
+
+html.theme-dark .aoi-pdf-title {
+    color: #e8eef4;
+}
+
+html.theme-dark .aoi-pdf-meta {
+    color: #b7c3d0;
+}
+
+html.theme-dark .aoi-pdf-map {
+    background: #09111b;
+    border-color: #1f3e5a;
+}
+
+html.theme-dark .data-export-card,
+html.theme-dark .data-export-header,
+html.theme-dark .data-export-footer,
+html.theme-dark .data-export-layers {
+    background: #1a2430;
+    color: #e8eef4;
+    border-color: #1f3e5a;
+}
+
+html.theme-dark .data-export-header,
+html.theme-dark .data-export-footer,
+html.theme-dark .data-export-theme {
+    border-color: #1f3e5a;
+}
+
+html.theme-dark .data-export-header h2,
+html.theme-dark .data-export-section-title,
+html.theme-dark .data-export-choice strong,
+html.theme-dark .data-export-theme summary,
+html.theme-dark .data-export-indicator {
+    color: #e8eef4;
+}
+
+html.theme-dark .data-export-header p,
+html.theme-dark .data-export-note,
+html.theme-dark .data-export-choice small,
+html.theme-dark .data-export-close {
+    color: #b7c3d0;
+}
+
+html.theme-dark .data-export-choice {
+    background: #09111b;
+    border-color: #1f3e5a;
+}
+
+html.theme-dark .data-export-choice.is-highlighted {
+    background: #241833;
+    border-color: #c4b5fd;
+    box-shadow: inset 3px 0 0 #c4b5fd;
+}
+
+html.theme-dark .data-export-badge {
+    background: #3b0764;
+    color: #f5f3ff;
+}
+
+html.theme-dark .data-export-secondary {
+    background: #1f3e5a;
+    color: #e8eef4;
+    border-color: #2596be;
+}
+
+html.theme-dark .data-export-confirm,
+html.theme-dark .data-export-confirm:hover:not(:disabled) {
+    background: #6d28d9;
+    color: #fff;
+}
+
 html.theme-dark .aoi-title,
 html.theme-dark .aoi-layer-title,
 html.theme-dark .aoi-layer-attribute,
