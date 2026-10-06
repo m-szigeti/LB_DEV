@@ -306,7 +306,7 @@ function renderProportionalCirclesEntry(entry) {
         const cy = svgSize / 2;
         return `
             <div style="display:flex; align-items:center; margin-bottom:6px;">
-                <svg width="${svgSize}" height="${svgSize}" style="flex-shrink:0; display:block;" aria-hidden="true">
+                <svg class="legend-proportional-icon" width="${svgSize}" height="${svgSize}" style="flex-shrink:0; display:block;" aria-hidden="true">
                     <circle cx="${cx}" cy="${cy}" r="${r}" fill="${fill}" fill-opacity="${fillOpacity}" stroke="${stroke}" stroke-width="1" />
                 </svg>
                 <span style="font-size: 11px; color: #333; margin-left: 6px; line-height: 1.2;">${item.label}</span>

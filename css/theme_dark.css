@@ -158,6 +158,10 @@ html.theme-dark #legend div[style*="background-color: #eef2f7"] {
     background-color: #09111b !important;
 }
 
+html.theme-dark #legend svg.legend-proportional-icon {
+    background-color: #1a2430 !important;
+}
+
 html.theme-dark img[src*="forest-fire-high.svg"] {
     filter: drop-shadow(0 0 2px #ffffff) drop-shadow(0 0 6px rgba(255, 255, 255, 0.72));
 }
@@ -265,6 +269,16 @@ html.theme-dark .aoi-extremes-list li {
 html.theme-dark .aoi-extremes-list li strong,
 html.theme-dark .aoi-represented-names {
     color: #ffffff;
+}
+
+html.theme-dark .layer-item .layer-cue.welcome-composite-swatch-icons,
+html.theme-dark .layer-item .layer-cue.layer-cue-circles {
+    background: #1a2430;
+    border-color: #1f3e5a;
+}
+
+html.theme-dark .layer-item .layer-cue-plate {
+    fill: #1a2430;
 }
 
 html.theme-dark .layer-cue.layer-cue-stripes-gray {

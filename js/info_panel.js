@@ -111,7 +111,7 @@ function layerVisualCueHtml(layerId) {
                                 <rect x="6" y="5" width="44" height="30" rx="4"/>
                             </clipPath>
                         </defs>
-                        <rect x="1" y="1" width="54" height="38" rx="6" fill="#f8fafc"/>
+                        <rect class="layer-cue-plate" x="1" y="1" width="54" height="38" rx="6" fill="#f8fafc"/>
                         <g clip-path="url(#activeLayerPoliticalGlowClip)">
                             <rect x="6" y="5" width="44" height="30" rx="4" fill="none" stroke="#93c5fd" stroke-width="12" opacity="0.28"/>
                             <rect x="6" y="5" width="44" height="30" rx="4" fill="none" stroke="#3b82f6" stroke-width="7" opacity="0.45"/>
