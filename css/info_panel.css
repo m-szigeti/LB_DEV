@@ -340,6 +340,23 @@
     max-width: 18px;
 }
 
+.layer-cue-inline.welcome-composite-swatch {
+    flex: 0 0 40px;
+    width: 40px;
+    height: 24px;
+}
+
+.layer-cue-inline.welcome-composite-swatch-icons img {
+    width: 11px;
+    height: 11px;
+    max-width: 12px;
+}
+
+.layer-cue-inline.welcome-composite-swatch-glow svg {
+    width: 40px;
+    height: 24px;
+}
+
 .layer-cue.layer-cue-stripes-gray {
     background:
         repeating-linear-gradient(
@@ -414,6 +431,12 @@
     margin-top: 6px;
 }
 
+.custom-overall-ingredients ul ul li {
+    margin: 2px 0;
+    font-size: 13px;
+    font-weight: 400;
+}
+
 .layer-indicator-definitions li strong {
     display: block;
     color: #1f2937;
@@ -450,6 +473,41 @@
     font-size: 12px;
     color: #7c2d12;
     line-height: 1.35;
+}
+
+.selected-feature-meter {
+    display: grid;
+    grid-template-columns: 40px 112px minmax(0, 1fr) 56px;
+    gap: 8px;
+    align-items: center;
+}
+
+.selected-feature-meter > * {
+    min-width: 0;
+}
+
+.selected-feature-meter > .layer-cue {
+    width: 40px;
+    min-width: 40px;
+    max-width: 40px;
+}
+
+.selected-feature-attr,
+.selected-feature-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.selected-feature-name {
+    margin-top: 4px;
+    font-weight: 700;
+}
+
+.selected-feature-level-label {
+    font-weight: 700;
+    white-space: nowrap;
+    text-align: right;
 }
 
 .layer-quick-stats {
@@ -590,10 +648,53 @@
     margin-bottom: 0;
 }
 
-.active-layer-rankings {
-    margin-top: 8px;
-    padding-top: 12px;
-    border-top: 1px solid #e9ecef;
+.analysis-rankings {
+    margin: 8px 0 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    background: #fff;
+}
+
+.analysis-rankings-toggle {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin: 0;
+    padding: 8px 10px;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: #1e293b;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 700;
+    text-align: left;
+    cursor: pointer;
+}
+
+.analysis-rankings-toggle:hover {
+    background: #f8fafc;
+}
+
+.analysis-rankings-chevron {
+    font-size: 12px;
+    color: #64748b;
+}
+
+.analysis-rankings-body {
+    max-height: 280px;
+    overflow-y: auto;
+    padding: 0 10px 10px;
+}
+
+.analysis-rankings.is-collapsed .analysis-rankings-body {
+    display: none;
+}
+
+.analysis-rankings.is-collapsed .analysis-rankings-toggle {
+    border-radius: 6px;
 }
 
 .ranking-bar-chart {
@@ -754,6 +855,22 @@
     padding: 12px;
     background: #fff;
     border: 1px solid #e9ecef;
+    border-radius: 6px;
+}
+
+.aoi-theme-spider.is-collapsible {
+    padding: 0;
+}
+
+.analysis-theme-scores-body {
+    padding: 0 12px 12px;
+}
+
+.aoi-theme-spider.is-collapsed .analysis-theme-scores-body {
+    display: none;
+}
+
+.aoi-theme-spider.is-collapsed .analysis-theme-scores-toggle {
     border-radius: 6px;
 }
 
@@ -1012,34 +1129,6 @@
 
 .aoi-custom-index-btn:hover:not(:disabled) {
     background: #99f6e4;
-}
-
-.aoi-district-tools {
-    margin-top: 12px;
-    padding-top: 10px;
-    border-top: 1px solid #e2e8f0;
-}
-
-.aoi-district-label {
-    display: block;
-    font-size: 12px;
-    font-weight: 600;
-    color: #334155;
-    margin-bottom: 6px;
-}
-
-.aoi-district-row {
-    display: flex;
-    gap: 6px;
-}
-
-.aoi-district-select {
-    flex: 1;
-    font-size: 12px;
-    padding: 5px 8px;
-    border: 1px solid #cbd5e1;
-    border-radius: 4px;
-    background: #fff;
 }
 
 .aoi-pdf-export-root {

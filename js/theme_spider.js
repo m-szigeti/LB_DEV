@@ -2,6 +2,8 @@
  * Shared theme spider / radar chart for polygon popups and AOI Analysis.
  */
 
+import { layerVisualCueHtml } from './layer_cues.js';
+
 const OVERALL_LAYER_IDS = new Set([
     'svOverallTensionLayer',
     'svCustomOverallLayer'
@@ -26,6 +28,22 @@ function escapeHtml(value) {
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#39;');
+}
+
+/** Composites are usually 0–1. Below one third is Low, below two thirds is Medium. */
+export function vulnerabilityLevelLabel(value) {
+    const score = Number(value);
+    if (!Number.isFinite(score)) return 'N/A';
+    if (score < 1 / 3) return 'Low';
+    if (score < 2 / 3) return 'Medium';
+    return 'High';
+}
+
+export function vulnerabilityBarWidth(value) {
+    const score = Number(value);
+    if (!Number.isFinite(score) || score <= 0) return 0;
+    const ratio = score <= 1.0001 ? score : 1;
+    return Math.round(Math.max(score > 0 ? 4 : 0, Math.min(100, ratio * 100)));
 }
 
 export function formatSpiderValue(value) {
@@ -102,7 +120,7 @@ export function buildThemeSpiderModel({
     };
 }
 
-function generateThemeBarsFallback(themes, title, hint) {
+function generateThemeBarsFallback(themes, title, hint, omitTitle = false) {
     const sorted = [...themes].sort((a, b) => Number(b.value) - Number(a.value));
     const outlierMax = Math.max(
         0.001,
@@ -126,7 +144,7 @@ function generateThemeBarsFallback(themes, title, hint) {
         .join('');
     return `
         <div class="info-section info-theme-section">
-            <h4>${escapeHtml(title)}</h4>
+            ${omitTitle ? '' : `<h4>${escapeHtml(title)}</h4>`}
             <p class="info-theme-hint">${hint}</p>
             <div class="info-theme-bars">${rows}</div>
         </div>
@@ -139,19 +157,38 @@ const DEFAULT_COPY = {
     hintProfile:
         'Each corner is a theme that has a score on this unit. Distance from the centre is that theme&rsquo;s own composite (usually 0&ndash;1). Higher = higher vulnerability. Scores do <strong>not</strong> add up to 1.',
     hintStacked:
-        'Each coloured outline is one theme that is turned on for this area. A larger outline means a higher score on that theme. The highest theme reaches the outer ring, and the numbers on the rings are that scale. The colour key shows which outline is which theme.'
+        'Each coloured outline is one theme that is turned on for this area. A larger outline means a higher score on that theme. The highest theme reaches the outer ring, and the numbers on the rings are that scale. Under the chart, the icon, bar, and level (Low, Medium, or High) match that outline.'
 };
+
+function renderLevelLegend(items) {
+    return `<div class="info-theme-spider-legend info-theme-spider-legend-levels">${items
+        .map(theme => {
+            const level = vulnerabilityLevelLabel(theme.value);
+            const width = vulnerabilityBarWidth(theme.value);
+            return `
+            <div class="info-theme-spider-legend-item has-level">
+                ${layerVisualCueHtml(theme.layerId, { compact: true, idSuffix: `spider-${theme.layerId}` })}
+                <span class="info-theme-spider-legend-label" title="${escapeHtml(theme.label)}">${escapeHtml(shortThemeLabel(theme))}</span>
+                <div class="info-theme-bar-track" aria-hidden="true">
+                    <div class="info-theme-bar-fill" style="width:${width}%;background:${escapeHtml(theme.color)}"></div>
+                </div>
+                <span class="info-theme-spider-legend-value">${escapeHtml(level)}</span>
+            </div>
+        `;
+        })
+        .join('')}</div>`;
+}
 
 export function generateThemeSpiderHtml(model, copy = {}) {
     if (!model?.items?.length) return '';
 
-    const { showLegend = true, sideHtml = '', ...textCopy } = copy;
+    const { showLegend = true, sideHtml = '', levelLegend = false, omitTitle = false, ...textCopy } = copy;
     const titles = { ...DEFAULT_COPY, ...textCopy };
     const title = model.stacked ? titles.titleStacked : titles.titleProfile;
     const hint = model.stacked ? titles.hintStacked : titles.hintProfile;
 
     if (!model.stacked && model.items.length < 3) {
-        return generateThemeBarsFallback(model.items, title, hint);
+        return generateThemeBarsFallback(model.items, title, hint, omitTitle);
     }
 
     const payload = encodeURIComponent(JSON.stringify({
@@ -165,7 +202,9 @@ export function generateThemeSpiderHtml(model, copy = {}) {
         }))
     }));
 
-    const legend = (showLegend || model.stacked)
+    const legend = levelLegend && model.stacked
+        ? renderLevelLegend(model.items)
+        : (showLegend || model.stacked)
         ? `<div class="info-theme-spider-legend">${model.items
             .map(theme => `
             <div class="info-theme-spider-legend-item">
@@ -183,7 +222,7 @@ export function generateThemeSpiderHtml(model, copy = {}) {
 
     return `
         <div class="info-section info-theme-section">
-            <h4>${escapeHtml(title)}</h4>
+            ${omitTitle ? '' : `<h4>${escapeHtml(title)}</h4>`}
             <p class="info-theme-hint">${hint}</p>
             <div class="info-theme-spider-layout${side ? ' has-side' : ''}">
                 <div class="info-theme-spider">

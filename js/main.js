@@ -353,7 +353,10 @@ function scheduleMapLayoutRefresh(...maps) {
 function setupMainMap(mapId) {
     const map = L.map(mapId, {
         zoomControl: true,  // We'll remove this in createAdminLabelLayers
-        attributionControl: true
+        attributionControl: true,
+        zoomSnap: 0.25,
+        zoomDelta: 0.25,
+        wheelPxPerZoomLevel: 120
     }).setView([33.8362512,36.1096576], 9);
     map.attributionControl.setPrefix('The boundaries and names shown and the designations used on this map do not imply official endorsement or acceptance by the United Nations.')
     map.attributionControl.setPosition('bottomleft')
@@ -401,7 +404,10 @@ function setupMainMap(mapId) {
 function setupCompareMap(mapId) {
     const map = L.map(mapId, {
         zoomControl: false,
-        attributionControl: false
+        attributionControl: false,
+        zoomSnap: 0.25,
+        zoomDelta: 0.25,
+        wheelPxPerZoomLevel: 120
     }).setView([17.5707, -3.9962], 6);
     
     basemaps.esriWorldImagery.addTo(map);

@@ -10,6 +10,7 @@ import {
 } from './intervention_mapping.js';
 import {
     getFeatureSelectionKey,
+    getAnalysisSelectionItems,
     clearAnalysisSelection,
     isAnalysisSelectionActive,
     setAnalysisSelectionActive,
@@ -18,6 +19,9 @@ import {
 import { hideInfoPopup } from './info_popup.js';
 import { initAoiLasso, stopAoiLasso } from './aoi_lasso.js';
 import { bindAoiPanelInteractions, renderAoiPanelHtml } from './aoi_panel.js';
+import { CUSTOM_OVERALL_THEMES } from './custom_overall_catalog.js';
+import { layerVisualCueHtml, THEME_LAYER_COLORS } from './layer_cues.js';
+import { vulnerabilityBarWidth, vulnerabilityLevelLabel } from './theme_spider.js';
 
 const RANKING_LIST_SIZE = 10;
 
@@ -64,79 +68,6 @@ function renderThemeIndicatorDefinitionsHtml(layerId, escapeHtml, propertyKeys =
             <ul>${items}</ul>
         </div>
     `;
-}
-
-function layerVisualCueHtml(layerId) {
-    const fillSwatch = (c1, c2, c3) => `
-        <div class="welcome-composite-swatch welcome-composite-swatch-fill layer-cue" aria-hidden="true">
-            <span style="background:${c1};"></span>
-            <span style="background:${c2};"></span>
-            <span style="background:${c3};"></span>
-        </div>
-    `;
-    const iconSwatch = (low, medium, high) => `
-        <div class="welcome-composite-swatch welcome-composite-swatch-icons layer-cue" aria-hidden="true">
-            <img src="${low}" alt="">
-            <img src="${medium}" alt="">
-            <img src="${high}" alt="">
-        </div>
-    `;
-
-    switch (layerId) {
-        case 'svOverallTensionLayer':
-        case 'svCustomOverallLayer':
-            return fillSwatch('#ffffff', '#3b82f6', '#1e3a8a');
-        case 'svAdmin3Layer':
-            return fillSwatch('#e6d9f2', '#8e5cbf', '#4a1f73');
-        case 'svAdmin2Layer':
-            return `<div class="welcome-composite-swatch layer-cue layer-cue-stripes-gray" aria-hidden="true"></div>`;
-        case 'svAdmin4Layer':
-            return iconSwatch(
-                'assets/service-symbol-low.svg',
-                'assets/service-symbol-medium.svg',
-                'assets/service-symbol-high.svg'
-            );
-        case 'svClimateLayer':
-            return iconSwatch(
-                'assets/forest-fire-low.svg',
-                'assets/forest-fire-medium.svg',
-                'assets/forest-fire-high.svg'
-            );
-        case 'svPoliticalLayer':
-            return `
-                <div class="welcome-composite-swatch welcome-composite-swatch-glow layer-cue" aria-hidden="true">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="56" height="40" viewBox="0 0 56 40">
-                        <defs>
-                            <clipPath id="activeLayerPoliticalGlowClip">
-                                <rect x="6" y="5" width="44" height="30" rx="4"/>
-                            </clipPath>
-                        </defs>
-                        <rect class="layer-cue-plate" x="1" y="1" width="54" height="38" rx="6" fill="#f8fafc"/>
-                        <g clip-path="url(#activeLayerPoliticalGlowClip)">
-                            <rect x="6" y="5" width="44" height="30" rx="4" fill="none" stroke="#93c5fd" stroke-width="12" opacity="0.28"/>
-                            <rect x="6" y="5" width="44" height="30" rx="4" fill="none" stroke="#3b82f6" stroke-width="7" opacity="0.45"/>
-                            <rect x="6" y="5" width="44" height="30" rx="4" fill="none" stroke="#1e3a8a" stroke-width="3"/>
-                        </g>
-                    </svg>
-                </div>
-            `;
-        case 'svGenderLayer':
-            return iconSwatch(
-                'assets/gender-symbol-low.svg',
-                'assets/gender-symbol-medium.svg',
-                'assets/gender-symbol-high.svg'
-            );
-        case 'svAdmin1Layer':
-            return `
-                <div class="welcome-composite-swatch layer-cue layer-cue-circles" aria-hidden="true">
-                    <span class="layer-cue-circle" style="width:8px;height:8px;background:#fef08a;"></span>
-                    <span class="layer-cue-circle" style="width:12px;height:12px;background:#ea580c;"></span>
-                    <span class="layer-cue-circle" style="width:16px;height:16px;background:#c2410c;"></span>
-                </div>
-            `;
-        default:
-            return '';
-    }
 }
 
 /**
@@ -277,9 +208,6 @@ export class InfoPanel {
                         </div>
                         <div class="layers-list" id="layers-list">
                             <p class="no-layers-message">No layers currently active</p>
-                        </div>
-                        <div class="active-layer-rankings" id="active-layer-rankings">
-                            <p class="no-results-message">Enable a map layer to see unit ranking charts here.</p>
                         </div>
                     </div>
                 </section>
@@ -556,6 +484,7 @@ setupEventListeners() {
             if (requestId !== this._aoiRenderRequestId) return;
             const scrollTop = scrollParent ? scrollParent.scrollTop : 0;
             areaCharts.innerHTML = html;
+            this.updateAnalysisSelectedCharts();
             await bindAoiPanelInteractions(areaCharts, {
                 onChanged: () => this.updateAnalysisAreaSelection()
             });
@@ -570,7 +499,8 @@ setupEventListeners() {
             console.error('AOI panel render failed', error);
             if (requestId !== this._aoiRenderRequestId) return;
             areaCharts.innerHTML =
-                '<p class="no-results-message">Could not build AOI summary. Check the console for details.</p>';
+                '<p class="no-results-message">Could not build AOI summary. Check the console for details.</p><div class="analysis-rankings" id="active-layer-rankings"></div>';
+            this.updateAnalysisSelectedCharts();
         }
     }
 
@@ -898,6 +828,10 @@ setupEventListeners() {
      * @param {Object} layer - Layer information
      */
     generateLayerDetails(layer) {
+        if (layer.id === 'svCustomOverallLayer') {
+            return this.renderCustomOverallIngredients(layer);
+        }
+
         if (layer.id === 'svOverallTensionLayer') {
             return OVERALL_VULNERABILITY_INDEX_DESCRIPTION_HTML;
         }
@@ -922,10 +856,69 @@ setupEventListeners() {
         return '';
     }
 
+    renderCustomOverallIngredients(layer) {
+        const selection = layer.customOverallSelection
+            || layer.layer?.layerData?.raw?._customOverallMeta?.selection
+            || null;
+        const chosen = CUSTOM_OVERALL_THEMES.filter(
+            theme => Array.isArray(selection?.[theme.layerId]) && selection[theme.layerId].length
+        );
+        if (!chosen.length) {
+            return '<p class="layer-indicator-definition">The themes used to build this index are not available.</p>';
+        }
+        const items = chosen.map(theme => {
+            const indicators = selection[theme.layerId].map(field => {
+                const match = theme.indicators.find(indicator => indicator.field === field);
+                return `<li>${this.escapeHtml(match?.label || field)}</li>`;
+            }).join('');
+            return `<li><strong>${this.escapeHtml(theme.title)}</strong><ul>${indicators}</ul></li>`;
+        }).join('');
+        return `
+            <div class="layer-inputs-list custom-overall-ingredients">
+                <div class="layer-inputs-title">Themes and sub-indicators used</div>
+                <ul>${items}</ul>
+            </div>
+        `;
+    }
+
+    activeThemeLayerCount() {
+        let count = 0;
+        this.activeLayers.forEach(layer => {
+            if (THEME_LAYER_COLORS[layer.id]) count += 1;
+        });
+        return count;
+    }
+
     generateSelectedFeatureDetails(layer) {
         const selected = layer.selectedFeature;
         if (!selected?.name) {
             return '';
+        }
+
+        const numeric = Number(selected.value);
+        const showLevel = this.activeThemeLayerCount() >= 2
+            && Boolean(THEME_LAYER_COLORS[layer.id])
+            && Number.isFinite(numeric);
+        if (showLevel) {
+            const level = vulnerabilityLevelLabel(numeric);
+            const width = vulnerabilityBarWidth(numeric);
+            const color = THEME_LAYER_COLORS[layer.id];
+            const attribute = selected.attribute
+                ? `<span class="selected-feature-attr" title="${this.escapeHtml(selected.attribute)}">${this.escapeHtml(selected.attribute)}</span>`
+                : `<span class="selected-feature-attr">${this.escapeHtml(selected.name)}</span>`;
+            return `
+                <div class="selected-feature-summary selected-feature-level">
+                    <div class="selected-feature-meter">
+                        ${layerVisualCueHtml(layer.id, { compact: true, idSuffix: `active-${layer.id}` })}
+                        ${attribute}
+                        <div class="info-theme-bar-track" aria-hidden="true">
+                            <div class="info-theme-bar-fill" style="width:${width}%;background:${this.escapeHtml(color)}"></div>
+                        </div>
+                        <span class="selected-feature-level-label">${this.escapeHtml(level)}</span>
+                    </div>
+                    <div class="selected-feature-name">${this.escapeHtml(selected.name)}</div>
+                </div>
+            `;
         }
 
         const selectedValue = selected.attribute && selected.value !== undefined
@@ -945,26 +938,43 @@ setupEventListeners() {
             return;
         }
 
+        const selectionItems = getAnalysisSelectionItems();
+        const restrictToSelection = selectionItems.length > 0;
         const blocks = [];
 
         Array.from(this.activeLayers.values()).forEach(layer => {
-            const rankings = this.getLayerRankings(layer);
+            const rankings = restrictToSelection
+                ? this.getLayerRankings(layer, selectionItems)
+                : this.getLayerRankings(layer);
             if (rankings) {
                 blocks.push(this.renderAnalysisLayerRankingsBlock(layer, rankings));
             }
         });
 
-        if (blocks.length === 0) {
-            container.innerHTML =
-                '<p class="no-results-message">Enable a map layer to see unit ranking charts here.</p>';
-            return;
-        }
-
-        container.innerHTML = blocks.join('');
+        const scopeNote = restrictToSelection
+            ? '<p class="ranking-chart-footnote">Inside the current selection.</p>'
+            : '';
+        const body = blocks.length
+            ? `${scopeNote}${blocks.join('')}`
+            : '<p class="no-results-message">Enable a map layer to see unit ranking charts here.</p>';
+        const collapsed = Boolean(this._rankingsCollapsed);
+        container.classList.toggle('is-collapsed', collapsed);
+        container.innerHTML = `
+            <button type="button" class="analysis-rankings-toggle" aria-expanded="${collapsed ? 'false' : 'true'}">
+                <span>Unit rankings</span>
+                <span class="analysis-rankings-chevron" aria-hidden="true">${collapsed ? '▸' : '▾'}</span>
+            </button>
+            <div class="analysis-rankings-body">${body}</div>
+        `;
+        container.querySelector('.analysis-rankings-toggle')?.addEventListener('click', () => {
+            this._rankingsCollapsed = !this._rankingsCollapsed;
+            this.updateAnalysisSelectedCharts();
+        });
     }
 
     renderAnalysisLayerRankingsBlock(layer, rankings) {
-        const labels = this.getRankingChartLabels(layer, rankings.unitLabel);
+        const listSize = rankings.highest?.length || RANKING_LIST_SIZE;
+        const labels = this.getRankingChartLabels(layer, rankings.unitLabel, listSize);
         const safeName = this.escapeHtml(layer.name);
         return `
             <div class="analysis-layer-block analysis-layer-rankings" data-layer-id="${this.escapeHtml(layer.id)}">
@@ -984,26 +994,26 @@ setupEventListeners() {
         `;
     }
 
-    getRankingChartLabels(layer, unitLabel) {
+    getRankingChartLabels(layer, unitLabel, listSize = RANKING_LIST_SIZE) {
         if (layer.id === 'svOverallTensionLayer') {
             return {
-                highTitle: `Highest vulnerability — top ${RANKING_LIST_SIZE} ${unitLabel}`,
-                lowTitle: `Lowest vulnerability — bottom ${RANKING_LIST_SIZE} ${unitLabel}`,
+                highTitle: `Highest vulnerability — top ${listSize} ${unitLabel}`,
+                lowTitle: `Lowest vulnerability — bottom ${listSize} ${unitLabel}`,
                 highFootnote: 'Higher scores indicate higher vulnerability.',
                 lowFootnote: 'Lower scores indicate lower vulnerability.'
             };
         }
         if (layer.id === 'ttfHotspotsLayer') {
             return {
-                highTitle: `Moderate/High tension — top ${RANKING_LIST_SIZE} ${unitLabel}`,
-                lowTitle: `No/Low tension — bottom ${RANKING_LIST_SIZE} ${unitLabel}`,
+                highTitle: `Moderate/High tension — top ${listSize} ${unitLabel}`,
+                lowTitle: `No/Low tension — bottom ${listSize} ${unitLabel}`,
                 highFootnote: 'Orange/red map classes = higher tension.',
                 lowFootnote: 'Light gray/yellow map classes = lower tension.'
             };
         }
         return {
-            highTitle: `Highest values — top ${RANKING_LIST_SIZE} ${unitLabel}`,
-            lowTitle: `Lowest values — bottom ${RANKING_LIST_SIZE} ${unitLabel}`,
+            highTitle: `Highest values — top ${listSize} ${unitLabel}`,
+            lowTitle: `Lowest values — bottom ${listSize} ${unitLabel}`,
             highFootnote: '',
             lowFootnote: ''
         };
@@ -1364,16 +1374,24 @@ setupEventListeners() {
         return `<div class="ranking-bar-chart ranking-bar-chart--${variant}" role="list">${rows}</div>`;
     }
 
-    getLayerRankings(layer) {
+    getLayerRankings(layer, selectionItems = null) {
         const attribute = this.resolveRankingAttribute(layer);
         if (!attribute) {
             return null;
         }
 
         const rankableLayer = this.getRankableLeafletLayer(layer);
-        const entries = this.extractRankedUnits(rankableLayer, attribute)
+        let entries = this.extractRankedUnits(rankableLayer, attribute)
             .filter(entry => !this.isExcludedFromRankings(entry.name));
-        if (entries.length < 2) {
+        if (selectionItems?.length) {
+            const keys = new Set(selectionItems.map(item => item.key).filter(Boolean));
+            const names = new Set(selectionItems.map(item => item.name).filter(Boolean));
+            entries = entries.filter(entry => {
+                if (entry.key && keys.has(entry.key)) return true;
+                return names.has(entry.name);
+            });
+        }
+        if (entries.length < (selectionItems?.length ? 1 : 2)) {
             return null;
         }
 

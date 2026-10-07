@@ -1,5 +1,5 @@
 /**
- * AOI Analysis-panel UI — render summary HTML and bind export / district / custom-index actions.
+ * AOI Analysis-panel UI — render summary HTML and bind export / custom-index actions.
  */
 
 import {
@@ -12,14 +12,10 @@ import {
     buildGlobalThemeSpiderBundle,
     buildIndicatorSummaries,
     buildScopedLayerSummaries,
-    findFeaturesInDistrict,
     getActiveResolutionFromProviders,
-    getAoiProviders,
-    getPrimaryLeafletLayerForSelection,
-    listDistrictsOnLayer
+    getAoiProviders
 } from './aoi_context.js';
 import {
-    addAnalysisSelectionFeatures,
     clearAnalysisSelection,
     getActiveAdminResolutionLabel,
     getAnalysisSelectionCount,
@@ -55,44 +51,6 @@ function downloadTextFile(filename, text, mime = 'text/plain;charset=utf-8') {
     anchor.download = filename;
     anchor.click();
     URL.revokeObjectURL(url);
-}
-
-/**
- * Build a print-ready clone of the visible AOI Analysis summary (no action controls).
- * @param {HTMLElement} root
- * @param {object} bundle
- */
-function buildAoiBriefingPdfSource(root, bundle) {
-    const sourcePanel = root.querySelector('.aoi-panel');
-    const wrap = document.createElement('div');
-    wrap.className = 'aoi-pdf-export-root';
-    wrap.setAttribute('aria-hidden', 'true');
-
-    const masthead = document.createElement('div');
-    masthead.className = 'aoi-pdf-masthead';
-    const generatedAt = new Date().toLocaleString();
-    masthead.innerHTML = `
-        <h1 class="aoi-pdf-title">AOI Analysis Briefing</h1>
-        <p class="aoi-pdf-meta">
-            ${escapeHtml(bundle.resolutionLabel || '—')} ·
-            ${Number(bundle.selectionCount) || 0} unit${bundle.selectionCount === 1 ? '' : 's'} selected ·
-            Generated ${escapeHtml(generatedAt)}
-        </p>
-    `;
-    wrap.appendChild(masthead);
-
-    if (sourcePanel) {
-        const clone = sourcePanel.cloneNode(true);
-        clone.querySelectorAll('.aoi-export-row, .aoi-district-tools').forEach(el => el.remove());
-        wrap.appendChild(clone);
-    } else {
-        const empty = document.createElement('p');
-        empty.className = 'no-results-message';
-        empty.textContent = 'No AOI summary content available.';
-        wrap.appendChild(empty);
-    }
-
-    return wrap;
 }
 
 const PDF_EXPORT_WIDTH = 760;
@@ -227,17 +185,6 @@ async function savePdfBlocks(blocks, filename) {
     }
 
     pdf.save(filename);
-}
-
-/**
- * Export the Analysis-tab AOI statistics as a multi-page PDF.
- * @param {HTMLElement} root
- * @param {object} bundle
- */
-async function exportAoiBriefingPdf(root, bundle) {
-    const blocks = briefingBlocks(root, bundle);
-    const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
-    await savePdfBlocks(blocks, `aoi-briefing-${stamp}.pdf`);
 }
 
 function loadCorsImage(src) {
@@ -468,22 +415,6 @@ function htmlBlock(title, meta, content, { align } = {}) {
     return wrap;
 }
 
-function briefingBlocks(root, bundle) {
-    const source = buildAoiBriefingPdfSource(root, bundle);
-    const meta = source.querySelector('.aoi-pdf-meta')?.textContent?.trim() || '';
-    const panel = source.querySelector('.aoi-panel');
-    const pieces = panel
-        ? [...panel.children].filter(el => !el.classList.contains('aoi-header'))
-        : [];
-    if (!pieces.length) return [source];
-    return pieces.map((piece, index) => {
-        const heading =
-            piece.querySelector('h4, h5, .aoi-section-title, .aoi-represented-label')?.textContent?.trim() ||
-            (index === 0 ? 'AOI Analysis Briefing' : 'AOI summary');
-        return htmlBlock(heading, meta, piece);
-    });
-}
-
 function mapExportBlock(capture, meta) {
     const figure = document.createElement('figure');
     figure.className = 'aoi-pdf-map';
@@ -518,8 +449,8 @@ function mapExportBlock(capture, meta) {
 
 function spiderExportBlock(title, meta, bundle, represented) {
     const holder = document.createElement('div');
-    holder.innerHTML = renderAoiThemeSpider(bundle);
-    holder.querySelectorAll('.aoi-export-row').forEach(el => el.remove());
+    holder.innerHTML = renderAoiThemeSpider(bundle, { forExport: true });
+    holder.querySelectorAll('.aoi-export-row, .analysis-rankings').forEach(el => el.remove());
     if (represented?.length) {
         const note = document.createElement('p');
         note.className = 'aoi-represented-names';
@@ -971,7 +902,9 @@ function renderExportThemeScores(bundle) {
     `;
 }
 
-function renderAoiThemeSpider(bundle) {
+let themeScoresCollapsed = false;
+
+function renderAoiThemeSpider(bundle, { forExport = false } = {}) {
     const pillars = bundle?.themeSums?.pillars || [];
     if (!pillars.length) return '';
     const count = Number(bundle.selectionCount) || bundle.themeSums.unitCount || 0;
@@ -982,22 +915,37 @@ function renderAoiThemeSpider(bundle) {
         themes: pillars,
         activeLayerIds: bundle.activeLayerIds || []
     });
+    const chart = generateThemeSpiderHtml(model, {
+        showLegend: false,
+        omitTitle: !forExport,
+        titleProfile: 'Theme scores',
+        titleStacked: 'Theme scores',
+        hintProfile:
+            `Each corner is a theme. Distance from the centre is the total of that theme&rsquo;s scores across ${scope}. The numbers on the rings are the scale for those totals.`,
+        hintStacked:
+            `Each coloured outline is one theme that is turned on. A larger outline means a higher total for that theme across ${scope}. The highest total reaches the outer ring, and the numbers on the rings are that scale. The colour key shows which outline is which theme.`
+    });
+    if (forExport) {
+        return `<div class="aoi-theme-spider">${chart}</div>`;
+    }
+    const collapsed = themeScoresCollapsed;
     return `
-        <div class="aoi-theme-spider">
-            ${generateThemeSpiderHtml(model, {
-                showLegend: false,
-                titleProfile: global ? 'Theme scores (all units)' : 'Theme scores (AOI sum)',
-                titleStacked: global ? 'Selected themes (all units)' : 'Selected themes (AOI sum)',
-                hintProfile:
-                    `Each corner is a theme. Distance from the centre is the total of that theme&rsquo;s scores across ${scope}. The numbers on the rings are the scale for those totals.`,
-                hintStacked:
-                    `Each coloured outline is one theme that is turned on. A larger outline means a higher total for that theme across ${scope}. The highest total reaches the outer ring, and the numbers on the rings are that scale. The colour key shows which outline is which theme.`
-            })}
+        <div class="aoi-theme-spider is-collapsible${collapsed ? ' is-collapsed' : ''}">
+            <button type="button" class="analysis-rankings-toggle analysis-theme-scores-toggle" aria-expanded="${collapsed ? 'false' : 'true'}">
+                <span>Theme scores</span>
+                <span class="analysis-rankings-chevron" aria-hidden="true">${collapsed ? '▸' : '▾'}</span>
+            </button>
+            <div class="analysis-theme-scores-body">${chart}</div>
         </div>
+        ${analysisRankingsMountHtml()}
         <div class="aoi-export-row aoi-situation-export">
             <button type="button" class="aoi-export-btn" data-aoi-action="export-situation">Export data</button>
         </div>
     `;
+}
+
+function analysisRankingsMountHtml() {
+    return '<div class="analysis-rankings" id="active-layer-rankings"></div>';
 }
 
 function renderExtremes(summary) {
@@ -1038,28 +986,11 @@ function renderLayerSummary(summary) {
     `;
 }
 
-function renderDistrictSelectControls(resolution) {
-    if (resolution !== 'cadastre') return '';
-    return `
-        <div class="aoi-district-tools">
-            <label class="aoi-district-label" for="aoi-district-select">Add whole district</label>
-            <div class="aoi-district-row">
-                <select id="aoi-district-select" class="aoi-district-select">
-                    <option value="">Select district…</option>
-                </select>
-                <button type="button" id="aoi-district-add-btn" class="aoi-export-btn" disabled>Add</button>
-            </div>
-            <p class="aoi-footnote">Adds every cadastre in that district from the active map layer.</p>
-        </div>
-    `;
-}
-
 /**
  * Async HTML for the AOI charts region.
  */
 export async function renderAoiPanelHtml() {
     const count = getAnalysisSelectionCount();
-    const resolution = getActiveResolutionFromProviders();
 
     if (!count) {
         const globalBundle = await buildGlobalThemeSpiderBundle();
@@ -1068,13 +999,13 @@ export async function renderAoiPanelHtml() {
             return `
                 <div class="aoi-empty">
                     <p class="no-results-message">Use Select Area of Interest on the map, then click units to build an AOI.</p>
+                    ${analysisRankingsMountHtml()}
                 </div>
             `;
         }
         return `
             <div class="aoi-panel">
                 ${spider}
-                ${isAnalysisSelectionActive() ? renderDistrictSelectControls(resolution) : ''}
             </div>
         `;
     }
@@ -1103,14 +1034,13 @@ export async function renderAoiPanelHtml() {
     if (!bundle.summaries.length) {
         return `
             <div class="aoi-panel">
-                ${renderAoiThemeSpider(bundle)}
+                ${renderAoiThemeSpider(bundle) || analysisRankingsMountHtml()}
                 ${representedNote}
                 ${
                     bundle.themeSums?.pillars?.length
                         ? ''
                         : '<p class="no-results-message">Turn on a composite or theme layer with scores to compute AOI metrics.</p>'
                 }
-                ${renderDistrictSelectControls(resolution)}
                 ${summaryHeader}
                 <div class="aoi-export-row">
                     ${
@@ -1126,10 +1056,9 @@ export async function renderAoiPanelHtml() {
 
     return `
         <div class="aoi-panel">
-            ${renderAoiThemeSpider(bundle)}
+            ${renderAoiThemeSpider(bundle) || analysisRankingsMountHtml()}
             ${representedNote}
             ${bundle.summaries.map(renderLayerSummary).join('')}
-            ${renderDistrictSelectControls(resolution)}
             ${summaryHeader}
             <div class="aoi-export-row">
                 ${
@@ -1138,7 +1067,6 @@ export async function renderAoiPanelHtml() {
                         : ''
                 }
                 <button type="button" class="aoi-export-btn" data-aoi-action="export-csv">Export CSV</button>
-                <button type="button" class="aoi-export-btn" data-aoi-action="export-briefing">Export briefing (PDF)</button>
                 <button type="button" class="aoi-export-btn aoi-export-btn-muted" data-aoi-action="clear">Clear AOI</button>
             </div>
         </div>
@@ -1146,7 +1074,7 @@ export async function renderAoiPanelHtml() {
 }
 
 /**
- * Populate district dropdown + bind export / add-district listeners.
+ * Bind export and custom-index listeners.
  * Call after injecting HTML from renderAoiPanelHtml.
  */
 export async function bindAoiPanelInteractions(root, { onChanged } = {}) {
@@ -1156,6 +1084,18 @@ export async function bindAoiPanelInteractions(root, { onChanged } = {}) {
     const notify = () => {
         if (typeof onChanged === 'function') onChanged();
     };
+
+    root.querySelectorAll('.analysis-theme-scores-toggle').forEach(button => {
+        button.addEventListener('click', () => {
+            const card = button.closest('.aoi-theme-spider');
+            if (!card) return;
+            themeScoresCollapsed = !card.classList.contains('is-collapsed');
+            card.classList.toggle('is-collapsed', themeScoresCollapsed);
+            button.setAttribute('aria-expanded', themeScoresCollapsed ? 'false' : 'true');
+            const chevron = button.querySelector('.analysis-rankings-chevron');
+            if (chevron) chevron.textContent = themeScoresCollapsed ? '▸' : '▾';
+        });
+    });
 
     root.querySelectorAll('[data-aoi-action]').forEach(button => {
         button.addEventListener('click', async () => {
@@ -1193,52 +1133,7 @@ export async function bindAoiPanelInteractions(root, { onChanged } = {}) {
                 }
                 const csv = bundle.summaries.map(s => buildAoiCsv(s)).join('\n\n');
                 downloadTextFile(`aoi-summary-${stamp}.csv`, csv, 'text/csv;charset=utf-8');
-            } else if (action === 'export-briefing') {
-                const btn = button;
-                const originalLabel = btn.textContent;
-                btn.disabled = true;
-                btn.textContent = 'Exporting PDF…';
-                try {
-                    await exportAoiBriefingPdf(root, bundle);
-                } catch (error) {
-                    console.error('AOI briefing PDF export failed:', error);
-                    window.alert(error?.message || 'Could not export AOI briefing PDF.');
-                } finally {
-                    btn.disabled = false;
-                    btn.textContent = originalLabel;
-                }
             }
         });
-    });
-
-    const select = root.querySelector('#aoi-district-select');
-    const addBtn = root.querySelector('#aoi-district-add-btn');
-    if (!select || !addBtn) return;
-
-    const leafletLayer = getPrimaryLeafletLayerForSelection();
-    const districts = listDistrictsOnLayer(leafletLayer);
-    districts.forEach(name => {
-        const option = document.createElement('option');
-        option.value = name;
-        option.textContent = name;
-        select.appendChild(option);
-    });
-
-    select.addEventListener('change', () => {
-        addBtn.disabled = !select.value;
-    });
-
-    addBtn.addEventListener('click', () => {
-        const district = select.value;
-        if (!district || !leafletLayer) return;
-        const matches = findFeaturesInDistrict(leafletLayer, district);
-        addAnalysisSelectionFeatures(
-            matches.map(featureLayer => ({
-                featureLayer,
-                properties: featureLayer.feature?.properties || {},
-                layerId: null
-            }))
-        );
-        notify();
     });
 }

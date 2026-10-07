@@ -2708,6 +2708,11 @@ function getSVCanvasChoroplethClass() {
         _onMouseMove(event) {
             const map = this._map;
             if (!map) return;
+            if (svHoverTooltipsSuppressed()) {
+                if (this._canvas) this._canvas.style.cursor = '';
+                this._closeHoverTooltip();
+                return;
+            }
             const latlng = map.mouseEventToLatLng(event);
             const item = this._hitTest(latlng);
             this._canvas.style.cursor = item ? 'pointer' : '';
@@ -3270,6 +3275,7 @@ function syncMapDisplayLabels(map, layers) {
 
 function bindSVHoverTooltipsOnLayer(target, layerId, config) {
     if (!target || typeof target.eachLayer !== 'function') return;
+    if (svHoverTooltipsSuppressed()) return;
     target.eachLayer(featureLayer => {
         const props = featureLayer?.feature?.properties;
         if (!props || typeof featureLayer.bindTooltip !== 'function') return;
@@ -3429,6 +3435,7 @@ async function showCustomOverallLayer(geojson, map, layers, addLegendEntry, remo
         }
     }
     updateSVHoverTooltips(layers.vector[layerId], layerId, config);
+    syncMultiLayerMapPresentation(map, layers);
 
     const controlsContainer = document
         .querySelector('.social-vulnerability-btn')
@@ -3436,10 +3443,20 @@ async function showCustomOverallLayer(geojson, map, layers, addLegendEntry, remo
     if (controlsContainer) controlsContainer.style.display = 'block';
 
     if (window.currentInfoPanel) {
-        window.currentInfoPanel.updateLayer(layerId, {
+        window.currentInfoPanel.addLayer(layerId, {
+            id: layerId,
+            name: legendName,
+            type: 'sv-vector',
             selectedAttribute: CUSTOM_OVERALL_SCORE_FIELD,
-            opacity
+            opacity,
+            layer: layers.vector[layerId],
+            featureCount: countSVLayerFeatures(layers.vector[layerId]),
+            customOverallSelection: geojson?._customOverallMeta?.selection || null
         });
+        if (!window.currentInfoPanel.isVisible) {
+            window.currentInfoPanel.show();
+        }
+        window.currentInfoPanel.setActiveTab('layers');
     }
 }
 
@@ -3461,6 +3478,7 @@ function hideCustomOverallVisibility(map, layers, removeLegendEntry, restoreOffi
     if (window.currentInfoPanel) {
         window.currentInfoPanel.removeLayer(layerId);
     }
+    syncMultiLayerMapPresentation(map, layers);
 
     const toggle = document.getElementById(layerId);
     if (toggle) {
@@ -3539,6 +3557,29 @@ const SV_OUTLINE_PEACE_CADASTRE_WEIGHT = 0.45;
 const SV_OUTLINE_PEACE_CADASTRE_OPACITY = 0.9;
 
 const SV_SERVICE_DISABLE_CLUSTERING_AT_ZOOM = 13;
+/** With more than two themes at cadastre, keep clusters until the user is closer. */
+const SV_CLUSTER_BREAK_ZOOM_SIMPLIFIED = 15;
+const SV_FOREST_FIRE_GRID_CELL_PX_SIMPLIFIED = 96;
+
+function svHoverTooltipsSuppressed() {
+    return activeSVLayers.size > 1;
+}
+
+function cadastreMapIsSimplified() {
+    return getActiveAdminResolution() === 'cadastre' && activeSVLayers.size > 2;
+}
+
+function getSVClusterBreakZoom() {
+    return cadastreMapIsSimplified()
+        ? SV_CLUSTER_BREAK_ZOOM_SIMPLIFIED
+        : SV_SERVICE_DISABLE_CLUSTERING_AT_ZOOM;
+}
+
+function getForestFireGridCellPx() {
+    return cadastreMapIsSimplified()
+        ? SV_FOREST_FIRE_GRID_CELL_PX_SIMPLIFIED
+        : SV_FOREST_FIRE_GRID_CELL_PX;
+}
 const SV_SERVICE_CADASTRE_OUTLINE_MAX_ZOOM = 12;
 /** Icon layers (Climate, Service) skip cadastre polygon chrome until this zoom. */
 const SV_ICON_CADASTRE_POLYGON_MIN_ZOOM = 11;
@@ -4164,6 +4205,7 @@ function setupSVRadioControls(map, layers, colorScales, addLegendEntry, removeLe
             if (typeof window.syncSVSubindicatorPanelsVisibility === 'function') {
                 window.syncSVSubindicatorPanelsVisibility();
             }
+            syncMultiLayerMapPresentation(map, layers);
             void syncCompositeSandboxPanel(currentSVLayer, getActiveAdminResolution());
         });
     });
@@ -4739,6 +4781,7 @@ async function autoLoadSVAdmin1(map, layers, colorScales, addLegendEntry, remove
         activeSVLayers.add(layerId);
         currentSVLayer = layerId;
     }
+    syncMultiLayerMapPresentation(map, layers);
 
     // Keep the visible selector aligned with the last loaded layer's fixed ramp
     const activeConfig = layerConfig[currentSVLayer];
@@ -5011,15 +5054,19 @@ async function loadSVLayer(layerId, map, layers, colorScales, addLegendEntry, re
     }
     if (window.currentInfoPanel && layers.vector[layerId]) {
         const loaded = layers.vector[layerId];
+        const customMeta = layerId === CUSTOM_OVERALL_LAYER_ID
+            ? loaded.layerData?.raw?._customOverallMeta
+            : null;
         window.currentInfoPanel.addLayer(layerId, {
             id: layerId,
-            name: getLayerDisplayName(layerId, config),
+            name: customMeta?.aoiMode ? 'AOI Custom Index' : getLayerDisplayName(layerId, config),
             type: 'sv-vector',
             selectedAttribute: getEffectiveChoroplethAttribute(layerId, config),
             opacity: 0.6,
             layer: loaded,
             featureCount: countSVLayerFeatures(loaded),
-            mlPredicted: Boolean(SV_RESOLUTION_CONFIG[getActiveAdminResolution()]?.[layerId]?.mlPredicted)
+            mlPredicted: Boolean(SV_RESOLUTION_CONFIG[getActiveAdminResolution()]?.[layerId]?.mlPredicted),
+            customOverallSelection: customMeta?.selection || null
         });
     }
     if (ICON_PAIR_LAYER_IDS.includes(layerId)) {
@@ -5062,7 +5109,7 @@ function isSVDisplacementClusteringActive(map) {
     if (!map || typeof map.getZoom !== 'function') {
         return true;
     }
-    return map.getZoom() < SV_SERVICE_DISABLE_CLUSTERING_AT_ZOOM;
+    return map.getZoom() < getSVClusterBreakZoom();
 }
 
 function hexToRgb(hex) {
@@ -5111,6 +5158,7 @@ function getSVDisplacementMarkerStyle(value, minValue, maxValue, minRadius, maxR
 }
 
 function getDisplacementClusterFillColor(cluster, styleState) {
+    if (cadastreMapIsSimplified()) return SV_DISPLACEMENT_MARKER_COLOR_DARK;
     if (!styleState) return SV_DISPLACEMENT_MARKER_COLOR_DARK;
     const children = cluster.getAllChildMarkers?.() || [];
     const { minValue, maxValue, minR, maxR, attr } = styleState;
@@ -5406,7 +5454,7 @@ async function loadSVCircleLayer(config, map = null) {
             showCoverageOnHover: false,
             spiderfyOnMaxZoom: true,
             zoomToBoundsOnClick: true,
-            disableClusteringAtZoom: SV_SERVICE_DISABLE_CLUSTERING_AT_ZOOM,
+            disableClusteringAtZoom: getSVClusterBreakZoom(),
             maxClusterRadius: 52,
             ...(displacementClusterPane ? { clusterPane: displacementClusterPane } : {}),
             iconCreateFunction: cluster => createDisplacementClusterIcon(cluster, clusterStyleState)
@@ -5477,7 +5525,7 @@ async function loadSVServiceSymbolLayer(config, map = null) {
             showCoverageOnHover: false,
             spiderfyOnMaxZoom: true,
             zoomToBoundsOnClick: true,
-            disableClusteringAtZoom: SV_SERVICE_DISABLE_CLUSTERING_AT_ZOOM,
+            disableClusteringAtZoom: getSVClusterBreakZoom(),
             maxClusterRadius: 52,
             chunkedLoading: true,
             chunkInterval: 50,
@@ -5522,7 +5570,7 @@ async function loadSVServiceSymbolLayer(config, map = null) {
 const SV_FOREST_FIRE_GRID_CELL_PX = 52;
 
 function svForestFireCadastreShowsIndividuals(map) {
-    return Boolean(map && typeof map.getZoom === 'function' && map.getZoom() >= SV_SERVICE_DISABLE_CLUSTERING_AT_ZOOM);
+    return Boolean(map && typeof map.getZoom === 'function' && map.getZoom() >= getSVClusterBreakZoom());
 }
 
 function stampSVForestFireLayer(finalLayer, {
@@ -5573,8 +5621,9 @@ function rebuildSVForestFireGridLayer(layer, map, layers) {
     records.forEach(rec => {
         const latlng = latLngForIconPairSlot(rec.home, slot, activeCount, map, layers)
             || L.latLng(rec.lat, rec.lng);
+        const cellPx = getForestFireGridCellPx();
         const projected = map.project(latlng, zoom);
-        const key = `${Math.floor(projected.x / SV_FOREST_FIRE_GRID_CELL_PX)}_${Math.floor(projected.y / SV_FOREST_FIRE_GRID_CELL_PX)}`;
+        const key = `${Math.floor(projected.x / cellPx)}_${Math.floor(projected.y / cellPx)}`;
         let cell = cells.get(key);
         if (!cell) {
             cell = { sumLat: 0, sumLng: 0, n: 0, classCounts: [0, 0, 0], records: [] };
@@ -5682,7 +5731,7 @@ function syncSVForestFireCadastreIcons(map, layer, layers = null) {
         layer.removeLayer(layer._svForestFireMarkerLayer);
     }
     const layerId = layer._svForestFireLayerId;
-    const slotKey = `${map.getZoom()}|${getIconPairSlot(layerId, layers)}|${getIconPairMultiCount(layers)}`;
+    const slotKey = `${map.getZoom()}|${getIconPairSlot(layerId, layers)}|${getIconPairMultiCount(layers)}|${cadastreMapIsSimplified() ? 'coarse' : 'detail'}`;
     if (layer._svForestFireGridKey !== slotKey || !layer._svForestFireGridLayer) {
         rebuildSVForestFireGridLayer(layer, map, layers);
         layer._svForestFireGridKey = slotKey;
@@ -6235,7 +6284,7 @@ async function loadSVSectarianGlyphLayer(config, map = null) {
             showCoverageOnHover: false,
             spiderfyOnMaxZoom: true,
             zoomToBoundsOnClick: true,
-            disableClusteringAtZoom: SV_SERVICE_DISABLE_CLUSTERING_AT_ZOOM,
+            disableClusteringAtZoom: getSVClusterBreakZoom(),
             maxClusterRadius: 52,
             iconCreateFunction: cluster => createSectarianClusterIcon(cluster, attr)
         })
@@ -6283,7 +6332,7 @@ function getSVServiceMarkerSize(map, resolution = getActiveAdminResolution(), la
         base = SV_SERVICE_MARKER_SIZE_AGGREGATE;
     } else if (!map || typeof map.getZoom !== 'function') {
         base = SV_SERVICE_MARKER_SIZE_DEFAULT;
-    } else if (map.getZoom() >= SV_SERVICE_DISABLE_CLUSTERING_AT_ZOOM) {
+    } else if (map.getZoom() >= getSVClusterBreakZoom()) {
         base = SV_SERVICE_MARKER_SIZE_UNCLUSTERED_CADASTRE;
     } else {
         base = SV_SERVICE_MARKER_SIZE_DEFAULT;
@@ -6455,6 +6504,15 @@ function createDisplacementClusterIcon(cluster, styleState) {
 }
 
 function createSectarianClusterIcon(cluster, attr) {
+    if (cadastreMapIsSimplified()) {
+        const svg = buildSectarianGlyphSvg(0);
+        return L.divIcon({
+            className: 'sv-sectarian-cluster-wrapper',
+            html: `<div style="width:36px;height:36px;border-radius:10px;background:rgba(248,250,252,0.98);border:1px solid #94a3b8;display:flex;align-items:center;justify-content:center;">${svg}</div>`,
+            iconSize: [36, 36],
+            iconAnchor: [18, 18]
+        });
+    }
     const children = cluster.getAllChildMarkers();
     const counts = [0, 0, 0, 0];
     children.forEach(marker => {
@@ -6484,6 +6542,16 @@ function createSectarianClusterIcon(cluster, attr) {
 }
 
 function createSVServiceClusterIcon(cluster, iconUrls = SERVICE_SYMBOL_ICON_URLS) {
+    if (cadastreMapIsSimplified()) {
+        const url = getServiceSymbolIconUrl(1, iconUrls);
+        return getCachedClassMarkerIcon(
+            'service-cluster-simple',
+            url,
+            28,
+            'sv-service-cluster-wrapper',
+            'filter:drop-shadow(0 1px 2px rgba(0,0,0,0.35));'
+        );
+    }
     const children = cluster.getAllChildMarkers();
     const classCounts = [0, 0, 0];
     children.forEach(marker => {
@@ -6541,7 +6609,7 @@ function classIconMarkersAreClustered(map, usesClustering) {
         usesClustering
         && map
         && typeof map.getZoom === 'function'
-        && map.getZoom() < SV_SERVICE_DISABLE_CLUSTERING_AT_ZOOM
+        && map.getZoom() < getSVClusterBreakZoom()
     );
 }
 
@@ -6570,7 +6638,7 @@ function getForestFireMarkerSize(map, resolution = getActiveAdminResolution(), l
         base = FOREST_FIRE_MARKER_SIZE_AGGREGATE;
     } else if (!map || typeof map.getZoom !== 'function') {
         base = FOREST_FIRE_MARKER_SIZE_DEFAULT;
-    } else if (map.getZoom() >= SV_SERVICE_DISABLE_CLUSTERING_AT_ZOOM) {
+    } else if (map.getZoom() >= getSVClusterBreakZoom()) {
         base = FOREST_FIRE_MARKER_SIZE_UNCLUSTERED_CADASTRE;
     } else {
         base = FOREST_FIRE_MARKER_SIZE_DEFAULT;
@@ -6589,12 +6657,15 @@ function buildForestFireCountClusterIcon(classCounts, count, iconUrls = FOREST_F
     const iconSize = Math.round(diameter * 0.72);
     const url = getForestFireIconUrl(dominantClass, iconUrls);
     const countSize = Math.max(10, Math.min(14, Math.round(diameter * 0.22)));
+    const countBadge = cadastreMapIsSimplified()
+        ? ''
+        : `<span style="position:absolute;right:0;bottom:0;min-width:${countSize + 6}px;height:${countSize + 4}px;padding:0 4px;border-radius:999px;background:rgba(17,24,39,0.85);color:#fff;border:1px solid rgba(255,255,255,0.9);font-weight:700;font-size:${countSize}px;line-height:${countSize + 4}px;text-align:center;">${n}</span>`;
     return L.divIcon({
         className: 'sv-forest-fire-cluster-wrapper',
         html: `
             <div style="position:relative;width:${diameter}px;height:${diameter}px;display:flex;align-items:center;justify-content:center;">
                 <img src="${url}" alt="" width="${iconSize}" height="${iconSize}" style="width:${iconSize}px;height:${iconSize}px;display:block;${climateHighGlowStyle(url) || getClassIconDropShadowStyle(iconUrls, { cluster: true })}">
-                <span style="position:absolute;right:0;bottom:0;min-width:${countSize + 6}px;height:${countSize + 4}px;padding:0 4px;border-radius:999px;background:rgba(17,24,39,0.85);color:#fff;border:1px solid rgba(255,255,255,0.9);font-weight:700;font-size:${countSize}px;line-height:${countSize + 4}px;text-align:center;">${n}</span>
+                ${countBadge}
             </div>
         `,
         iconSize: [diameter, diameter],
@@ -6603,6 +6674,16 @@ function buildForestFireCountClusterIcon(classCounts, count, iconUrls = FOREST_F
 }
 
 function createForestFireClusterIcon(cluster, iconUrls = FOREST_FIRE_ICON_URLS) {
+    if (cadastreMapIsSimplified()) {
+        const url = getForestFireIconUrl(1, iconUrls);
+        return getCachedClassMarkerIcon(
+            'forest-cluster-simple',
+            url,
+            32,
+            'sv-forest-fire-cluster-wrapper',
+            getClassIconDropShadowStyle(iconUrls, { cluster: true })
+        );
+    }
     const children = cluster.getAllChildMarkers();
     const classCounts = [0, 0, 0];
     children.forEach(marker => {
@@ -9465,8 +9546,80 @@ function buildSVPermanentScoreLabelText(props, layerId, config) {
     return name;
 }
 
+function clearSVHoverTooltipsOnTarget(target) {
+    if (!target || typeof target.eachLayer !== 'function') return;
+    target.eachLayer(featureLayer => {
+        if (!featureLayer || featureLayer._svPermanentScoreLabel) return;
+        if (typeof featureLayer.unbindTooltip !== 'function') return;
+        featureLayer.unbindTooltip();
+        featureLayer._svHoverTooltipText = null;
+    });
+    if (typeof target._closeHoverTooltip === 'function') {
+        target._closeHoverTooltip();
+    }
+}
+
+function clearLayerHoverTooltips(layer) {
+    if (!layer) return;
+    [
+        layer,
+        layer._svAdminOutlineLayer,
+        layer._svChoroplethFillLayer,
+        layer._svForestFireGridLayer,
+        layer._svForestFireMarkerLayer,
+        layer._svDisplacementMarkerLayer,
+        layer._svServiceMarkerLayer,
+        layer._svSectarianMarkerLayer
+    ].forEach(clearSVHoverTooltipsOnTarget);
+}
+
+function retuneSVClusterGroup(cluster, map) {
+    if (!cluster?.options || !map) return;
+    cluster.options.disableClusteringAtZoom = getSVClusterBreakZoom();
+    const onMap = map.hasLayer(cluster);
+    if (onMap) map.removeLayer(cluster);
+    if (typeof cluster.refreshClusters === 'function') cluster.refreshClusters();
+    if (onMap) cluster.addTo(map);
+}
+
+let cadastreSimplifiedApplied = false;
+
+function syncMultiLayerMapPresentation(map, layers) {
+    if (!map || !layers?.vector) return;
+    const hideTips = svHoverTooltipsSuppressed();
+    activeSVLayers.forEach(layerId => {
+        const layer = layers.vector[layerId];
+        const config = layerConfig[layerId];
+        if (!layer || !config) return;
+        if (hideTips) clearLayerHoverTooltips(layer);
+        else updateSVHoverTooltips(layer, layerId, config);
+    });
+    const simplified = cadastreMapIsSimplified();
+    const changed = simplified !== cadastreSimplifiedApplied;
+    cadastreSimplifiedApplied = simplified;
+    if (!simplified && !changed) return;
+    activeSVLayers.forEach(layerId => {
+        const layer = layers.vector[layerId];
+        if (!layer) return;
+        [
+            layer._svServiceClusterLayer,
+            layer._svSectarianClusterLayer,
+            layer._svForestFireClusterLayer,
+            layer._svDisplacementClusterLayer
+        ].forEach(cluster => retuneSVClusterGroup(cluster, map));
+        if (layer._svUsesForestFireGrid) {
+            layer._svForestFireGridKey = null;
+            syncSVForestFireCadastreIcons(map, layer, layers);
+        }
+    });
+}
+
 function updateSVHoverTooltips(layer, layerId, config) {
     if (!layer) return;
+    if (svHoverTooltipsSuppressed()) {
+        clearLayerHoverTooltips(layer);
+        return;
+    }
 
     const context = resolveSVLayerContext(layer, layerId, config);
     layerId = context.layerId;

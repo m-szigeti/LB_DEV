@@ -7,8 +7,11 @@ import { getColorRamp } from './color_ramp_selector.js';
 import {
     buildThemeSpiderModel,
     generateThemeSpiderHtml,
-    paintThemeSpiderCharts
+    paintThemeSpiderCharts,
+    shortThemeLabel,
+    vulnerabilityLevelLabel
 } from './theme_spider.js';
+import { layerVisualCueHtml } from './layer_cues.js';
 import { getIndicatorDefinitionsForLayer } from './indicator_definitions.js';
 import { matchDefinitionsToFields, isMetadataFieldKey } from './indicator_match.js';
 
@@ -179,6 +182,8 @@ export async function showInfoPopup(feature, layerType = 'default', clickEvent =
     if (!popup || !title || !body || !feature?.properties) {
         return;
     }
+
+    window.currentInfoPanel?.revealActiveLayersFromWelcome?.();
 
     const requestId = ++popupRequestId;
     const properties = feature.properties;
@@ -358,13 +363,35 @@ function generateEnrichedCompositePopup(properties, layerType, sourceLayer, enri
         ? ''
         : generateThemeSubindicatorTableHtml(properties, layerType);
     let content = '';
-    content += generateClickedLayerScoreHero(properties, layerType, sourceLayer);
+    if (model.stacked) {
+        content += generateMultiThemeScoreHeroes(model);
+    } else {
+        content += generateClickedLayerScoreHero(properties, layerType, sourceLayer);
+    }
     content += generateThemeSpiderHtml(model, {
         showLegend: false,
+        levelLegend: model.stacked,
         sideHtml
     });
 
     return content || '<p class="info-no-data">No detailed information available for this area.</p>';
+}
+
+function generateMultiThemeScoreHeroes(model) {
+    const cards = (model?.items || []).map(theme => {
+        const level = vulnerabilityLevelLabel(theme.value);
+        return `
+            <div class="info-score-hero info-score-hero-multi" style="border-top-color:${escapeHtml(theme.color)}">
+                <div class="info-score-hero-head">
+                    ${layerVisualCueHtml(theme.layerId, { compact: true, idSuffix: `hero-${theme.layerId}` })}
+                    <div class="info-score-hero-label" title="${escapeHtml(theme.label)}">${escapeHtml(shortThemeLabel(theme))}</div>
+                </div>
+                <div class="info-score-hero-value">${escapeHtml(level)}</div>
+            </div>
+        `;
+    }).join('');
+    if (!cards) return '';
+    return `<div class="info-section info-score-section"><div class="info-score-hero-grid">${cards}</div></div>`;
 }
 
 function getActiveLayerIdSet(enrichment, layerType) {

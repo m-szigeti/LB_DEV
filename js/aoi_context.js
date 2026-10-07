@@ -350,37 +350,6 @@ function getDistrictName(properties) {
 }
 
 /**
- * List unique district names present on a leaflet layer (cadastre features).
- */
-export function listDistrictsOnLayer(leafletLayer) {
-    const names = new Set();
-    if (!leafletLayer || typeof leafletLayer.eachLayer !== 'function') {
-        return [];
-    }
-    leafletLayer.eachLayer(featureLayer => {
-        const district = getDistrictName(featureLayer?.feature?.properties);
-        if (district) names.add(district);
-    });
-    return Array.from(names).sort((a, b) => a.localeCompare(b));
-}
-
-/**
- * Find feature layers whose ADM2 matches the district name.
- */
-export function findFeaturesInDistrict(leafletLayer, districtName) {
-    const target = String(districtName || '').trim().toLowerCase();
-    const matches = [];
-    if (!target || !leafletLayer?.eachLayer) return matches;
-    leafletLayer.eachLayer(featureLayer => {
-        const district = getDistrictName(featureLayer?.feature?.properties);
-        if (district && district.toLowerCase() === target) {
-            matches.push(featureLayer);
-        }
-    });
-    return matches;
-}
-
-/**
  * Build AOI summaries for every active scored info-panel layer.
  */
 export async function buildAoiSummaries() {
@@ -483,35 +452,6 @@ export async function buildAoiSummaries() {
             )
         ].sort((a, b) => a.localeCompare(b))
     };
-}
-
-export function getPrimaryLeafletLayerForSelection() {
-    if (!providers) return null;
-    const infoLayers = Array.from(providers.getActiveInfoLayers?.() || []);
-    for (const infoLayer of infoLayers) {
-        const leafletLayer = providers.getLeafletLayer?.(infoLayer);
-        if (leafletLayer && typeof leafletLayer.eachLayer === 'function') {
-            return (
-                leafletLayer._svAdminOutlineLayer ||
-                leafletLayer._svHitPolygonLayer ||
-                leafletLayer._svChoroplethFillLayer ||
-                leafletLayer
-            );
-        }
-    }
-    const layers = providers.getLayers?.();
-    const vector = layers?.vector || {};
-    for (const layer of Object.values(vector)) {
-        if (layer && typeof layer.eachLayer === 'function') {
-            return (
-                layer._svAdminOutlineLayer ||
-                layer._svHitPolygonLayer ||
-                layer._svChoroplethFillLayer ||
-                layer
-            );
-        }
-    }
-    return null;
 }
 
 export function getActiveResolutionFromProviders() {
