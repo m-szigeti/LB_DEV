@@ -272,6 +272,25 @@ html.theme-dark .aoi-represented-names {
     color: #ffffff;
 }
 
+html.theme-dark .analysis-selection-table {
+    color: #e8eef4;
+}
+
+html.theme-dark .analysis-selection-table th,
+html.theme-dark .analysis-selection-table td {
+    border-bottom-color: #1f3e5a;
+}
+
+html.theme-dark .analysis-selection-table th {
+    background: #1a2430;
+    color: #b7c3d0;
+}
+
+html.theme-dark .analysis-selection-table tbody tr:hover td,
+html.theme-dark .analysis-selection-table tbody tr.is-map-hover td {
+    background: #1f3e5a;
+}
+
 html.theme-dark .layer-item .layer-cue.welcome-composite-swatch-icons,
 html.theme-dark .layer-item .layer-cue.layer-cue-circles,
 html.theme-dark .info-theme-spider-legend .layer-cue.welcome-composite-swatch-icons,
@@ -621,7 +640,8 @@ html.theme-dark .aoi-pdf-title {
     color: #e8eef4;
 }
 
-html.theme-dark .aoi-pdf-meta {
+html.theme-dark .aoi-pdf-meta,
+html.theme-dark .aoi-pdf-intro {
     color: #b7c3d0;
 }
 

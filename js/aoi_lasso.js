@@ -139,7 +139,7 @@ function syncLassoButton() {
     if (!button) return;
     button.setAttribute('aria-pressed', lassoActive ? 'true' : 'false');
     button.classList.toggle('is-active', lassoActive);
-    button.textContent = lassoActive ? 'Stop Lasso' : 'Lasso';
+    button.textContent = lassoActive ? 'Stop Lasso' : 'Lasso Select';
 }
 
 function setMapDrag(enabled) {

@@ -1664,9 +1664,14 @@ body.aoi-lasso-mode #map {
     line-height: 1.4;
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
     z-index: 1000;
-    display: block;
-    max-width: min(280px, calc(100% - 32px));
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    width: max-content;
+    min-width: min(180px, calc(100% - 32px));
+    max-width: min(240px, calc(100% - 32px));
     max-height: calc(100% - 32px);
+    overflow-x: hidden;
     overflow-y: auto;
 }
 
@@ -1674,11 +1679,86 @@ body.aoi-lasso-mode #map {
     margin: 0 0 5px 0;
     font-size: 18px;
     color: #333;
+    white-space: nowrap;
+    width: max-content;
+    max-width: 100%;
+}
+
+.legend > :not(h4):not(.legend-entries) {
+    width: 0;
+    min-width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+}
+
+.legend-entries {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+}
+
+.legend-entry {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: stretch;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+}
+
+.legend-entry > h4 {
+    white-space: normal;
+    width: auto;
+    max-width: 100%;
+    justify-self: stretch;
+    overflow-wrap: break-word;
+    line-height: 1.25;
+}
+
+.legend-entry > :not(h4) {
+    width: 0;
+    min-width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+}
+
+.legend p,
+.legend .legend-scale-note,
+.legend .color-scheme,
+.legend .color-boxes,
+.legend .color-boxes span {
+    white-space: normal;
+    overflow-wrap: break-word;
+    max-width: 100%;
+}
+
+.legend .legend-scale-note {
+    max-width: none !important;
+}
+
+.legend .color-boxes > div {
+    min-width: 0;
+    max-width: 100%;
+}
+
+.legend .color-boxes span {
+    min-width: 0;
+    flex: 1 1 auto;
 }
 
 .legend p {
     margin: 0 0 5px 0;
     color: #555;
+}
+
+/* Gray subtitles under each theme title are off for now. */
+.legend-entry p,
+.legend-entry .legend-scale-note,
+.legend-entry div[style*="color: #666"] {
+    display: none !important;
 }
 
 /* =========================================

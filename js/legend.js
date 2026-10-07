@@ -82,6 +82,32 @@ function renderLegend() {
 }
 
 /**
+ * Static legend markup for export. Pass layer ids to keep only those entries.
+ * @param {string[]|null} layerIds
+ * @returns {string}
+ */
+export function legendMarkup(layerIds = null) {
+    const allow = Array.isArray(layerIds) ? new Set(layerIds) : null;
+    const sorted = [...legendEntries.entries()]
+        .filter(([id]) => !allow || allow.has(id))
+        .sort((a, b) => a[1].order - b[1].order)
+        .map(([id, data]) => ({ id, ...data }));
+    if (!sorted.length) return '';
+    const entriesHtml = sorted.map(data => renderEntry(data)).join('');
+    return `
+        <div class="legend aoi-pdf-legend">
+            <h4>Legend</h4>
+            <div class="legend-entries">${entriesHtml}</div>
+        </div>
+    `;
+}
+
+/** Title currently shown for a layer in the map legend. */
+export function legendTitleFor(layerId) {
+    return legendEntries.get(layerId)?.layerName || '';
+}
+
+/**
  * Render a single legend entry to HTML
  */
 function renderEntry(entry) {

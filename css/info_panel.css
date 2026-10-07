@@ -1178,6 +1178,59 @@
     line-height: 1.4;
 }
 
+.analysis-selection-units .analysis-rankings-body {
+    padding: 0;
+    overflow: auto;
+    max-height: 260px;
+}
+
+.analysis-selection-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+    font-weight: 400;
+    line-height: 1.3;
+    color: #1e293b;
+}
+
+.analysis-selection-table th,
+.analysis-selection-table td {
+    padding: 5px 8px;
+    border-bottom: 1px solid #e2e8f0;
+    text-align: left;
+    vertical-align: top;
+    font-weight: 400;
+}
+
+.analysis-selection-table th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: #f8fafc;
+    font-size: 11px;
+    font-weight: 600;
+    color: #475569;
+}
+
+.analysis-selection-table .num {
+    text-align: right;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+
+.analysis-selection-table tbody tr {
+    cursor: pointer;
+}
+
+.analysis-selection-table tbody tr:hover td,
+.analysis-selection-table tbody tr.is-map-hover td {
+    background: #fff7ed;
+}
+
+.analysis-selection-name {
+    font-weight: 400;
+}
+
 .aoi-custom-index-btn {
     border-color: #0f766e;
     background: #ccfbf1;
@@ -1197,38 +1250,75 @@
 }
 
 .aoi-pdf-masthead {
-    margin-bottom: 16px;
-    padding-bottom: 12px;
-    border-bottom: 2px solid #e2e8f0;
+    margin-bottom: 8px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid #e2e8f0;
 }
 
 .aoi-pdf-title {
-    margin: 0 0 4px;
-    font-size: 20px;
+    margin: 0 0 2px;
+    font-size: 16px;
     font-weight: 700;
     color: #0f172a;
 }
 
 .aoi-pdf-meta {
     margin: 0;
-    font-size: 12px;
+    font-size: 11px;
     color: #64748b;
+}
+
+.aoi-pdf-intro {
+    margin: 0 0 8px;
+    font-size: 12px;
+    line-height: 1.35;
+    color: #334155;
 }
 
 .aoi-pdf-export-root .aoi-panel {
     margin-top: 0;
 }
 
+.aoi-pdf-export-root .aoi-theme-spider,
+.aoi-pdf-export-root .aoi-layer-block {
+    margin-bottom: 8px;
+    padding: 8px;
+}
+
 .aoi-pdf-map {
-    margin: 0 auto 16px;
+    margin: 0 auto 8px;
     padding: 0;
     width: fit-content;
     max-width: 100%;
     border: 1px solid #e2e8f0;
-    border-radius: 8px;
+    border-radius: 6px;
     overflow: hidden;
     background: #dbe3ea;
     line-height: 0;
+}
+
+.aoi-pdf-export-root .aoi-pdf-legend {
+    position: static;
+    right: auto;
+    bottom: auto;
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    max-height: none;
+    overflow: visible;
+    margin: 8px 0 0;
+    padding: 8px 10px;
+    box-shadow: none;
+    z-index: auto;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+}
+
+.aoi-pdf-export-root .aoi-pdf-legend .legend-entries,
+.aoi-pdf-export-root .aoi-pdf-legend .legend-entry {
+    width: 100%;
 }
 
 .aoi-pdf-map img {

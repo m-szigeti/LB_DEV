@@ -114,9 +114,13 @@ export function buildThemeSpiderModel({
     scores.forEach(score => addSelected(score));
 
     const stacked = selectedThemes.length > 1;
+    const markSelected = theme => ({
+        ...theme,
+        selected: activeIds.has(theme.layerId)
+    });
     return {
         stacked,
-        items: stacked ? selectedThemes : allThemes
+        items: (stacked ? selectedThemes : allThemes).map(markSelected)
     };
 }
 
@@ -155,7 +159,7 @@ const DEFAULT_COPY = {
     titleProfile: 'Theme scores',
     titleStacked: 'Selected themes',
     hintProfile:
-        'Each corner is a theme that has a score on this unit. Distance from the centre is that theme&rsquo;s own composite (usually 0&ndash;1). Higher = higher vulnerability. Scores do <strong>not</strong> add up to 1.',
+        'Each corner is a theme that has a score on this unit. The closer the theme is to the corner, the higher the tension or vulnerability relative to other themes.',
     hintStacked:
         'Each coloured outline is one theme that is turned on for this area. A larger outline means a higher score on that theme. The highest theme reaches the outer ring, and the numbers on the rings are that scale. Under the chart, the icon, bar, and level (Low, Medium, or High) match that outline.'
 };
@@ -182,7 +186,14 @@ function renderLevelLegend(items) {
 export function generateThemeSpiderHtml(model, copy = {}) {
     if (!model?.items?.length) return '';
 
-    const { showLegend = true, sideHtml = '', levelLegend = false, omitTitle = false, ...textCopy } = copy;
+    const {
+        showLegend = true,
+        sideHtml = '',
+        levelLegend = false,
+        omitTitle = false,
+        emphasizeSelected = false,
+        ...textCopy
+    } = copy;
     const titles = { ...DEFAULT_COPY, ...textCopy };
     const title = model.stacked ? titles.titleStacked : titles.titleProfile;
     const hint = model.stacked ? titles.hintStacked : titles.hintProfile;
@@ -198,7 +209,8 @@ export function generateThemeSpiderHtml(model, copy = {}) {
             label: shortThemeLabel(theme),
             fullLabel: theme.label,
             color: theme.color,
-            value: theme.value
+            value: theme.value,
+            selected: Boolean(emphasizeSelected && theme.selected)
         }))
     }));
 
@@ -406,20 +418,55 @@ export function drawThemeSpiderChart(canvas, model) {
         ctx.stroke();
     });
 
-    ctx.font = '600 10px Calibri, "Segoe UI", sans-serif';
     ctx.fillStyle = dark ? '#ffffff' : '#475569';
     items.forEach((theme, index) => {
         const end = axisEnd(index, items.length);
-        const labelRadius = radius + 22;
-        const x = cx + Math.cos(end.angle) * labelRadius;
-        const y = cy + Math.sin(end.angle) * labelRadius;
+        const label = shortThemeLabel(theme);
+        const emphasized = Boolean(theme.selected);
+        ctx.font = emphasized
+            ? '700 13px Calibri, "Segoe UI", sans-serif'
+            : '600 12px Calibri, "Segoe UI", sans-serif';
+        const labelRadius = radius + 12;
+        let x = cx + Math.cos(end.angle) * labelRadius;
+        let y = cy + Math.sin(end.angle) * labelRadius;
         if (Math.abs(x - cx) < 12) ctx.textAlign = 'center';
         else if (x < cx) ctx.textAlign = 'right';
         else ctx.textAlign = 'left';
         if (y < cy - 8) ctx.textBaseline = 'bottom';
         else if (y > cy + 8) ctx.textBaseline = 'top';
         else ctx.textBaseline = 'middle';
-        ctx.fillText(shortThemeLabel(theme), x, y);
+
+        const width = ctx.measureText(label).width;
+        const height = 14;
+        const pad = 2;
+        let left = x;
+        let right = x;
+        if (ctx.textAlign === 'right') left = x - width;
+        else if (ctx.textAlign === 'left') right = x + width;
+        else {
+            left = x - width / 2;
+            right = x + width / 2;
+        }
+        let top = y;
+        let bottom = y;
+        if (ctx.textBaseline === 'bottom') top = y - height;
+        else if (ctx.textBaseline === 'top') bottom = y + height;
+        else {
+            top = y - height / 2;
+            bottom = y + height / 2;
+        }
+        if (left < pad) x += pad - left;
+        else if (right > cssWidth - pad) x -= right - (cssWidth - pad);
+        if (top < pad) y += pad - top;
+        else if (bottom > cssHeight - pad) y -= bottom - (cssHeight - pad);
+        if (emphasized) {
+            ctx.lineWidth = 0.5;
+            ctx.strokeStyle = ctx.fillStyle;
+            ctx.lineJoin = 'round';
+            ctx.miterLimit = 2;
+            ctx.strokeText(label, x, y);
+        }
+        ctx.fillText(label, x, y);
     });
 }
 

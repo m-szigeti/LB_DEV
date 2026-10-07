@@ -17,8 +17,11 @@ import {
 } from './aoi_context.js';
 import {
     clearAnalysisSelection,
+    clearAnalysisSelectionHover,
     getActiveAdminResolutionLabel,
     getAnalysisSelectionCount,
+    getAnalysisSelectionItems,
+    highlightAnalysisSelectionItem,
     isAnalysisSelectionActive,
     setAnalysisSelectionActive
 } from './analysis_selection.js';
@@ -33,7 +36,8 @@ import {
     paintThemeSpiderCharts
 } from './theme_spider.js';
 import { isDarkTheme } from './theme_mode.js';
-import { themesForResolution } from './custom_overall_catalog.js';
+import { CUSTOM_OVERALL_THEMES, themesForResolution } from './custom_overall_catalog.js';
+import { legendMarkup, legendTitleFor } from './legend.js';
 
 function escapeHtml(text) {
     return String(text)
@@ -54,7 +58,18 @@ function downloadTextFile(filename, text, mime = 'text/plain;charset=utf-8') {
 }
 
 const PDF_EXPORT_WIDTH = 760;
-const PDF_EXPORT_PAD = 24;
+const PDF_EXPORT_PAD = 16;
+const MAP_EXPORT_MAX_HEIGHT = 560;
+const THEME_EXPORT_LAYER_IDS = new Set([
+    ...CUSTOM_OVERALL_THEMES.map(theme => theme.layerId),
+    'svOverallTensionLayer',
+    'svCustomOverallLayer'
+]);
+const ADMIN_LABEL_LEVELS = [
+    { url: 'data/ADM1_POP.geojson', field: 'ADM1_NAME', size: 12, weight: '700' },
+    { url: 'data/ADM2_POP.geojson', field: 'ADM2_NAME', size: 8, weight: '600' }
+];
+const adminLabelCache = new Map();
 
 function waitForExportImages(root) {
     const images = [...root.querySelectorAll('img')];
@@ -105,7 +120,9 @@ function fitFrame(srcWidth, srcHeight, maxWidth, maxHeight) {
 }
 
 /**
- * Place one block on its own page, scaled down so it is never sliced onto the next page.
+ * Pack blocks from the top of the page. A block that does not fit in the
+ * space left on the page moves wholly to the next page. A block taller than
+ * one page is scaled down so it still stays on a single page.
  * @param {HTMLElement[]} blocks
  * @param {string} filename
  */
@@ -127,13 +144,22 @@ async function savePdfBlocks(blocks, filename) {
     const pdf = new jsPDF('p', 'mm', 'a4');
     const pageWidth = pdf.internal.pageSize.getWidth();
     const pageHeight = pdf.internal.pageSize.getHeight();
-    const margin = 10;
+    const margin = 8;
+    const blockGap = 3;
     const usableWidth = pageWidth - margin * 2;
     const usableHeight = pageHeight - margin * 2;
     const rgb = hexToRgb(colors.background);
     const paintPage = () => {
         pdf.setFillColor(rgb.r, rgb.g, rgb.b);
         pdf.rect(0, 0, pageWidth, pageHeight, 'F');
+    };
+    let cursorY = margin;
+    let pageStarted = false;
+    const startPage = () => {
+        if (pageStarted) pdf.addPage();
+        paintPage();
+        pageStarted = true;
+        cursorY = margin;
     };
 
     for (let index = 0; index < pages.length; index += 1) {
@@ -165,20 +191,19 @@ async function savePdfBlocks(blocks, filename) {
                     doc.documentElement.classList.toggle('theme-dark', isDarkTheme());
                 }
             });
-            if (index > 0) pdf.addPage();
-            paintPage();
             let drawWidth = usableWidth;
             let drawHeight = (canvas.height * drawWidth) / canvas.width;
             if (drawHeight > usableHeight) {
                 drawHeight = usableHeight;
                 drawWidth = (canvas.width * drawHeight) / canvas.height;
             }
+            const roomLeft = pageHeight - margin - cursorY;
+            if (!pageStarted || (cursorY > margin + 0.5 && drawHeight > roomLeft)) {
+                startPage();
+            }
             const x = margin + (usableWidth - drawWidth) / 2;
-            const y =
-                block.dataset.exportAlign === 'center'
-                    ? margin + (usableHeight - drawHeight) / 2
-                    : margin;
-            pdf.addImage(canvas.toDataURL('image/png'), 'PNG', x, y, drawWidth, drawHeight);
+            pdf.addImage(canvas.toDataURL('image/png'), 'PNG', x, cursorY, drawWidth, drawHeight);
+            cursorY += drawHeight + blockGap;
         } finally {
             block.remove();
         }
@@ -300,6 +325,7 @@ async function captureLeafletMap() {
         }
     }
 
+    await drawAdminNameLabels(ctx, map, width, height);
     ctx.restore();
     try {
         return {
@@ -357,14 +383,160 @@ function waitForMapTiles(container, timeout = 1400) {
     });
 }
 
+function featureLabelLatLng(geometry) {
+    const polygons = geometry?.type === 'Polygon'
+        ? [geometry.coordinates]
+        : geometry?.type === 'MultiPolygon'
+            ? geometry.coordinates
+            : [];
+    let best = null;
+    let bestArea = -1;
+    polygons.forEach(poly => {
+        const ring = poly?.[0];
+        if (!ring?.length) return;
+        let minX = Infinity;
+        let minY = Infinity;
+        let maxX = -Infinity;
+        let maxY = -Infinity;
+        ring.forEach(point => {
+            const x = point?.[0];
+            const y = point?.[1];
+            if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+            if (x < minX) minX = x;
+            if (y < minY) minY = y;
+            if (x > maxX) maxX = x;
+            if (y > maxY) maxY = y;
+        });
+        if (!Number.isFinite(minX)) return;
+        const area = (maxX - minX) * (maxY - minY);
+        if (area > bestArea) {
+            bestArea = area;
+            best = [(minY + maxY) / 2, (minX + maxX) / 2];
+        }
+    });
+    return best;
+}
+
+function loadAdminLabelData(url) {
+    if (!adminLabelCache.has(url)) {
+        adminLabelCache.set(
+            url,
+            fetch(url)
+                .then(response => (response.ok ? response.json() : null))
+                .catch(() => null)
+        );
+    }
+    return adminLabelCache.get(url);
+}
+
+async function drawAdminNameLabels(ctx, map, width, height) {
+    if (!map || typeof map.latLngToContainerPoint !== 'function') return;
+    const dark = isDarkTheme();
+    const collections = await Promise.all(ADMIN_LABEL_LEVELS.map(level => loadAdminLabelData(level.url)));
+    collections.forEach((collection, index) => {
+        const level = ADMIN_LABEL_LEVELS[index];
+        const features = collection?.features;
+        if (!features?.length) return;
+        ctx.font = `${level.weight} ${level.size}px Calibri, "Segoe UI", sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.lineWidth = 3;
+        ctx.lineJoin = 'round';
+        ctx.strokeStyle = dark ? 'rgba(9, 17, 27, 0.88)' : 'rgba(255, 255, 255, 0.92)';
+        ctx.fillStyle = dark ? '#f8fafc' : '#0f172a';
+        features.forEach(feature => {
+            const name = String(feature?.properties?.[level.field] || '').trim();
+            const latLng = featureLabelLatLng(feature?.geometry);
+            if (!name || !latLng) return;
+            const point = map.latLngToContainerPoint(latLng);
+            if (point.x < 6 || point.y < 6 || point.x > width - 6 || point.y > height - 6) return;
+            ctx.strokeText(name, point.x, point.y);
+            ctx.fillText(name, point.x, point.y);
+        });
+    });
+}
+
+const THEME_VISUAL_KEYS = [
+    '_svChoroplethFillLayer',
+    '_svAdminOutlineLayer',
+    '_svCadastreOutlineLayer',
+    '_svVisualOutlineLayer',
+    '_svHitPolygonLayer',
+    '_svDisplacementMarkerLayer',
+    '_svServiceClusterLayer',
+    '_svServiceMarkerLayer',
+    '_svForestFireClusterLayer',
+    '_svForestFireMarkerLayer',
+    '_svForestFireGridLayer',
+    '_svScoreLabelHost',
+    '_svSectarianMarkerLayer',
+    '_svSubindicatorOverlays',
+    '_svDisplacementExtraGroups'
+];
+
+function pushThemeHost(candidate, map, out) {
+    if (!candidate || out.includes(candidate)) return;
+    if (Array.isArray(candidate)) {
+        candidate.forEach(item => pushThemeHost(item, map, out));
+        return;
+    }
+    if (typeof candidate.addTo === 'function' && map.hasLayer(candidate)) {
+        out.push(candidate);
+    }
+    if (candidate._svVisualOutlineLayer) {
+        pushThemeHost(candidate._svVisualOutlineLayer, map, out);
+    }
+}
+
+function themeVisualHosts(root, map) {
+    const hosts = [];
+    if (!root || !map) return hosts;
+    pushThemeHost(root, map, hosts);
+    THEME_VISUAL_KEYS.forEach(key => pushThemeHost(root[key], map, hosts));
+    return hosts;
+}
+
+/** Hide every other vector layer, then return a function that puts them back. */
+function isolateVectorLayer(keepId) {
+    const map = window.map;
+    const vectors = window.mapLayers?.vector || {};
+    const removed = [];
+    if (!map) return () => {};
+    Object.entries(vectors).forEach(([id, layer]) => {
+        if (!layer || id === keepId) return;
+        themeVisualHosts(layer, map).forEach(host => {
+            map.removeLayer(host);
+            removed.push(host);
+        });
+    });
+    return () => {
+        removed.forEach(host => {
+            if (!map.hasLayer(host)) host.addTo(map);
+        });
+    };
+}
+
+function activeThemeExportLayers() {
+    const infoLayers = Array.from(getAoiProviders()?.getActiveInfoLayers?.() || []);
+    return infoLayers
+        .filter(layer => layer?.id && THEME_EXPORT_LAYER_IDS.has(layer.id))
+        .map(layer => ({
+            id: layer.id,
+            name: legendTitleFor(layer.id) || layer.name || layer.id
+        }));
+}
+
 /**
- * Reframe the live map to the whole country, capture it, then restore the user's view.
- * Padding keeps the national outline inside the frame.
+ * Reframe the live map to the whole country, run captures, then restore the view.
+ * @param {(map: object) => Promise<void>} capture
  */
-async function captureCountryMap() {
+async function withCountryFrame(capture) {
     const map = window.map;
     const container = map?.getContainer?.();
-    if (!map || !container) return captureLeafletMap();
+    if (!map || !container) {
+        await capture(null);
+        return;
+    }
     const bounds = countryBounds(map);
     map.invalidateSize(false);
     const center = map.getCenter();
@@ -383,13 +555,13 @@ async function captureCountryMap() {
             map.once('moveend', finish);
             map.fitBounds(bounds, {
                 animate: false,
-                paddingTopLeft: [48, 48],
-                paddingBottomRight: [48, 48]
+                paddingTopLeft: [56, 64],
+                paddingBottomRight: [56, 64]
             });
         });
         await waitForMapTiles(container);
         await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-        return await captureLeafletMap();
+        await capture(map);
     } finally {
         map.setView(center, zoom, { animate: false });
     }
@@ -415,7 +587,7 @@ function htmlBlock(title, meta, content, { align } = {}) {
     return wrap;
 }
 
-function mapExportBlock(capture, meta) {
+function mapExportBlock({ capture, title, intro, meta, legendHtml }) {
     const figure = document.createElement('figure');
     figure.className = 'aoi-pdf-map';
     if (capture?.dataUrl && capture.width > 0 && capture.height > 0) {
@@ -423,11 +595,11 @@ function mapExportBlock(capture, meta) {
             capture.width,
             capture.height,
             PDF_EXPORT_WIDTH - PDF_EXPORT_PAD * 2 - 2,
-            2400
+            MAP_EXPORT_MAX_HEIGHT
         );
         const image = document.createElement('img');
         image.src = capture.dataUrl;
-        image.alt = 'Map of Lebanon';
+        image.alt = title || 'Map of Lebanon';
         image.width = frame.width;
         image.height = frame.height;
         image.style.width = `${frame.width}px`;
@@ -439,12 +611,62 @@ function mapExportBlock(capture, meta) {
         note.textContent = 'The map could not be captured.';
         figure.appendChild(note);
     }
-    const block = htmlBlock('Current view', meta, figure, { align: 'center' });
-    const caption = document.createElement('p');
-    caption.className = 'aoi-footnote';
-    caption.textContent = 'Whole country, with space inside the frame so the outline is not cut off.';
-    block.querySelector('.aoi-panel')?.appendChild(caption);
-    return block;
+    const body = document.createElement('div');
+    if (intro) {
+        const lead = document.createElement('p');
+        lead.className = 'aoi-pdf-intro';
+        lead.textContent = intro;
+        body.appendChild(lead);
+    }
+    body.appendChild(figure);
+    if (legendHtml) {
+        const legendHost = document.createElement('div');
+        legendHost.innerHTML = legendHtml;
+        if (legendHost.firstElementChild) body.appendChild(legendHost.firstElementChild);
+    }
+    return htmlBlock(title || 'Map', meta, body);
+}
+
+async function buildMapExportBlocks(when, resolutionLabel) {
+    const themes = activeThemeExportLayers();
+    const names = themes.map(theme => theme.name);
+    const meta = `${resolutionLabel} · Whole country · ${when}`;
+    const blocks = [];
+    const resolutionText = resolutionLabel.toLowerCase();
+    await withCountryFrame(async () => {
+        const stacked = await captureLeafletMap();
+        const stackedTitle = themes.length > 1 ? 'Stacked map' : (names[0] || 'Current view');
+        const stackedIntro = themes.length > 1
+            ? `Themes turned on together: ${names.join(', ')}. This is the stacked map. Each theme follows on its own. District and governorate names are labeled.`
+            : themes.length === 1
+                ? `${names[0]} for the whole country at ${resolutionText} resolution. Stronger symbols and higher classes show greater intensity. District and governorate names are labeled.`
+                : `The map as it is styled now, framed to the whole country. District and governorate names are labeled.`;
+        blocks.push(mapExportBlock({
+            capture: stacked,
+            title: stackedTitle,
+            intro: stackedIntro,
+            meta,
+            legendHtml: legendMarkup(themes.length ? themes.map(theme => theme.id) : null)
+        }));
+        if (themes.length < 2) return;
+        for (const theme of themes) {
+            const restore = isolateVectorLayer(theme.id);
+            try {
+                await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+                const shot = await captureLeafletMap();
+                blocks.push(mapExportBlock({
+                    capture: shot,
+                    title: theme.name,
+                    intro: `${theme.name} on its own, for the whole country at ${resolutionText} resolution. District and governorate names are labeled.`,
+                    meta,
+                    legendHtml: legendMarkup([theme.id])
+                }));
+            } finally {
+                restore();
+            }
+        }
+    });
+    return blocks;
 }
 
 function spiderExportBlock(title, meta, bundle, represented) {
@@ -497,8 +719,7 @@ async function buildDataExportBlocks(choice) {
     const covered = new Set();
 
     if (choice.view) {
-        const mapCapture = await captureCountryMap();
-        blocks.push(mapExportBlock(mapCapture, `${resolutionLabel} · Whole country · ${when}`));
+        blocks.push(...await buildMapExportBlocks(when, resolutionLabel));
     }
 
     if (choice.everything) {
@@ -678,7 +899,7 @@ function openDataExportDialog() {
                         <input type="checkbox" data-export-scope value="view" checked>
                         <span>
                             <strong>Current view</strong>
-                            <small>Map of the whole country, with the layers styled now</small>
+                            <small>Whole-country map. A stacked map stays stacked, and each theme on it is also exported on its own.</small>
                         </span>
                     </label>
                     <label class="data-export-choice">
@@ -931,6 +1152,134 @@ function renderExportThemeScores(bundle) {
 }
 
 let themeScoresCollapsed = false;
+let selectionUnitsCollapsed = false;
+
+function outerRingAreaSqM(ring) {
+    if (!ring || ring.length < 3) return 0;
+    const radius = 6378137;
+    let total = 0;
+    for (let i = 0; i < ring.length; i += 1) {
+        const start = ring[i];
+        const end = ring[(i + 1) % ring.length];
+        if (!start || !end || !Number.isFinite(start.lat) || !Number.isFinite(start.lng)) continue;
+        const lat1 = (start.lat * Math.PI) / 180;
+        const lat2 = (end.lat * Math.PI) / 180;
+        const dLng = ((end.lng - start.lng) * Math.PI) / 180;
+        total += dLng * (2 + Math.sin(lat1) + Math.sin(lat2));
+    }
+    return Math.abs((total * radius * radius) / 2);
+}
+
+function geometryAreaKm2(geometry) {
+    const polygons = geometry?.type === 'Polygon'
+        ? [geometry.coordinates]
+        : geometry?.type === 'MultiPolygon'
+          ? geometry.coordinates
+          : [];
+    let squareMeters = 0;
+    polygons.forEach(poly => {
+        const outer = poly?.[0];
+        if (!outer?.length) return;
+        squareMeters += outerRingAreaSqM(outer.map(([lng, lat]) => ({ lat, lng })));
+    });
+    return squareMeters ? squareMeters / 1e6 : null;
+}
+
+function featureAreaKm2(featureLayer) {
+    const fromGeometry = geometryAreaKm2(featureLayer?.feature?.geometry);
+    if (Number.isFinite(fromGeometry)) return fromGeometry;
+    const latlngs = featureLayer?.getLatLngs?.();
+    if (!latlngs) return null;
+    const outers = [];
+    const walk = node => {
+        if (!Array.isArray(node) || !node.length) return;
+        if (node[0]?.lat != null) {
+            outers.push(node);
+            return;
+        }
+        if (node[0]?.[0]?.lat != null) {
+            outers.push(node[0]);
+            return;
+        }
+        node.forEach(walk);
+    };
+    walk(latlngs);
+    if (!outers.length) return null;
+    const squareMeters = outers.reduce((sum, ring) => sum + outerRingAreaSqM(ring), 0);
+    if (!squareMeters) return null;
+    return squareMeters / 1e6;
+}
+
+function formatAreaKm2(km2) {
+    if (!Number.isFinite(km2)) return '—';
+    if (km2 >= 100) return km2.toLocaleString(undefined, { maximumFractionDigits: 0 });
+    if (km2 >= 10) return km2.toLocaleString(undefined, { maximumFractionDigits: 1 });
+    return km2.toLocaleString(undefined, { maximumFractionDigits: 2 });
+}
+
+function renderSelectionUnits(bundle) {
+    const items = getAnalysisSelectionItems();
+    if (!items.length) return '';
+    const unitLabel =
+        bundle?.resolutionLabel === 'Governorate'
+            ? 'Governorates'
+            : bundle?.resolutionLabel === 'Cadastre'
+              ? 'Cadastres'
+              : 'Districts';
+    const columns = (bundle?.summaries || [])
+        .filter(summary => Array.isArray(summary.entries))
+        .map(summary => ({
+            id: summary.layerId,
+            label: summary.layerName || summary.attributeLabel || 'Score',
+            scores: new Map(summary.entries.map(entry => [entry.key, entry.score]))
+        }));
+    const rows = items
+        .slice()
+        .sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')))
+        .map(item => {
+            const scores = columns
+                .map(column => {
+                    const score = column.scores.get(item.key);
+                    return `<td class="num">${escapeHtml(formatAoiNumber(score))}</td>`;
+                })
+                .join('');
+            return `
+                <tr data-selection-key="${escapeHtml(item.key)}">
+                    <td class="analysis-selection-name">${escapeHtml(item.name || 'Selected unit')}</td>
+                    <td class="num">${escapeHtml(formatAreaKm2(featureAreaKm2(item.featureLayer)))}</td>
+                    ${scores}
+                </tr>
+            `;
+        })
+        .join('');
+    const scoreHeaders = columns
+        .map(
+            column =>
+                `<th class="num" title="${escapeHtml(column.label)}">${escapeHtml(column.label)}</th>`
+        )
+        .join('');
+    const collapsed = selectionUnitsCollapsed;
+    return `
+        <div class="analysis-rankings analysis-selection-units${collapsed ? ' is-collapsed' : ''}">
+            <button type="button" class="analysis-rankings-toggle analysis-selection-toggle" aria-expanded="${collapsed ? 'false' : 'true'}">
+                <span>${escapeHtml(unitLabel)} · ${items.length}</span>
+                <span class="analysis-rankings-chevron" aria-hidden="true">${collapsed ? '▸' : '▾'}</span>
+            </button>
+            <div class="analysis-rankings-body">
+                <table class="analysis-selection-table">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th class="num">Area (km²)</th>
+                            ${scoreHeaders}
+                        </tr>
+                    </thead>
+                    <tbody>${rows}</tbody>
+                </table>
+            </div>
+        </div>
+    `;
+}
 
 function renderAoiThemeSpider(bundle, { forExport = false } = {}) {
     const pillars = bundle?.themeSums?.pillars || [];
@@ -945,6 +1294,7 @@ function renderAoiThemeSpider(bundle, { forExport = false } = {}) {
     });
     const chart = generateThemeSpiderHtml(model, {
         showLegend: false,
+        emphasizeSelected: true,
         omitTitle: !forExport,
         titleProfile: 'Theme scores',
         titleStacked: 'Theme scores',
@@ -1038,18 +1388,7 @@ export async function renderAoiPanelHtml() {
     }
 
     const bundle = await buildAoiSummaries();
-    const representedLabel =
-        bundle.resolutionLabel === 'Governorate'
-            ? 'Governorates'
-            : bundle.resolutionLabel === 'Cadastre'
-              ? 'Cadastres'
-              : 'Districts';
-    const representedNote = bundle.districtsInSelection?.length
-        ? `<div class="aoi-represented">
-                <div class="aoi-represented-label">${representedLabel} represented</div>
-                <div class="aoi-represented-names">${bundle.districtsInSelection.map(escapeHtml).join(', ')}</div>
-           </div>`
-        : '';
+    const representedNote = renderSelectionUnits(bundle);
 
     const summaryDock = renderAoiSummaryDock({
         selectionCount: bundle.selectionCount
@@ -1119,6 +1458,32 @@ export async function bindAoiPanelInteractions(root, { onChanged } = {}) {
     const notify = () => {
         if (typeof onChanged === 'function') onChanged();
     };
+
+    clearAnalysisSelectionHover();
+
+    root.querySelectorAll('.analysis-selection-toggle').forEach(button => {
+        button.addEventListener('click', () => {
+            const card = button.closest('.analysis-selection-units');
+            if (!card) return;
+            selectionUnitsCollapsed = !card.classList.contains('is-collapsed');
+            card.classList.toggle('is-collapsed', selectionUnitsCollapsed);
+            button.setAttribute('aria-expanded', selectionUnitsCollapsed ? 'false' : 'true');
+            const chevron = button.querySelector('.analysis-rankings-chevron');
+            if (chevron) chevron.textContent = selectionUnitsCollapsed ? '▸' : '▾';
+            if (selectionUnitsCollapsed) clearAnalysisSelectionHover();
+        });
+    });
+
+    root.querySelectorAll('[data-selection-key]').forEach(row => {
+        row.addEventListener('mouseenter', () => {
+            row.classList.add('is-map-hover');
+            highlightAnalysisSelectionItem(row.getAttribute('data-selection-key'));
+        });
+        row.addEventListener('mouseleave', () => {
+            row.classList.remove('is-map-hover');
+            clearAnalysisSelectionHover();
+        });
+    });
 
     root.querySelectorAll('.analysis-theme-scores-toggle').forEach(button => {
         button.addEventListener('click', () => {

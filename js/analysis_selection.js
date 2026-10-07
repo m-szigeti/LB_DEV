@@ -7,7 +7,13 @@
 
 const SELECTED_OUTLINE_STYLE = {
     color: '#7c3aed',
-    weight: 3,
+    weight: 1.5,
+    opacity: 1
+};
+
+const HOVER_OUTLINE_STYLE = {
+    color: '#f59e0b',
+    weight: 5,
     opacity: 1
 };
 
@@ -18,6 +24,8 @@ const state = {
     /** @type {Map<string, { key: string, name: string, properties: object, featureLayer: object, baseOutline: object }>} */
     items: new Map()
 };
+
+let hoveredKey = null;
 
 export function isAnalysisSelectionActive() {
     return state.active;
@@ -108,6 +116,24 @@ function captureOutlineStyle(featureLayer) {
     };
 }
 
+function selectionEntryBounds(entry) {
+    try {
+        const bounds = entry?.featureLayer?.getBounds?.();
+        if (bounds && typeof bounds.isValid === 'function' && bounds.isValid()) return bounds;
+    } catch (error) {
+        /* canvas hit stubs have no Leaflet bounds */
+    }
+    const geometry = entry?.featureLayer?.feature?.geometry;
+    const leaflet = window.L;
+    if (!leaflet || !geometry) return null;
+    try {
+        const bounds = leaflet.geoJSON(geometry).getBounds();
+        return bounds && typeof bounds.isValid === 'function' && bounds.isValid() ? bounds : null;
+    } catch (error) {
+        return null;
+    }
+}
+
 function applySelectedStyle(featureLayer) {
     if (typeof featureLayer?.setStyle !== 'function') return;
     // Outline only — never touch fillColor / fillOpacity (choropleth class colors).
@@ -131,6 +157,7 @@ export function toggleAnalysisSelectionFeature(featureLayer, properties, layerId
 
     if (state.items.has(key)) {
         const entry = state.items.get(key);
+        if (hoveredKey === key) hoveredKey = null;
         restoreFeatureStyle(entry);
         state.items.delete(key);
         notify();
@@ -194,16 +221,56 @@ export function addAnalysisSelectionFeatures(entries) {
 }
 
 export function clearAnalysisSelection() {
+    hoveredKey = null;
     state.items.forEach(entry => restoreFeatureStyle(entry));
     state.items.clear();
     notify();
 }
 
+/**
+ * Temporarily outline one selected unit so a table row can point at it on the map.
+ * @param {string} key
+ */
+export function highlightAnalysisSelectionItem(key) {
+    if (hoveredKey && hoveredKey !== key) {
+        const previous = state.items.get(hoveredKey);
+        if (previous?.featureLayer) applySelectedStyle(previous.featureLayer);
+    }
+    const entry = state.items.get(key);
+    if (!entry?.featureLayer || typeof entry.featureLayer.setStyle !== 'function') {
+        hoveredKey = null;
+        return;
+    }
+    const changed = hoveredKey !== key;
+    hoveredKey = key;
+    entry.featureLayer.setStyle({ ...HOVER_OUTLINE_STYLE });
+    entry.featureLayer.bringToFront?.();
+    if (!changed) return;
+    const map = entry.featureLayer._map || window.map;
+    const bounds = selectionEntryBounds(entry);
+    if (!map || !bounds || typeof bounds.isValid !== 'function' || !bounds.isValid()) return;
+    const view = map.getBounds?.();
+    if (view && typeof view.intersects === 'function' && !view.intersects(bounds)) {
+        map.panTo(bounds.getCenter(), { animate: true, duration: 0.25 });
+    }
+}
+
+/** Restore the selection outline after the table row hover ends. */
+export function clearAnalysisSelectionHover() {
+    if (!hoveredKey) return;
+    const entry = state.items.get(hoveredKey);
+    hoveredKey = null;
+    if (entry?.featureLayer) applySelectedStyle(entry.featureLayer);
+}
+
 export function reapplyAnalysisSelectionStyles() {
     state.items.forEach(entry => {
-        if (entry.featureLayer) {
-            applySelectedStyle(entry.featureLayer);
+        if (!entry.featureLayer) return;
+        if (entry.key === hoveredKey) {
+            entry.featureLayer.setStyle({ ...HOVER_OUTLINE_STYLE });
+            return;
         }
+        applySelectedStyle(entry.featureLayer);
     });
 }
 

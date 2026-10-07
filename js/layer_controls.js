@@ -2607,10 +2607,15 @@ function getSVCanvasChoroplethClass() {
             if (!layerId || !config) return;
             ctx.save();
             ctx.globalAlpha = 1;
+            const cadastreLabels = getActiveAdminResolution() === 'cadastre';
+            const labelFont = cadastreLabels
+                ? CADASTRE_LABEL_FONT
+                : '600 11px Calibri, "Segoe UI", sans-serif';
+            const labelFontSize = cadastreLabels ? CADASTRE_LABEL_FONT_SIZE : 11;
             ctx.fillStyle = '#111827';
             ctx.strokeStyle = 'rgba(255,255,255,0.92)';
             ctx.lineWidth = 3;
-            ctx.font = '600 11px system-ui, sans-serif';
+            ctx.font = labelFont;
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             const ll = this._ll;
@@ -2619,6 +2624,10 @@ function getSVCanvasChoroplethClass() {
                 if (!bboxIntersects(item.bbox, viewBBox)) continue;
                 const text = buildSVPermanentScoreLabelText(item.feature.properties, layerId, config);
                 if (!text) continue;
+                if (cadastreLabels) {
+                    const box = latLngBoxSizePx(map, item.bbox[1], item.bbox[0], item.bbox[3], item.bbox[2]);
+                    if (!box || !screenBoxFitsLabel(box.width, box.height, text, labelFont, labelFontSize)) continue;
+                }
                 ll.lat = (item.bbox[1] + item.bbox[3]) / 2;
                 ll.lng = (item.bbox[0] + item.bbox[2]) / 2;
                 const pt = map.latLngToContainerPoint(ll);
@@ -2645,7 +2654,7 @@ function getSVCanvasChoroplethClass() {
                     const isHighlight = Boolean(
                         style
                         && SV_CANVAS_HIGHLIGHT_COLORS.has(style.color)
-                        && (style.weight || 0) >= 3
+                        && (style.weight || 0) >= 1
                     );
                     if (isHighlight) {
                         item._highlightStyle = style;
@@ -3264,8 +3273,7 @@ async function rebuildActiveSVLayerStyles(map, layers, addLegendEntry) {
 }
 
 function syncMapDisplayLabels(map, layers) {
-    // Compact score labels already include the place name. Boxed Advanced Options
-    // admin badges only create duplicates — turn them off while Show labels is on.
+    // Name labels replace the boxed admin badges so the two do not stack.
     if (isShowLabelsMode()) {
         setAdminLabelLayersEnabled(false, map, layers?.labels);
     }
@@ -9532,25 +9540,64 @@ function buildSVHoverTooltipText(props, layerId, config) {
     return lines.join('<br>');
 }
 
-/** Compact permanent map label: place name over score, no admin/attribute prefixes. */
-function buildSVPermanentScoreLabelText(props, layerId, config) {
-    const name = getSelectedFeatureName(props) || '—';
-    if (!layerId || !config) {
-        return name;
-    }
-    if (isAcsCodeNoData(props)) {
-        return `${name}<br>No data`;
-    }
-    const attributeName = getSelectionAttributeFromConfig(config, layerId);
-    if (
-        attributeName &&
-        props[attributeName] !== undefined &&
-        props[attributeName] !== null &&
-        props[attributeName] !== ''
-    ) {
-        return `${name}<br>${formatSVHoverScoreValue(props[attributeName])}`;
-    }
+/** Permanent map label: place name only. */
+function buildSVPermanentScoreLabelText(props) {
+    if (!props) return '';
+    const name = getSelectedFeatureName(props);
+    if (!name || name === 'Selected polygon') return '';
     return name;
+}
+
+const CADASTRE_LABEL_FONT = '600 7px Calibri, "Segoe UI", sans-serif';
+const CADASTRE_LABEL_FONT_SIZE = 7;
+let svLabelMeasureContext = null;
+
+function measureLabelTextWidth(text, font) {
+    if (!svLabelMeasureContext) {
+        svLabelMeasureContext = document.createElement('canvas').getContext('2d');
+    }
+    if (!svLabelMeasureContext) return String(text || '').length * 5.5;
+    svLabelMeasureContext.font = font;
+    return svLabelMeasureContext.measureText(String(text || '')).width;
+}
+
+function screenBoxFitsLabel(boxWidth, boxHeight, text, font, fontSize) {
+    if (!(boxWidth > 0) || !(boxHeight > 0) || !text) return false;
+    const textWidth = measureLabelTextWidth(text, font);
+    const textHeight = fontSize * 1.2;
+    return boxWidth >= textWidth + 4 && boxHeight >= textHeight + 2;
+}
+
+function latLngBoxSizePx(map, south, west, north, east) {
+    if (!map || typeof map.latLngToContainerPoint !== 'function') return null;
+    const sw = map.latLngToContainerPoint([south, west]);
+    const ne = map.latLngToContainerPoint([north, east]);
+    return {
+        width: Math.abs(ne.x - sw.x),
+        height: Math.abs(ne.y - sw.y)
+    };
+}
+
+function cadastreFeatureFitsLabel(featureLayer, map, text) {
+    if (!featureLayer || !map || !text) return false;
+    let bounds = null;
+    try {
+        bounds = typeof featureLayer.getBounds === 'function' ? featureLayer.getBounds() : null;
+    } catch (error) {
+        return false;
+    }
+    if (!bounds || typeof bounds.isValid !== 'function' || !bounds.isValid()) return false;
+    const view = typeof map.getBounds === 'function' ? map.getBounds() : null;
+    if (view && typeof bounds.intersects === 'function' && !bounds.intersects(view)) return false;
+    const box = latLngBoxSizePx(
+        map,
+        bounds.getSouth(),
+        bounds.getWest(),
+        bounds.getNorth(),
+        bounds.getEast()
+    );
+    if (!box) return false;
+    return screenBoxFitsLabel(box.width, box.height, text, CADASTRE_LABEL_FONT, CADASTRE_LABEL_FONT_SIZE);
 }
 
 function clearSVHoverTooltipsOnTarget(target) {
@@ -9669,8 +9716,6 @@ function updateSVHoverTooltips(layer, layerId, config) {
     });
 }
 
-const SV_SCORE_LABEL_CADASTRE_MIN_ZOOM = 10;
-
 function getSVScoreLabelTarget(layer, layerId, config) {
     if (!layer || !config) return null;
     if (isColorOnlyMode()) {
@@ -9729,11 +9774,8 @@ function clearAllFeatureTooltips(layer) {
     });
 }
 
-function shouldShowPermanentScoreLabels(map) {
-    if (!isShowLabelsMode()) return false;
-    if (getActiveAdminResolution() !== 'cadastre') return true;
-    if (!map || typeof map.getZoom !== 'function') return false;
-    return map.getZoom() >= SV_SCORE_LABEL_CADASTRE_MIN_ZOOM;
+function shouldShowPermanentScoreLabels() {
+    return isShowLabelsMode();
 }
 
 function getSVLabelRelatedLayers(layer) {
@@ -9834,15 +9876,16 @@ function syncSVPermanentScoreLabels(map, layers) {
         const props = featureLayer?.feature?.properties;
         if (!props || typeof featureLayer.bindTooltip !== 'function') return;
 
-        if (showPermanent) {
-            const tooltipText = buildSVPermanentScoreLabelText(props, layerId, config);
+        const labelText = buildSVPermanentScoreLabelText(props, layerId, config);
+        const fits = !isCadastre || cadastreFeatureFitsLabel(featureLayer, map, labelText);
+        if (showPermanent && labelText && fits) {
             const className = [
                 'sv-score-label-tooltip',
                 isCadastre ? 'sv-score-label-cadastre' : ''
             ]
                 .filter(Boolean)
                 .join(' ');
-            featureLayer.bindTooltip(tooltipText, {
+            featureLayer.bindTooltip(labelText, {
                 permanent: true,
                 direction: 'center',
                 className,
@@ -9850,7 +9893,7 @@ function syncSVPermanentScoreLabels(map, layers) {
                 interactive: false
             });
             featureLayer._svPermanentScoreLabel = true;
-            featureLayer._svHoverTooltipText = tooltipText;
+            featureLayer._svHoverTooltipText = labelText;
         } else {
             const tooltipText = buildSVHoverTooltipText(props, layerId, config);
             featureLayer.bindTooltip(tooltipText, {
@@ -9867,6 +9910,7 @@ function attachSVScoreLabelZoomSync(map, layers) {
     if (!map) return;
     if (map._svScoreLabelZoomHandler) {
         map.off('zoomend', map._svScoreLabelZoomHandler);
+        map.off('moveend', map._svScoreLabelZoomHandler);
         map._svScoreLabelZoomHandler = null;
     }
     if (!isShowLabelsMode()) return;
@@ -9876,7 +9920,7 @@ function attachSVScoreLabelZoomSync(map, layers) {
         syncSVPermanentScoreLabels(map, layers);
     };
     map._svScoreLabelZoomHandler = handler;
-    map.on('zoomend', handler);
+    map.on('moveend', handler);
 }
 
 async function updateSelectedPolygonInfoPanel(
