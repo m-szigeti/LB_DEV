@@ -630,8 +630,19 @@ function readExportChoice(dialog) {
         view: scopes.has('view'),
         everything: scopes.has('everything'),
         selection: scopes.has('selection'),
+        csv: Boolean(dialog.querySelector('[data-export-csv]')?.checked),
         layers
     };
+}
+
+async function exportSelectionCsv() {
+    const bundle = await buildAoiSummaries();
+    if (!Array.isArray(bundle.summaries) || !bundle.summaries.length) {
+        throw new Error('CSV export needs a selection and an active scored layer.');
+    }
+    const csv = bundle.summaries.map(summary => buildAoiCsv(summary)).join('\n\n');
+    const stamp = new Date().toISOString().slice(0, 10);
+    downloadTextFile(`aoi-summary-${stamp}.csv`, csv, 'text/csv;charset=utf-8');
 }
 
 function openDataExportDialog() {
@@ -656,7 +667,7 @@ function openDataExportDialog() {
         <div class="data-export-card">
             <header class="data-export-header">
                 <div>
-                    <h2 id="data-export-title">Export data</h2>
+                    <h2 id="data-export-title">Export Analysis</h2>
                     <p>Choose what to include. Current view, all units, and the selection can be combined.</p>
                 </div>
                 <button type="button" class="data-export-close" data-export-cancel aria-label="Close">×</button>
@@ -689,6 +700,17 @@ function openDataExportDialog() {
                             </label>`
                             : ''
                     }
+                    <label class="data-export-choice">
+                        <input type="checkbox" data-export-csv ${selectionReady ? '' : 'disabled'}>
+                        <span>
+                            <strong>Spreadsheet (CSV)</strong>
+                            <small>${
+                                selectionReady
+                                    ? 'Unit scores and summary statistics for the current selection'
+                                    : 'Select units first to export a spreadsheet'
+                            }</small>
+                        </span>
+                    </label>
                 </div>
                 <h3 class="data-export-section-title">Additional layers</h3>
                 <p class="data-export-note">Add other themes and sub-indicators to the output.</p>
@@ -697,7 +719,7 @@ function openDataExportDialog() {
             </div>
             <footer class="data-export-footer">
                 <button type="button" class="data-export-secondary" data-export-cancel>Cancel</button>
-                <button type="button" class="data-export-confirm" data-export-confirm>Export PDF</button>
+                <button type="button" class="data-export-confirm" data-export-confirm>Export</button>
             </footer>
         </div>
     `;
@@ -726,25 +748,31 @@ function openDataExportDialog() {
         const confirm = event.target.closest?.('[data-export-confirm]');
         if (!confirm || confirm.disabled) return;
         const choice = readExportChoice(dialog);
-        if (!choice.view && !choice.everything && !choice.selection && !choice.layers.length) {
-            showError('Select the current view, everything, the selection, or at least one layer.');
+        const wantsPdf = choice.view || choice.everything || choice.selection || choice.layers.length;
+        if (!wantsPdf && !choice.csv) {
+            showError('Select the current view, everything, the selection, a spreadsheet, or at least one layer.');
             return;
         }
         showError('');
         busy = true;
         confirm.disabled = true;
-        confirm.textContent = 'Exporting PDF…';
+        confirm.textContent = 'Exporting…';
         try {
-            const blocks = await buildDataExportBlocks(choice);
-            const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
-            await savePdfBlocks(blocks, `data-export-${stamp}.pdf`);
+            if (choice.csv) {
+                await exportSelectionCsv();
+            }
+            if (wantsPdf) {
+                const blocks = await buildDataExportBlocks(choice);
+                const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+                await savePdfBlocks(blocks, `data-export-${stamp}.pdf`);
+            }
             close();
         } catch (error) {
-            console.error('Situation PDF export failed:', error);
-            showError(error?.message || 'Could not export the PDF.');
+            console.error('Data export failed:', error);
+            showError(error?.message || 'Could not export the data.');
             busy = false;
             confirm.disabled = false;
-            confirm.textContent = 'Export PDF';
+            confirm.textContent = 'Export';
         }
     });
 
@@ -921,9 +949,9 @@ function renderAoiThemeSpider(bundle, { forExport = false } = {}) {
         titleProfile: 'Theme scores',
         titleStacked: 'Theme scores',
         hintProfile:
-            `Each corner is a theme. Distance from the centre is the total of that theme&rsquo;s scores across ${scope}. The numbers on the rings are the scale for those totals.`,
+            `Each corner is a theme. Distance from the centre is the total of that theme&rsquo;s scores across ${scope}.`,
         hintStacked:
-            `Each coloured outline is one theme that is turned on. A larger outline means a higher total for that theme across ${scope}. The highest total reaches the outer ring, and the numbers on the rings are that scale. The colour key shows which outline is which theme.`
+            `Each coloured outline is one theme that is turned on. A larger outline means a higher total for that theme across ${scope}. The highest total reaches the outer ring. The colour key shows which outline is which theme.`
     });
     if (forExport) {
         return `<div class="aoi-theme-spider">${chart}</div>`;
@@ -938,9 +966,6 @@ function renderAoiThemeSpider(bundle, { forExport = false } = {}) {
             <div class="analysis-theme-scores-body">${chart}</div>
         </div>
         ${analysisRankingsMountHtml()}
-        <div class="aoi-export-row aoi-situation-export">
-            <button type="button" class="aoi-export-btn" data-aoi-action="export-situation">Export data</button>
-        </div>
     `;
 }
 
@@ -1000,12 +1025,14 @@ export async function renderAoiPanelHtml() {
                 <div class="aoi-empty">
                     <p class="no-results-message">Use Select Area of Interest on the map, then click units to build an AOI.</p>
                     ${analysisRankingsMountHtml()}
+                    ${renderAoiSummaryDock()}
                 </div>
             `;
         }
         return `
             <div class="aoi-panel">
                 ${spider}
+                ${renderAoiSummaryDock()}
             </div>
         `;
     }
@@ -1024,12 +1051,9 @@ export async function renderAoiPanelHtml() {
            </div>`
         : '';
 
-    const summaryHeader = `
-        <div class="aoi-header">
-            <h5 class="aoi-title">AOI summary (${escapeHtml(bundle.resolutionLabel)})</h5>
-            <p class="aoi-layer-attribute">${bundle.selectionCount} unit${bundle.selectionCount === 1 ? '' : 's'} selected</p>
-        </div>
-    `;
+    const summaryDock = renderAoiSummaryDock({
+        selectionCount: bundle.selectionCount
+    });
 
     if (!bundle.summaries.length) {
         return `
@@ -1041,15 +1065,7 @@ export async function renderAoiPanelHtml() {
                         ? ''
                         : '<p class="no-results-message">Turn on a composite or theme layer with scores to compute AOI metrics.</p>'
                 }
-                ${summaryHeader}
-                <div class="aoi-export-row">
-                    ${
-                        CUSTOM_OVERALL_BUILDER_ENABLED
-                            ? '<button type="button" class="aoi-export-btn aoi-custom-index-btn" data-aoi-action="design-custom-index">Design Custom Index</button>'
-                            : ''
-                    }
-                    <button type="button" class="aoi-export-btn" data-aoi-action="clear">Clear AOI</button>
-                </div>
+                ${summaryDock}
             </div>
         `;
     }
@@ -1059,15 +1075,34 @@ export async function renderAoiPanelHtml() {
             ${renderAoiThemeSpider(bundle) || analysisRankingsMountHtml()}
             ${representedNote}
             ${bundle.summaries.map(renderLayerSummary).join('')}
-            ${summaryHeader}
-            <div class="aoi-export-row">
+            ${summaryDock}
+        </div>
+    `;
+}
+
+function renderAoiSummaryDock({ selectionCount = 0 } = {}) {
+    const count = Number(selectionCount) || 0;
+    const hasSelection = count > 0;
+    const aoiMode = isAnalysisSelectionActive() || hasSelection;
+    const disabled = aoiMode ? '' : 'disabled';
+    return `
+        <div class="aoi-summary-dock">
+            <div class="aoi-header">
+                <h5 class="aoi-title">Custom Analysis and Saving</h5>
                 ${
-                    CUSTOM_OVERALL_BUILDER_ENABLED
-                        ? '<button type="button" class="aoi-export-btn aoi-custom-index-btn" data-aoi-action="design-custom-index">Design Custom Index</button>'
+                    hasSelection
+                        ? `<p class="aoi-layer-attribute">${count} unit${count === 1 ? '' : 's'} selected</p>`
                         : ''
                 }
-                <button type="button" class="aoi-export-btn" data-aoi-action="export-csv">Export CSV</button>
-                <button type="button" class="aoi-export-btn aoi-export-btn-muted" data-aoi-action="clear">Clear AOI</button>
+            </div>
+            <div class="aoi-export-row">
+                <button type="button" class="aoi-export-btn" data-aoi-action="export-situation">Export Analysis</button>
+                ${
+                    CUSTOM_OVERALL_BUILDER_ENABLED
+                        ? `<button type="button" class="aoi-export-btn" data-aoi-action="design-custom-index" ${disabled}>Design Custom Index</button>`
+                        : ''
+                }
+                <button type="button" class="aoi-export-btn" data-aoi-action="clear" ${disabled}>Clear AOI</button>
             </div>
         </div>
     `;
@@ -1113,26 +1148,6 @@ export async function bindAoiPanelInteractions(root, { onChanged } = {}) {
             }
             if (action === 'export-situation') {
                 openDataExportDialog();
-                return;
-            }
-            const bundle = await buildAoiSummaries();
-            const hasTheme =
-                (Array.isArray(bundle.themeSums?.pillars) && bundle.themeSums.pillars.length > 0) ||
-                (Array.isArray(bundle.themeContributions?.pillars) &&
-                    bundle.themeContributions.pillars.length > 0);
-            const hasSummaries = Array.isArray(bundle.summaries) && bundle.summaries.length > 0;
-            if (!hasSummaries && !hasTheme) {
-                window.alert('No AOI statistics to export yet. Select map units with an active scored layer.');
-                return;
-            }
-            const stamp = new Date().toISOString().slice(0, 10);
-            if (action === 'export-csv') {
-                if (!hasSummaries) {
-                    window.alert('CSV export needs an active scored layer with AOI metrics.');
-                    return;
-                }
-                const csv = bundle.summaries.map(s => buildAoiCsv(s)).join('\n\n');
-                downloadTextFile(`aoi-summary-${stamp}.csv`, csv, 'text/csv;charset=utf-8');
             }
         });
     });

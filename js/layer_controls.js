@@ -9358,6 +9358,13 @@ function clearPolygonSelection(layerId, layers) {
     hideInfoPopup();
 }
 
+/** Drop the orange click highlight when AOI selection or the lasso starts. */
+export function clearClickedPolygonHighlights() {
+    Array.from(selectedPolygonByLayer.keys()).forEach(layerId => {
+        clearPolygonSelection(layerId, null);
+    });
+}
+
 function getSelectedFeatureName(properties) {
     if (!properties) return 'Selected polygon';
 

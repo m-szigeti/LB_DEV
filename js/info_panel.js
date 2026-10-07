@@ -18,6 +18,7 @@ import {
 } from './analysis_selection.js';
 import { hideInfoPopup } from './info_popup.js';
 import { initAoiLasso, stopAoiLasso } from './aoi_lasso.js';
+import { clearClickedPolygonHighlights } from './layer_controls.js';
 import { bindAoiPanelInteractions, renderAoiPanelHtml } from './aoi_panel.js';
 import { CUSTOM_OVERALL_THEMES } from './custom_overall_catalog.js';
 import { layerVisualCueHtml, THEME_LAYER_COLORS } from './layer_cues.js';
@@ -214,12 +215,10 @@ export class InfoPanel {
 
                 <section class="info-panel-tab-panel" data-panel="analysis" role="tabpanel" hidden>
                     <div class="info-panel-section analysis-section">
-                        <div class="section-header">
-                            <h4>Area of interest</h4>
-                        </div>
                         <div class="analysis-area-charts" id="analysis-area-charts">
                             <p class="no-results-message">Use Select Area of Interest on the map, then click units to build an AOI.</p>
                         </div>
+                        <div class="analysis-aoi-dock" id="analysis-aoi-dock" hidden></div>
                     </div>
                 </section>
 
@@ -443,6 +442,7 @@ setupEventListeners() {
         }
         setAnalysisSelectionActive(next);
         if (next) {
+            clearClickedPolygonHighlights();
             hideInfoPopup();
             if (openAnalysisTab) {
                 this.setActiveTab('analysis');
@@ -478,21 +478,21 @@ setupEventListeners() {
     async renderAoiAreaCharts(areaCharts) {
         if (!areaCharts) return;
         const requestId = (this._aoiRenderRequestId = (this._aoiRenderRequestId || 0) + 1);
-        const scrollParent = areaCharts.closest('.info-panel-tab-panel');
         try {
             const html = await renderAoiPanelHtml();
             if (requestId !== this._aoiRenderRequestId) return;
-            const scrollTop = scrollParent ? scrollParent.scrollTop : 0;
+            const scrollTop = areaCharts.scrollTop;
             areaCharts.innerHTML = html;
+            this.mountAnalysisAoiDock(areaCharts);
             this.updateAnalysisSelectedCharts();
-            await bindAoiPanelInteractions(areaCharts, {
+            await bindAoiPanelInteractions(areaCharts.closest('.analysis-section') || areaCharts, {
                 onChanged: () => this.updateAnalysisAreaSelection()
             });
-            if (requestId !== this._aoiRenderRequestId || !scrollParent) return;
-            scrollParent.scrollTop = scrollTop;
+            if (requestId !== this._aoiRenderRequestId) return;
+            areaCharts.scrollTop = scrollTop;
             requestAnimationFrame(() => {
                 if (requestId === this._aoiRenderRequestId) {
-                    scrollParent.scrollTop = scrollTop;
+                    areaCharts.scrollTop = scrollTop;
                 }
             });
         } catch (error) {
@@ -500,8 +500,22 @@ setupEventListeners() {
             if (requestId !== this._aoiRenderRequestId) return;
             areaCharts.innerHTML =
                 '<p class="no-results-message">Could not build AOI summary. Check the console for details.</p><div class="analysis-rankings" id="active-layer-rankings"></div>';
+            this.mountAnalysisAoiDock(areaCharts);
             this.updateAnalysisSelectedCharts();
         }
+    }
+
+    mountAnalysisAoiDock(areaCharts) {
+        const dock = document.getElementById('analysis-aoi-dock');
+        if (!dock) return;
+        const footer = areaCharts?.querySelector('.aoi-summary-dock');
+        dock.replaceChildren();
+        if (!footer) {
+            dock.hidden = true;
+            return;
+        }
+        dock.appendChild(footer);
+        dock.hidden = false;
     }
 
     renderAnalysisAreaCharts() {

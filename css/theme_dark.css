@@ -191,7 +191,8 @@ html.theme-dark .info-panel-header {
 html.theme-dark .info-panel-tabs,
 html.theme-dark .info-panel-tab-panel,
 html.theme-dark .info-panel-content,
-html.theme-dark .info-panel-section {
+html.theme-dark .info-panel-section,
+html.theme-dark .analysis-aoi-dock {
     background: #1a2430;
     color: #e8eef4;
     border-color: #1f3e5a;
@@ -716,6 +717,20 @@ html.theme-dark .aoi-custom-index-btn:hover:not(:disabled) {
     background: #1f3e5a;
     color: #ffffff;
     border-color: #2596be;
+}
+
+html.theme-dark .analysis-aoi-dock .aoi-export-btn,
+html.theme-dark .analysis-aoi-dock .aoi-export-btn:hover:not(:disabled) {
+    background: #1f3e5a;
+    color: #e8eef4;
+    border-color: #2596be;
+}
+
+html.theme-dark .analysis-aoi-dock .aoi-export-btn:disabled {
+    background: #09111b;
+    color: #64748b;
+    border-color: #1f3e5a;
+    opacity: 1;
 }
 
 html.theme-dark .ask-ai-textarea,

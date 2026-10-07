@@ -247,7 +247,18 @@
 }
 
 .info-panel-tab-panel[data-panel="analysis"] {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
     overflow-anchor: none;
+}
+
+.info-panel-tab-panel[data-panel="analysis"] .analysis-section {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
 }
 
 .info-panel-tab-panel[hidden] {
@@ -832,7 +843,56 @@
 }
 
 .analysis-area-charts {
-    margin-bottom: 16px;
+    flex: 1;
+    min-height: 0;
+    margin-bottom: 0;
+    overflow-y: auto;
+}
+
+.analysis-aoi-dock {
+    flex: 0 0 auto;
+    margin: 12px -16px -16px;
+    padding: 12px 16px 14px;
+    border-top: 1px solid #e2e8f0;
+    background: #fff;
+}
+
+.analysis-aoi-dock[hidden] {
+    display: none;
+}
+
+.analysis-aoi-dock .aoi-header {
+    margin-top: 0;
+}
+
+.analysis-aoi-dock .aoi-export-row {
+    margin-bottom: 0;
+}
+
+.analysis-aoi-dock .aoi-export-btn,
+.analysis-aoi-dock .aoi-export-btn.aoi-custom-index-btn,
+.analysis-aoi-dock .aoi-export-btn.aoi-export-btn-muted {
+    border: 1px solid #cbd5e1;
+    background: #f8fafc;
+    color: #334155;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 6px 10px;
+    border-radius: 4px;
+}
+
+.analysis-aoi-dock .aoi-export-btn:hover:not(:disabled) {
+    background: #e2e8f0;
+    border-color: #94a3b8;
+    color: #1e293b;
+}
+
+.analysis-aoi-dock .aoi-export-btn:disabled {
+    background: #f1f5f9;
+    border-color: #e2e8f0;
+    color: #94a3b8;
+    opacity: 1;
+    cursor: not-allowed;
 }
 
 /* —— AOI summary (core Analysis feature; sandbox-independent) —— */

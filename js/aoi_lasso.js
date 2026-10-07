@@ -5,6 +5,7 @@ import {
     setAnalysisSelectionActive
 } from './analysis_selection.js';
 import { hideInfoPopup } from './info_popup.js';
+import { clearClickedPolygonHighlights } from './layer_controls.js';
 
 let lassoActive = false;
 let drawing = false;
@@ -212,6 +213,7 @@ export function stopAoiLasso() {
 export function startAoiLasso() {
     const map = window.map;
     if (!map) return;
+    clearClickedPolygonHighlights();
     if (!isAnalysisSelectionActive()) {
         setAnalysisSelectionActive(true);
         hideInfoPopup();
