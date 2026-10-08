@@ -28,6 +28,38 @@ html.theme-dark #sidebar {
     color: #e8eef4;
 }
 
+html.theme-dark,
+html.theme-dark * {
+    scrollbar-color: #3d5166 transparent;
+    scrollbar-width: thin;
+}
+
+html.theme-dark *::-webkit-scrollbar,
+html.theme-dark #sidebar::-webkit-scrollbar,
+html.theme-dark .info-panel-content::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+html.theme-dark *::-webkit-scrollbar-track,
+html.theme-dark #sidebar::-webkit-scrollbar-track,
+html.theme-dark .info-panel-content::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+html.theme-dark *::-webkit-scrollbar-thumb,
+html.theme-dark #sidebar::-webkit-scrollbar-thumb,
+html.theme-dark .info-panel-content::-webkit-scrollbar-thumb {
+    background-color: #3d5166;
+    border-radius: 8px;
+}
+
+html.theme-dark *::-webkit-scrollbar-thumb:hover,
+html.theme-dark #sidebar::-webkit-scrollbar-thumb:hover,
+html.theme-dark .info-panel-content::-webkit-scrollbar-thumb:hover {
+    background-color: #5c738a;
+}
+
 html.theme-dark .left-sidebar-resize-handle {
     background: #1a2430;
     border-right-color: #1f3e5a;
